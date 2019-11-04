@@ -36,7 +36,9 @@ import qualified Data.IntMap as IntMap
 -- with two associative binary (i.e. semigroup) operations: (<>) and (><), along with a 
 -- right-distributivity property connecting them:
 --
--- @(a <> b) >< c = (a >< c) <> (b >< c)@
+-- @
+-- (a <> b) >< c ≡ (a >< c) <> (b >< c)
+-- @
 --
 -- A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring 
 -- with a 'mempty' element that is neutral with respect to both addition and multiplication.
@@ -45,9 +47,8 @@ import qualified Data.IntMap as IntMap
 -- and 'unit', such that 'mempty' is right-neutral wrt addition, 'unit' is right-neutral wrt
 --  multiplication, and 'mempty' is right-annihilative wrt multiplication. 
 --
--- Note that 'unit' needn't be distinct from 'mempty'.
---
--- Instances also need not be commutative nor left-distributive. 
+-- Note that 'unit' needn't be distinct from 'mempty', moreover addition and multiplication
+-- needn't be commutative or left-distributive.
 --
 -- See the properties module for a detailed specification of the laws.
 --
@@ -88,7 +89,7 @@ fromBooleanDef o True = o
 --
 -- In this situation you most likely want to use 'product1'.
 --
-product :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
+product :: Foldable t => Monoid r => Semiring r => (a -> r) -> t a -> r
 product f = foldr' ((><) . f) unit
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
@@ -98,39 +99,44 @@ product f = foldr' ((><) . f) unit
 -- >>> product1 Just $ 1 :| [2..(5 :: Int)]
 -- Just 120
 --
-product1 :: (Foldable1 t, Semiring r) => (a -> r) -> t a -> r
+product1 :: Foldable1 t => Semiring r => (a -> r) -> t a -> r
 product1 f = getProd . foldMap1 (Prod . f)
 
 -- | Cross-multiply two collections.
 --
--- >>> cross [1,2,3 ::Int] [1,2,3]
+-- >>> cross [1,2,3 :: Int] [1,2,3]
 -- 36
 --
--- >>> cross [1,2,3 ::Int] []
+-- >>> cross [1,2,3 :: Int] []
 -- 0
 --
-cross :: (Foldable t, Applicative t, Monoid r, Semiring r) => t r -> t r -> r
+cross :: Foldable f => Applicative f => Monoid r => Semiring r => f r -> f r -> r
 cross a b = fold $ liftA2 (><) a b
 
+-- | Cross-multiply two non-empty collections.
+--
 -- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
 -- Right 4
-cross1 :: (Foldable1 t, Apply t, Semiring r) => t r -> t r -> r
+--
+cross1 :: Foldable1 f => Apply f => Semiring r => f r -> f r -> r
 cross1 a b = fold1 $ liftF2 (><) a b
-
--- | Fold with no additive or multiplicative unit.
-foldPresemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
-foldPresemiring = foldMap1 . product1
-
--- | Fold with no multiplicative unit.
-foldNonunital :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
-foldNonunital = foldMap . product1
 
 -- | Fold with additive & multiplicative units.
 --
 -- This function will zero out if there is no multiplicative unit.
 --
-foldUnital :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
-foldUnital = foldMap . product
+unital :: Monoid r => Semiring r => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
+unital = foldMap . product
+
+-- | Fold with no multiplicative unit.
+--
+nonunital :: Monoid r => Semiring r => Foldable f => Foldable1 g => (a -> r) -> f (g a) -> r
+nonunital = foldMap . product1
+
+-- | Fold with no additive or multiplicative unit.
+--
+presemiring :: Semiring r => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
+presemiring = foldMap1 . product1
 
 -- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
 --
@@ -151,15 +157,15 @@ replicate y0 x0
             | otherwise = g (x <> x) ((y - 1) `quot` 2) (x <> z)
 {-# INLINE replicate #-}
 
-replicate' :: (Monoid r, Semiring r) => Natural -> r -> r
+replicate' :: Monoid r => Semiring r => Natural -> r -> r
 replicate' n r = getProd $ replicate n (Prod r)
 
 infixr 8 ^
 
-(^) :: (Monoid r, Semiring r) => r -> Natural -> r
+(^) :: Monoid r => Semiring r => r -> Natural -> r
 (^) = flip replicate'
 
-powers :: (Monoid r, Semiring r) => Natural -> r -> r
+powers :: Monoid r => Semiring r => Natural -> r -> r
 powers n a = foldr' (<>) unit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
 

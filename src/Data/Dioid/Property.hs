@@ -44,12 +44,11 @@ module Data.Dioid.Property (
 import Data.Prd
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Semiring
+import Data.Semiring hiding (nonunital)
 import Data.Semigroup.Orphan ()
 import Test.Property.Util ((<==>),(==>))
 import qualified Test.Property as Prop hiding (distributive_on)
 import qualified Data.Semiring.Property as Prop
-
 
 
 ------------------------------------------------------------------------------------
