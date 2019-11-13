@@ -1,37 +1,8 @@
 {-# Language AllowAmbiguousTypes #-}
 
 module Data.Dioid.Property (
-  -- * Properties of pre-semirings & semirings
-    neutral_addition
-  , neutral_addition'
-  , neutral_multiplication
-  , neutral_multiplication'
-  , associative_addition 
-  , associative_multiplication 
-  , distributive 
-  -- * Properties of non-unital (near-)semirings
-  , nonunital
-  -- * Properties of unital semirings
-  , annihilative_multiplication 
-  , Prop.homomorphism_boolean
-  -- * Properties of cancellative semirings 
-  , cancellative_addition 
-  , cancellative_multiplication 
-  -- * Properties of commutative semirings 
-  , commutative_addition 
-  , commutative_multiplication
-  -- * Properties of absorbative semirings 
-  , absorbative_addition
-  , absorbative_addition'
-  , idempotent_addition
-  , absorbative_multiplication
-  , absorbative_multiplication' 
-  -- * Properties of annihilative semirings 
-  , annihilative_addition 
-  , annihilative_addition' 
-  , codistributive
-  -- * Properties of ordered semirings 
-  , ordered_preordered
+  -- * Properties of dioids (aka ordered semirings) 
+    ordered_preordered
   , ordered_monotone_zero
   , ordered_monotone_addition
   , ordered_positive_addition
@@ -39,185 +10,101 @@ module Data.Dioid.Property (
   , ordered_annihilative_unit 
   , ordered_idempotent_addition
   , ordered_positive_multiplication
+  -- * Properties of absorbative dioids 
+  , absorbative_addition
+  , absorbative_addition'
+  , idempotent_addition
+  , absorbative_multiplication
+  , absorbative_multiplication' 
+  -- * Properties of annihilative dioids 
+  , annihilative_addition 
+  , annihilative_addition' 
+  , codistributive
+  -- * Properties of closed dioids
+  , closed_pstable
+  , closed_paffine 
+  , closed_stable 
+  , closed_affine 
+  , idempotent_star
 ) where
 
 import Data.Prd
+import Data.Dioid
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Semiring hiding (nonunital)
 import Data.Semigroup.Orphan ()
+import Numeric.Natural
 import Test.Property.Util ((<==>),(==>))
 import qualified Test.Property as Prop hiding (distributive_on)
 import qualified Data.Semiring.Property as Prop
 
-
 ------------------------------------------------------------------------------------
--- Properties of pre-semirings & semirings
+-- Properties of ordered semirings (aka dioids).
 
--- | \( \forall a \in R: (z + a) = a \)
+-- | '<~' is a preordered relation relative to '<>'.
 --
--- A (pre-)semiring with a right-neutral additive unit must satisfy:
+-- This is a required property.
 --
--- @
--- 'neutral_addition' 'mempty' ~~ const True
--- @
+ordered_preordered :: Dioid r => r -> r -> Bool
+ordered_preordered a b = a <~ (a <> b)
+
+-- | 'mempty' is a minimal or least element of @r@.
+--
+-- This is a required property.
+--
+ordered_monotone_zero :: (Monoid r, Dioid r) => r -> Bool
+ordered_monotone_zero a = mempty ?~ a ==> mempty <~ a 
+
+-- | \( \forall a, b, c: b \leq c \Rightarrow b + a \leq c + a
+--
+-- In an ordered semiring this follows directly from the definition of '<~'.
+--
+-- Compare 'cancellative_addition'.
 -- 
--- Or, equivalently:
+-- This is a required property.
 --
--- @
--- 'mempty' '<>' r ~~ r
--- @
+ordered_monotone_addition :: Dioid r => r -> r -> r -> Bool
+ordered_monotone_addition a = Prop.monotone_on (<~) (<~) (<> a)
+
+-- |  \( \forall a, b: a + b = 0 \Rightarrow a = 0 \wedge b = 0 \)
 --
 -- This is a required property.
 --
-neutral_addition :: (Eq r, Prd r, Semigroup r) => r -> r -> Bool
-neutral_addition = Prop.neutral_addition_on (~~)
+ordered_positive_addition :: (Prd r, Monoid r) => r -> r -> Bool
+ordered_positive_addition a b = a <> b =~ mempty ==> a =~ mempty && b =~ mempty
 
-neutral_addition' :: (Eq r, Prd r, Monoid r, Semigroup r) => r -> Bool
-neutral_addition' = Prop.neutral_addition_on' (~~)
-
--- | \( \forall a \in R: (o * a) = a \)
+-- | \( \forall a, b, c: b \leq c \Rightarrow b * a \leq c * a
 --
--- A (pre-)semiring with a right-neutral multiplicative unit must satisfy:
+-- In an ordered semiring this follows directly from 'distributive' and the definition of '<~'.
 --
--- @
--- 'neutral_multiplication' 'unit' ~~ const True
--- @
--- 
--- Or, equivalently:
---
--- @
--- 'unit' '><' r ~~ r
--- @
+-- Compare 'cancellative_multiplication'.
 --
 -- This is a required property.
 --
-neutral_multiplication :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
-neutral_multiplication = Prop.neutral_multiplication_on (~~)
+ordered_monotone_multiplication :: Dioid r => r -> r -> r -> Bool
+ordered_monotone_multiplication a = Prop.monotone_on (<~) (<~) (>< a)
 
-neutral_multiplication' :: (Eq r, Prd r, Monoid r, Semiring r) => r -> Bool
-neutral_multiplication' = Prop.neutral_multiplication_on' (~~)
-
--- | \( \forall a, b, c \in R: (a + b) + c = a + (b + c) \)
+-- | '<~' is consistent with annihilativity.
 --
--- /R/ must right-associate addition.
---
--- This should be verified by the underlying 'Semigroup' instance,
--- but is included here for completeness.
---
--- This is a required property.
---
-associative_addition :: (Eq r, Prd r, Semigroup r) => r -> r -> r -> Bool
-associative_addition = Prop.associative_addition_on (~~)
-
--- | \( \forall a, b, c \in R: (a * b) * c = a * (b * c) \)
---
--- /R/ must right-associate multiplication.
---
--- This is a required property.
---
-associative_multiplication :: (Eq r, Prd r, Semiring r) => r -> r -> r -> Bool
-associative_multiplication = Prop.associative_multiplication_on (~~)
-
--- | \( \forall a, b, c \in R: (a + b) * c = (a * c) + (b * c) \)
---
--- /R/ must right-distribute multiplication.
---
--- When /R/ is a functor and the semiring structure is derived from 'Alternative', 
--- this translates to: 
+-- This means that a dioid with an annihilative multiplicative unit must satisfy:
 --
 -- @
--- (a '<|>' b) '*>' c = (a '*>' c) '<|>' (b '*>' c)
--- @  
---
--- See < https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus >.
---
--- This is a required property.
---
-distributive :: (Eq r, Prd r, Semiring r) => r -> r -> r -> Bool
-distributive = Prop.distributive_on (~~)
-
-------------------------------------------------------------------------------------
--- Properties of non-unital semirings (aka near-semirings)
-
--- | \( \forall a, b \in R: a * b = a * b + b \)
---
--- If /R/ is non-unital (i.e. /unit/ equals /mempty/) then it will instead satisfy 
--- a right-absorbtion property. 
---
--- This follows from right-neutrality and right-distributivity.
---
--- Compare 'codistributive' and 'closed_stable'.
---
--- When /R/ is also left-distributive we get: \( \forall a, b \in R: a * b = a + a * b + b \)
---
--- See also 'Data.Warning' and < https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif >.
---
-nonunital :: forall r. (Eq r, Prd r, Monoid r, Semiring r) => r -> r -> Bool
-nonunital = Prop.nonunital_on (~~)
-
-------------------------------------------------------------------------------------
--- Properties of unital semirings
-
--- | \( \forall a \in R: (z * a) = u \)
---
--- A /R/ is unital then its addititive unit must be right-annihilative, i.e.:
---
--- @
--- 'mempty' '><' a ~~ 'mempty'
+-- ('one' <~) ≡ ('one' ==)
 -- @
 --
--- For 'Alternative' instances this property translates to:
---
--- @
--- 'empty' '*>' a ~~ 'empty'
--- @
---
--- All right semirings must have a right-absorbative addititive unit,
--- however note that depending on the 'Prd' instance this does not preclude 
--- IEEE754-mandated behavior such as: 
---
--- @
--- 'mempty' '><' NaN ~~ NaN
--- @
---
--- This is a required property.
---
-annihilative_multiplication :: (Eq r, Prd r, Monoid r, Semiring r) => r -> Bool
-annihilative_multiplication = Prop.annihilative_multiplication_on (~~)
+ordered_annihilative_unit :: (Monoid r, Dioid r) => r -> Bool
+ordered_annihilative_unit a = unit <~ a <==> unit =~ a
 
-------------------------------------------------------------------------------------
--- Properties of cancellative & commutative semirings
-
-
--- | \( \forall a, b, c \in R: b + a = c + a \Rightarrow b = c \)
+-- | \( \forall a, b: a \leq b \Rightarrow a + b = b
 --
--- If /R/ is right-cancellative wrt addition then for all /a/
--- the section /(a <>)/ is injective.
+ordered_idempotent_addition :: (Prd r, Monoid r) => r -> r -> Bool
+ordered_idempotent_addition a b = (a <~ b) <==> (a <> b =~ b)
+
+-- |  \( \forall a, b: a * b = 0 \Rightarrow a = 0 \vee b = 0 \)
 --
-cancellative_addition :: (Eq r, Prd r, Semigroup r) => r -> r -> r -> Bool
-cancellative_addition = Prop.cancellative_addition_on (~~)
-
-
--- | \( \forall a, b, c \in R: b * a = c * a \Rightarrow b = c \)
---
--- If /R/ is right-cancellative wrt multiplication then for all /a/
--- the section /(a ><)/ is injective.
---
-cancellative_multiplication :: (Eq r, Prd r, Semiring r) => r -> r -> r -> Bool
-cancellative_multiplication = Prop.cancellative_multiplication_on (~~)
-
--- | \( \forall a, b \in R: a + b = b + a \)
---
-commutative_addition :: (Eq r, Prd r, Semigroup r) => r -> r -> Bool
-commutative_addition = Prop.commutative_addition_on (=~)
-
-
--- | \( \forall a, b \in R: a * b = b * a \)
---
-commutative_multiplication :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
-commutative_multiplication = Prop.commutative_multiplication_on (=~)
-
+ordered_positive_multiplication :: (Monoid r, Dioid r) => r -> r -> Bool
+ordered_positive_multiplication a b = a >< b =~ mempty ==> a =~ mempty || b =~ mempty
 
 ------------------------------------------------------------------------------------
 -- Properties of idempotent & absorbative semirings
@@ -230,10 +117,10 @@ commutative_multiplication = Prop.commutative_multiplication_on (=~)
 -- 'absorbative_addition' 'unit' a ~~ a <> a ~~ a
 -- @
 --
-absorbative_addition :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
+absorbative_addition :: (Eq r, Dioid r) => r -> r -> Bool
 absorbative_addition a b = a >< b <> b ~~ b
 
-idempotent_addition :: (Eq r, Prd r, Monoid r, Semiring r) => r -> Bool
+idempotent_addition :: (Eq r, Monoid r, Dioid r) => r -> Bool
 idempotent_addition = absorbative_addition unit
  
 -- | \( \forall a, b \in R: b + b * a = b \)
@@ -244,7 +131,7 @@ idempotent_addition = absorbative_addition unit
 -- 'absorbative_addition' 'unit' a ~~ a <> a ~~ a
 -- @
 --
-absorbative_addition' :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
+absorbative_addition' :: (Eq r, Dioid r) => r -> r -> Bool
 absorbative_addition' a b = b <> b >< a ~~ b
 
 -- | \( \forall a, b \in R: (a + b) * b = b \)
@@ -257,7 +144,7 @@ absorbative_addition' a b = b <> b >< a ~~ b
 --
 -- See < https://en.wikipedia.org/wiki/Absorption_law >.
 --
-absorbative_multiplication :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
+absorbative_multiplication :: (Eq r, Dioid r) => r -> r -> Bool
 absorbative_multiplication a b = (a <> b) >< b ~~ b
 
 --absorbative_multiplication a b c = (a <> b) >< c ~~ c
@@ -274,8 +161,11 @@ absorbative_multiplication a b = (a <> b) >< b ~~ b
 --
 -- See < https://en.wikipedia.org/wiki/Absorption_law >.
 --
-absorbative_multiplication' :: (Eq r, Prd r, Semiring r) => r -> r -> Bool
+absorbative_multiplication' :: (Eq r, Dioid r) => r -> r -> Bool
 absorbative_multiplication' a b = b >< (b <> a) ~~ b
+
+------------------------------------------------------------------------------------
+-- Properties of idempotent and annihilative dioids.
 
 -- | \( \forall a \in R: o + a = o \)
 --
@@ -297,9 +187,8 @@ absorbative_multiplication' a b = b >< (b <> a) ~~ b
 -- 'pure' a '<|>' _ ~~ 'pure' a
 -- @
 --
-annihilative_addition :: (Eq r, Prd r, Monoid r, Semiring r) => r -> Bool
+annihilative_addition :: (Eq r, Monoid r, Dioid r) => r -> Bool
 annihilative_addition r = Prop.annihilative_on (~~) (<>) unit r
-
 
 -- | \( \forall a \in R: a + o = o \)
 --
@@ -314,7 +203,7 @@ annihilative_addition r = Prop.annihilative_on (~~) (<>) unit r
 --
 -- See < https://winterkoninkje.dreamwidth.org/90905.html >.
 --
-annihilative_addition' :: (Eq r, Prd r, Monoid r, Semiring r) => r -> Bool
+annihilative_addition' :: (Eq r, Monoid r, Dioid r) => r -> Bool
 annihilative_addition' r = Prop.annihilative_on' (~~) (<>) unit r
 
 -- | \( \forall a, b, c \in R: c + (a * b) \equiv (c + a) * (c + b) \)
@@ -333,75 +222,63 @@ annihilative_addition' r = Prop.annihilative_on' (~~) (<>) unit r
 --
 -- Furthermore if /R/ is commutative then it is a right-distributive lattice.
 --
-codistributive :: (Eq r, Prd r, Semiring r) => r -> r -> r -> Bool
+codistributive :: (Eq r, Dioid r) => r -> r -> r -> Bool
 codistributive = Prop.distributive_on' (~~) (><) (<>)
 
 ------------------------------------------------------------------------------------
--- Properties of ordered semirings (aka dioids).
+-- Properties of closed dioids
 
--- | '<~' is a preordered relation relative to '<>'.
+-- | \( 1 + \sum_{i=1}^{P+1} a^i = 1 + \sum_{i=1}^{P} a^i \)
 --
--- This is a required property.
---
-ordered_preordered :: (Prd r, Semiring r) => r -> r -> Bool
-ordered_preordered a b = a <~ (a <> b)
-
--- | 'mempty' is a minimal or least element of @r@.
---
--- This is a required property.
---
-ordered_monotone_zero :: (Prd r, Monoid r) => r -> Bool
-ordered_monotone_zero a = mempty ?~ a ==> mempty <~ a 
-
--- | \( \forall a, b, c: b \leq c \Rightarrow b + a \leq c + a
---
--- In an ordered semiring this follows directly from the definition of '<~'.
---
--- Compare 'cancellative_addition'.
--- 
--- This is a required property.
---
-ordered_monotone_addition :: (Prd r, Semiring r) => r -> r -> r -> Bool
-ordered_monotone_addition a = Prop.monotone_on (<~) (<~) (<> a)
-
--- |  \( \forall a, b: a + b = 0 \Rightarrow a = 0 \wedge b = 0 \)
---
--- This is a required property.
---
-ordered_positive_addition :: (Prd r, Monoid r) => r -> r -> Bool
-ordered_positive_addition a b = a <> b =~ mempty ==> a =~ mempty && b =~ mempty
-
--- | \( \forall a, b, c: b \leq c \Rightarrow b * a \leq c * a
---
--- In an ordered semiring this follows directly from 'distributive' and the definition of '<~'.
---
--- Compare 'cancellative_multiplication'.
---
--- This is a required property.
---
-ordered_monotone_multiplication :: (Prd r, Semiring r) => r -> r -> r -> Bool
-ordered_monotone_multiplication a = Prop.monotone_on (<~) (<~) (>< a)
-
-------------------------------------------------------------------------------------
--- Properties of idempotent and annihilative dioids.
-
--- | '<~' is consistent with annihilativity.
---
--- This means that a dioid with an annihilative multiplicative unit must satisfy:
+-- If /a/ is p-stable for some /p/, then we have:
 --
 -- @
--- ('one' <~) ≡ ('one' ==)
+-- 'powers' p a ~~ a '><' 'powers' p a '<>' 'unit'  ~~ 'powers' p a '><' a '<>' 'unit' 
 -- @
 --
-ordered_annihilative_unit :: (Prd r, Monoid r, Semiring r) => r -> Bool
-ordered_annihilative_unit a = unit <~ a <==> unit =~ a
-
--- | \( \forall a, b: a \leq b \Rightarrow a + b = b
+-- If '<>' and '><' are idempotent then every element is 1-stable:
 --
-ordered_idempotent_addition :: (Prd r, Monoid r) => r -> r -> Bool
-ordered_idempotent_addition a b = (a <~ b) <==> (a <> b =~ b)
-
--- |  \( \forall a, b: a * b = 0 \Rightarrow a = 0 \vee b = 0 \)
+-- @ a '><' a '<>' a '<>' 'unit' = a '<>' a '<>' 'unit' = a '<>' 'unit' @
 --
-ordered_positive_multiplication :: (Prd r, Monoid r, Semiring r) => r -> r -> Bool
-ordered_positive_multiplication a b = a >< b =~ mempty ==> a =~ mempty || b =~ mempty
+closed_pstable :: (Eq r, Prd r, Monoid r, Dioid r) => Natural -> r -> Bool
+closed_pstable p a = powers p a ~~ powers (p <> unit) a
+
+-- | \( x = a * x + b \Rightarrow x = (1 + \sum_{i=1}^{P} a^i) * b \)
+--
+-- If /a/ is p-stable for some /p/, then we have:
+--
+closed_paffine :: (Eq r, Monoid r, Dioid r) => Natural -> r -> r -> Bool
+closed_paffine p a b = closed_pstable p a ==> x ~~ a >< x <> b 
+  where x = powers p a >< b
+
+-- | \( \forall a \in R : a^* = a^* * a + 1 \)
+--
+-- Closure is /p/-stability for all /a/ in the limit as \( p \to \infinity \).
+--
+-- One way to think of this property is that all geometric series
+-- "converge":
+--
+-- \( \forall a \in R : 1 + \sum_{i \geq 1} a^i \in R \)
+--
+closed_stable :: (Eq r, Monoid r, Dioid r, Closed r) => r -> Bool
+closed_stable a = star a ~~ star a >< a <> unit
+
+closed_stable' :: (Eq r, Monoid r, Dioid r, Closed r) => r -> Bool
+closed_stable' a = star a ~~ unit <> a >< star a
+
+closed_affine :: (Eq r, Monoid r, Dioid r, Closed r) => r -> r -> Bool
+closed_affine a b = x ~~ a >< x <> b where x = star a >< b
+
+-- If /R/ is closed then 'star' must be idempotent:
+--
+-- @'star' ('star' a) ~~ 'star' a@
+--
+idempotent_star :: (Eq r, Monoid r, Dioid r, Closed r) => r -> Bool
+idempotent_star = Prop.idempotent star
+
+-- If @r@ is a closed dioid then 'star' must be monotone:
+--
+-- @x '<~' y ==> 'star' x '<~' 'star' y@
+--
+monotone_star :: (Monoid r, Dioid r, Closed r) => r -> r -> Bool
+monotone_star = Prop.monotone_on (<~) (<~) star

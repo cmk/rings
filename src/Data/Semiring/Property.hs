@@ -25,14 +25,6 @@ module Data.Semiring.Property (
   , distributive_finite1_on 
   , distributive_cross_on
   , distributive_cross1_on 
-{-
-  -- * Properties of closed semirings
-  , closed_pstable
-  , closed_paffine 
-  , closed_stable 
-  , closed_affine 
-  , idempotent_star
--}
 ) where
 
 import Data.List.NonEmpty (NonEmpty(..))
@@ -147,7 +139,6 @@ distributive_on (~~) = Prop.distributive_on (~~) (<>) (><)
 nonunital_on :: (Monoid r, Semiring r) => Rel r -> r -> r -> Bool
 nonunital_on (~~) a b = (a >< b) ~~ (a >< b <> b)
 
-
 ------------------------------------------------------------------------------------
 -- Properties of unital semirings
 
@@ -195,7 +186,6 @@ homomorphism_boolean i j =
 ------------------------------------------------------------------------------------
 -- Properties of cancellative & commutative semirings
 
-
 -- | \( \forall a, b, c \in R: b + a \sim c + a \Rightarrow b = c \)
 --
 -- If /R/ is right-cancellative wrt addition then for all /a/
@@ -203,7 +193,6 @@ homomorphism_boolean i j =
 --
 cancellative_addition_on :: Semigroup r => Rel r -> r -> r -> r -> Bool
 cancellative_addition_on (~~) a = Prop.injective_on (~~) (<> a)
-
 
 -- | \( \forall a, b, c \in R: b * a \sim c * a \Rightarrow b = c \)
 --
@@ -213,12 +202,10 @@ cancellative_addition_on (~~) a = Prop.injective_on (~~) (<> a)
 cancellative_multiplication_on :: Semiring r => Rel r -> r -> r -> r -> Bool
 cancellative_multiplication_on (~~) a = Prop.injective_on (~~) (>< a)
 
-
 -- | \( \forall a, b \in R: a + b \sim b + a \)
 --
 commutative_addition_on :: Semigroup r => Rel r -> r -> r -> Bool
 commutative_addition_on (~~) = Prop.commutative_on (~~) (<>)
-
 
 -- | \( \forall a, b \in R: a * b \sim b * a \)
 --
@@ -253,71 +240,9 @@ distributive_finite1_on (~~) as b = fold1 as >< b ~~ foldMap1 (>< b) as
 distributive_cross_on :: (Monoid r, Semiring r) => Rel r -> [r] -> [r] -> Bool
 distributive_cross_on (~~) as bs = fold as >< fold bs ~~ cross as bs
 
-
 -- | \( \forall M,N \geq 1; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) = \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
 -- If /R/ is also left-distributive then it supports (non-empty) cross-multiplication.
 --
 distributive_cross1_on :: Semiring r => Rel r -> NonEmpty r -> NonEmpty r -> Bool
 distributive_cross1_on (~~) as bs = fold1 as >< fold1 bs ~~ cross1 as bs
-
-------------------------------------------------------------------------------------
--- Properties of closed semirings
-
-{-
--- | \( 1 + \sum_{i=1}^{P+1} a^i = 1 + \sum_{i=1}^{P} a^i \)
---
--- If /a/ is p-stable for some /p/, then we have:
---
--- @
--- 'powers' p a ~~ a '><' 'powers' p a '<>' 'unit'  ~~ 'powers' p a '><' a '<>' 'unit' 
--- @
---
--- If '<>' and '><' are idempotent then every element is 1-stable:
---
--- @ a '><' a '<>' a '<>' 'unit' = a '<>' a '<>' 'unit' = a '<>' 'unit' @
---
-closed_pstable :: (Eq r, Prd r, Monoid r, Semiring r) => Natural -> r -> Bool
-closed_pstable p a = powers p a ~~ powers (p <> unit) a
-
--- | \( x = a * x + b \Rightarrow x = (1 + \sum_{i=1}^{P} a^i) * b \)
---
--- If /a/ is p-stable for some /p/, then we have:
---
-closed_paffine :: (Prd r, Monoid r, Semiring r) => Natural -> r -> r -> Bool
-closed_paffine p a b = closed_pstable p a ==> x ~~ a >< x <> b 
-  where x = powers p a >< b
-
--- | \( \forall a \in R : a^* = a^* * a + 1 \)
---
--- Closure is /p/-stability for all /a/ in the limit as \( p \to \infinity \).
---
--- One way to think of this property is that all geometric series
--- "converge":
---
--- \( \forall a \in R : 1 + \sum_{i \geq 1} a^i \in R \)
---
-closed_stable :: (Prd r, Monoid r, Closed r) => r -> Bool
-closed_stable a = star a ~~ star a >< a <> unit
-
-closed_stable' :: (Prd r, Monoid r, Closed r) => r -> Bool
-closed_stable' a = star a ~~ unit <> a >< star a
-
-closed_affine :: (Prd r, Monoid r, Closed r) => r -> r -> Bool
-closed_affine a b = x ~~ a >< x <> b where x = star a >< b
-
--- If /R/ is closed then 'star' must be idempotent:
---
--- @'star' ('star' a) ~~ 'star' a@
---
-idempotent_star :: (Prd r, Monoid r, Closed r) => r -> Bool
-idempotent_star = Prop.idempotent star
-
--- If @r@ is a closed dioid then 'star' must be monotone:
---
--- @x '<~' y ==> 'star' x '<~' 'star' y@
---
-monotone_star :: (Prd r, Monoid r, Closed r) => r -> r -> Bool
-monotone_star = Prop.monotone_on (<~) star
-
--}

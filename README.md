@@ -1,3 +1,5 @@
+[Hackage link](http://hackage.haskell.org/package/rings)
+
 # Ordered Semirings
 
 This library provides type classes for ordered (right) pre-semirings & semirings (sometimes called dioids), as well as some useful instances. The `Semiring` class imposes fairly minimal requirements—the various 'add-on' properties  (e.g. commutativity) are catalogued in `Data.Semiring.Property`.
@@ -134,12 +136,8 @@ Why? Because a right annihilativite multiplicative unit means that ∃ c ∈ R: 
 ## Further Reading
 
 - [A Survey of Residuated Lattices](https://www1.chapman.edu/~jipsen/reslat/rljt020206.pdf)
-- Residuated Lattices: An Algebraic Glimpse at Substructural Logics
 - [Fun with Semirings](http://stedolan.net/research/semirings.pdf)
 - [From Monoids to Near-Semirings:
 the Essence of MonadPlus and Alternative](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.723.1221&rep=rep1&type=pdf)
 - [Semirings for Breakfast](https://marcpouly.ch/pdf/internal_100712.pdf)
-
-
-
-
+- Residuated Lattices: An Algebraic Glimpse at Substructural Logics

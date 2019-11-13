@@ -4,7 +4,7 @@
 module Data.Dioid.Signed where
 
 import Data.Bifunctor (first)
-import Data.Connection
+import Data.Connection hiding (first)
 import Data.Connection.Float
 import Data.Float
 import Data.Ord (Down(..))

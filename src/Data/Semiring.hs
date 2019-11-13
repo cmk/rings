@@ -69,7 +69,6 @@ fromBooleanDef :: (Monoid r, Semiring r) => r -> Bool -> r
 fromBooleanDef _ False = mempty
 fromBooleanDef o True = o
 
-
 -- | Fold over a collection using the multiplicative operation of a semiring.
 -- 
 -- @
