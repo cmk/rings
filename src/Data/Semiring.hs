@@ -1,5 +1,5 @@
 {-# Language ConstrainedClassMethods #-}
-
+{-# Language DefaultSignatures #-}
 {-# Language DeriveFunctor #-}
 {-# Language DeriveGeneric #-}
 
@@ -7,6 +7,7 @@ module Data.Semiring where
 
 import Control.Applicative
 import Control.Monad
+import Data.Complex
 import Data.Foldable hiding (product)
 import Data.Functor.Apply
 import Data.Functor.Classes
@@ -14,11 +15,11 @@ import Data.Functor.Contravariant
 import Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
 import Data.Functor.Contravariant.Divisible
 import Data.Functor.Identity (Identity(..))
+import Data.Group
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Semigroup
 import Data.Semigroup.Foldable
-import Data.Semigroup.Orphan ()
 import Data.Typeable (Typeable)
 import Foreign.Storable (Storable)
 import GHC.Generics (Generic, Generic1)
@@ -122,23 +123,6 @@ cross a b = fold $ liftA2 (><) a b
 cross1 :: Foldable1 f => Apply f => Semiring r => f r -> f r -> r
 cross1 a b = fold1 $ liftF2 (><) a b
 
--- | Fold with additive & multiplicative sunits.
---
--- This function will zero out if there is no multiplicative sunit.
---
-unital :: Monoid r => Semiring r => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
-unital = foldMap . product
-
--- | Fold with no multiplicative sunit.
---
-nonunital :: Monoid r => Semiring r => Foldable f => Foldable1 g => (a -> r) -> f (g a) -> r
-nonunital = foldMap . product1
-
--- | Fold with no additive or multiplicative sunit.
---
-presemiring :: Semiring r => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
-presemiring = foldMap1 . product1
-
 -- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
 --
 -- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
@@ -169,6 +153,56 @@ infixr 8 ^
 powers :: Monoid r => Semiring r => Natural -> r -> r
 powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
+
+-------------------------------------------------------------------------------
+-- 'Kleene'
+-------------------------------------------------------------------------------
+
+-- | Infinite closures of a semiring.
+--
+-- 'Kleene' adds a Kleene 'star' operator to a 'Semiring', with an infinite closure property:
+--
+-- @'star' x ≡ 'star' x '><' x '<>' 'sunit' ≡ x '><' 'star' x '<>' 'sunit'@
+--
+-- If @r@ is a dioid then 'star' must be monotonic:
+--
+-- @x '<~' y ==> 'star' x '<~' 'star' y
+--
+-- See also <https://en.wikipedia.org/wiki/Semiring#Kleene_semirings closed semiring>
+--
+class Semiring a => Kleene a where
+  {-# MINIMAL star | plus #-} 
+
+  star :: a -> a
+  default star :: Monoid a => a -> a
+  star a = sunit <> plus a
+
+  plus :: a -> a
+  plus a = a >< star a
+
+-- This only works if * is idempotent (a lattice?), as it just sums w/o powers
+--star = fmap fold . many
+--plus = fmap fold . some
+
+--interior :: (r -> r) -> r -> r
+--interior f r = (r ><) . f
+--adjoint . star = plus . adjoint
+
+--star = (>< mempty) . (<> mempty)
+--plus = (<> sunit) . (>< sunit)
+
+instance Kleene () where
+  star  _ = ()
+  plus _ = ()
+  {-# INLINE star #-}
+  {-# INLINE plus #-}
+
+instance (Monoid b, Kleene b) => Kleene (a -> b) where
+  plus = fmap plus
+  {-# INLINE plus #-}
+
+  star = fmap star
+  {-# INLINE star #-}
 
 -------------------------------------------------------------------------------
 -- Pre-semirings
@@ -232,26 +266,6 @@ instance Semiring Ordering where
 
   fromBoolean = fromBooleanDef GT
 
-instance Semiring Bool where
-  (><) = (&&)
-
-  fromBoolean = id
-
-instance Semiring Natural where
-  (><) = (*)
-
-  fromBoolean = fromBooleanDef 1
-
-instance Semiring Int where
-  (><) = (*)
-
-  fromBoolean = fromBooleanDef 1
-
-instance Semiring Word where
-  (><) = (*)
-
-  fromBoolean = fromBooleanDef 1
-
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 10
 -- False
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 15
@@ -273,6 +287,14 @@ instance (Monoid a, Monoid b, Semiring a, Semiring b) => Semiring (a, b) where
   {-# INLINE (><) #-}
 
   fromBoolean = liftA2 (,) fromBoolean fromBoolean
+
+instance (Semigroup (Complex a), Group a, Semiring a) => Semiring (Complex a) where
+  (x :+ y) >< (x' :+ y') = (x >< x' << y >< y') :+ (x >< y' <> y >< x')
+  {-# INLINE (><) #-}
+
+  fromBoolean False = mempty
+  fromBoolean True = fromBoolean True :+ mempty
+  {-# INLINE fromBoolean #-}
 
 instance Monoid a => Semiring [a] where 
   (><) = liftA2 (<>)

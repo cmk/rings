@@ -1,5 +1,6 @@
 module Data.Group where
 
+import Data.Complex
 import Prelude hiding (Num(..))
 
 infixl 6 <<
@@ -18,3 +19,6 @@ class Monoid a => Group a where
 
   (<<) :: a -> a -> a
   x << y = x <> negate y
+
+instance (Monoid (Complex a), Group a) => Group (Complex a) where
+  negate (x :+ y) = negate x :+ negate y

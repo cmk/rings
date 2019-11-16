@@ -7,10 +7,11 @@ import Data.Bifunctor (first)
 import Data.Connection hiding (first)
 import Data.Connection.Float
 import Data.Float
+import Data.Float.Orphan
 import Data.Ord (Down(..))
 import Data.Prd
 import Data.Prd.Lattice
-import Data.Semigroup.Quantale
+import Data.Quantale
 import Data.Semiring
 import Prelude
 

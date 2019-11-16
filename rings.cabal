@@ -15,15 +15,20 @@ cabal-version:       >=1.10
 library
   exposed-modules:
       Data.Dioid
+    , Data.Dioid.Signed
     , Data.Dioid.Interval
     , Data.Dioid.Property
-    , Data.Dioid.Signed
     , Data.Group
-    , Data.Ring
-    , Data.Semigroup.Orphan
-    , Data.Semigroup.Quantale
+    , Data.Quantale
     , Data.Semiring
     , Data.Semiring.Property
+    , Data.Ring
+    , Data.Bool.Orphan
+    , Data.Complex.Orphan
+    , Data.Float.Orphan
+    , Data.Int.Orphan
+    , Data.Word.Orphan
+
   default-extensions:
       ScopedTypeVariables
     , TypeApplications

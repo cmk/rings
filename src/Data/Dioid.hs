@@ -1,13 +1,13 @@
 {-# Language ConstraintKinds #-}
-{-# Language DefaultSignatures #-}
 
 module Data.Dioid where
 
 import Data.Connection.Yoneda
 import Data.Semiring
+import Data.Prd
 
-
-
+-- A constraint kind for topological dioids
+type Topological a = (Dioid a, Kleene a, Yoneda a)
 
 {-
 An idempotent dioid is a dioid in which the addition /<>/ is idempotent. A frequently encountered special case is one where addition /<>/ is not only idempotent but also selective. A selective dioid is a dioid in which the addition /<>/ is selective (i.e.: ∀a, b ∈ E: a /<>/ b = a or b).
@@ -46,64 +46,4 @@ Dioids (idempotent dioids in particular) play an important role in many applicat
 --
 -- See 'Data.Dioid.Property'
 --
-class (Yoneda a, Semiring a) => Dioid a where
-
-
-
--------------------------------------------------------------------------------
--- 'Closed'
--------------------------------------------------------------------------------
-
--- | Infinite closures of a semiring.
---
--- 'Closed' adds a Kleene 'star' operator to a 'Semiring', with an infinite closure property:
---
--- @'star' x ≡ 'star' x '><' x '<>' 'sunit' ≡ x '><' 'star' x '<>' 'sunit'@
---
--- If @r@ is a dioid then 'star' must be monotonic:
---
--- @x '<~' y ==> 'star' x '<~' 'star' y
---
--- See also <https://en.wikipedia.org/wiki/Semiring#Closed_semirings closed semiring>
---
-class Semiring a => Closed a where
-  {-# MINIMAL star | plus #-} 
-
-  star :: a -> a
-  default star :: Monoid a => a -> a
-  star a = sunit <> plus a
-
-  plus :: a -> a
-  plus a = a >< star a
-
--- This only works if * is idempotent (a lattice?), as it just sums w/o powers
---star = fmap fold . many
---plus = fmap fold . some
-
---interior :: (r -> r) -> r -> r
---interior f r = (r ><) . f
---adjoint . star = plus . adjoint
-
---star = (>< mempty) . (<> mempty)
---plus = (<> sunit) . (>< sunit)
-
-
-
-instance Closed () where
-  star  _ = ()
-  plus _ = ()
-  {-# INLINE star #-}
-  {-# INLINE plus #-}
-
-instance Closed Bool where
-  star = const True -- == (|| True)
-  plus = id -- == (&& True)
-  {-# INLINE star #-}
-  {-# INLINE plus #-}
-
-instance (Monoid b, Closed b) => Closed (a -> b) where
-  plus = fmap plus
-  {-# INLINE plus #-}
-
-  star = fmap star
-  {-# INLINE star #-}
+class (Prd a, Semiring a) => Dioid a where
