@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module Data.Word.Orphan where
+module Data.Word.Instance where
 
 import Data.Dioid
 import Data.Prd

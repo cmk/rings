@@ -1,5 +1,5 @@
--- | Orphan instances from base.
-module Data.Bool.Orphan where
+-- | Instance instances from base.
+module Data.Bool.Instance where
 
 import Data.Prd
 import Data.Dioid

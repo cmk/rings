@@ -1,5 +1,5 @@
--- | Orphan instances from base.
-module Data.Float.Orphan where
+-- | Instance instances from base.
+module Data.Float.Instance where
 
 import Data.Connection.Yoneda
 import Data.Group

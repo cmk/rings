@@ -23,11 +23,11 @@ library
     , Data.Semiring
     , Data.Semiring.Property
     , Data.Ring
-    , Data.Bool.Orphan
-    , Data.Complex.Orphan
-    , Data.Float.Orphan
-    , Data.Int.Orphan
-    , Data.Word.Orphan
+    , Data.Bool.Instance
+    , Data.Complex.Instance
+    , Data.Float.Instance
+    , Data.Int.Instance
+    , Data.Word.Instance
 
   default-extensions:
       ScopedTypeVariables

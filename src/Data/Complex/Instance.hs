@@ -1,5 +1,5 @@
--- | Orphan instances from base.
-module Data.Complex.Orphan where
+-- | Instance instances from base.
+module Data.Complex.Instance where
 
 import Data.Complex
 import Prelude

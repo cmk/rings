@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module Data.Int.Orphan where
+module Data.Int.Instance where
 
 import Data.Semiring
 import Data.Group

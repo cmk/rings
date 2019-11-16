@@ -7,7 +7,7 @@ import Data.Bifunctor (first)
 import Data.Connection hiding (first)
 import Data.Connection.Float
 import Data.Float
-import Data.Float.Orphan
+import Data.Float.Instance
 import Data.Ord (Down(..))
 import Data.Prd
 import Data.Prd.Lattice
