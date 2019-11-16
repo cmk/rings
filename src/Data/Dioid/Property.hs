@@ -7,7 +7,7 @@ module Data.Dioid.Property (
   , ordered_monotone_addition
   , ordered_positive_addition
   , ordered_monotone_multiplication
-  , ordered_annihilative_unit 
+  , ordered_annihilative_sunit 
   , ordered_idempotent_addition
   , ordered_positive_multiplication
   -- * Properties of absorbative dioids 
@@ -87,14 +87,14 @@ ordered_monotone_multiplication a = Prop.monotone_on (<~) (<~) (>< a)
 
 -- | '<~' is consistent with annihilativity.
 --
--- This means that a dioid with an annihilative multiplicative unit must satisfy:
+-- This means that a dioid with an annihilative multiplicative sunit must satisfy:
 --
 -- @
 -- ('one' <~) ≡ ('one' ==)
 -- @
 --
-ordered_annihilative_unit :: (Monoid r, Dioid r) => r -> Bool
-ordered_annihilative_unit a = unit <~ a <==> unit =~ a
+ordered_annihilative_sunit :: (Monoid r, Dioid r) => r -> Bool
+ordered_annihilative_sunit a = sunit <~ a <==> sunit =~ a
 
 -- | \( \forall a, b: a \leq b \Rightarrow a + b = b
 --
@@ -114,21 +114,21 @@ ordered_positive_multiplication a b = a >< b =~ mempty ==> a =~ mempty || b =~ m
 -- Right-additive absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative_addition' 'unit' a ~~ a <> a ~~ a
+-- 'absorbative_addition' 'sunit' a ~~ a <> a ~~ a
 -- @
 --
 absorbative_addition :: (Eq r, Dioid r) => r -> r -> Bool
 absorbative_addition a b = a >< b <> b ~~ b
 
 idempotent_addition :: (Eq r, Monoid r, Dioid r) => r -> Bool
-idempotent_addition = absorbative_addition unit
+idempotent_addition = absorbative_addition sunit
  
 -- | \( \forall a, b \in R: b + b * a = b \)
 --
 -- Left-additive absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative_addition' 'unit' a ~~ a <> a ~~ a
+-- 'absorbative_addition' 'sunit' a ~~ a <> a ~~ a
 -- @
 --
 absorbative_addition' :: (Eq r, Dioid r) => r -> r -> Bool
@@ -149,7 +149,7 @@ absorbative_multiplication a b = (a <> b) >< b ~~ b
 
 --absorbative_multiplication a b c = (a <> b) >< c ~~ c
 --closed a = 
---  absorbative_multiplication (star a) unit a && absorbative_multiplication unit (star a) a 
+--  absorbative_multiplication (star a) sunit a && absorbative_multiplication sunit (star a) a 
 
 -- | \( \forall a, b \in R: b * (b + a) = b \)
 --
@@ -169,16 +169,16 @@ absorbative_multiplication' a b = b >< (b <> a) ~~ b
 
 -- | \( \forall a \in R: o + a = o \)
 --
--- A unital semiring with a right-annihilative muliplicative unit must satisfy:
+-- A unital semiring with a right-annihilative muliplicative sunit must satisfy:
 --
 -- @
--- 'unit' <> a ~~ 'unit'
+-- 'sunit' <> a ~~ 'sunit'
 -- @
 --
 -- For a dioid this is equivalent to:
 -- 
 -- @
--- ('unit' '<~') ~~ ('unit' '~~')
+-- ('sunit' '<~') ~~ ('sunit' '~~')
 -- @
 --
 -- For 'Alternative' instances this is known as the left-catch law:
@@ -188,29 +188,29 @@ absorbative_multiplication' a b = b >< (b <> a) ~~ b
 -- @
 --
 annihilative_addition :: (Eq r, Monoid r, Dioid r) => r -> Bool
-annihilative_addition r = Prop.annihilative_on (~~) (<>) unit r
+annihilative_addition r = Prop.annihilative_on (~~) (<>) sunit r
 
 -- | \( \forall a \in R: a + o = o \)
 --
--- A unital semiring with a left-annihilative muliplicative unit must satisfy:
+-- A unital semiring with a left-annihilative muliplicative sunit must satisfy:
 --
 -- @
--- a '<>' 'unit' ~~ 'unit'
+-- a '<>' 'sunit' ~~ 'sunit'
 -- @
 --
 -- Note that the left-annihilative property is too strong for many instances. 
--- This is because it requires that any effects that /r/ generates be undunit.
+-- This is because it requires that any effects that /r/ generates be undsunit.
 --
 -- See < https://winterkoninkje.dreamwidth.org/90905.html >.
 --
 annihilative_addition' :: (Eq r, Monoid r, Dioid r) => r -> Bool
-annihilative_addition' r = Prop.annihilative_on' (~~) (<>) unit r
+annihilative_addition' r = Prop.annihilative_on' (~~) (<>) sunit r
 
 -- | \( \forall a, b, c \in R: c + (a * b) \equiv (c + a) * (c + b) \)
 --
--- A right-codistributive semiring has a right-annihilative muliplicative unit:
+-- A right-codistributive semiring has a right-annihilative muliplicative sunit:
 --
--- @ 'codistributive' 'unit' a 'mempty' ~~ 'unit' ~~ 'unit' '<>' a @
+-- @ 'codistributive' 'sunit' a 'mempty' ~~ 'sunit' ~~ 'sunit' '<>' a @
 --
 -- idempotent mulitiplication:
 --
@@ -233,15 +233,15 @@ codistributive = Prop.distributive_on' (~~) (><) (<>)
 -- If /a/ is p-stable for some /p/, then we have:
 --
 -- @
--- 'powers' p a ~~ a '><' 'powers' p a '<>' 'unit'  ~~ 'powers' p a '><' a '<>' 'unit' 
+-- 'powers' p a ~~ a '><' 'powers' p a '<>' 'sunit'  ~~ 'powers' p a '><' a '<>' 'sunit' 
 -- @
 --
 -- If '<>' and '><' are idempotent then every element is 1-stable:
 --
--- @ a '><' a '<>' a '<>' 'unit' = a '<>' a '<>' 'unit' = a '<>' 'unit' @
+-- @ a '><' a '<>' a '<>' 'sunit' = a '<>' a '<>' 'sunit' = a '<>' 'sunit' @
 --
 closed_pstable :: (Eq r, Prd r, Monoid r, Dioid r) => Natural -> r -> Bool
-closed_pstable p a = powers p a ~~ powers (p <> unit) a
+closed_pstable p a = powers p a ~~ powers (p <> sunit) a
 
 -- | \( x = a * x + b \Rightarrow x = (1 + \sum_{i=1}^{P} a^i) * b \)
 --
@@ -261,10 +261,10 @@ closed_paffine p a b = closed_pstable p a ==> x ~~ a >< x <> b
 -- \( \forall a \in R : 1 + \sum_{i \geq 1} a^i \in R \)
 --
 closed_stable :: (Eq r, Monoid r, Dioid r, Closed r) => r -> Bool
-closed_stable a = star a ~~ star a >< a <> unit
+closed_stable a = star a ~~ star a >< a <> sunit
 
 closed_stable' :: (Eq r, Monoid r, Dioid r, Closed r) => r -> Bool
-closed_stable' a = star a ~~ unit <> a >< star a
+closed_stable' a = star a ~~ sunit <> a >< star a
 
 closed_affine :: (Eq r, Monoid r, Dioid r, Closed r) => r -> r -> Bool
 closed_affine a b = x ~~ a >< x <> b where x = star a >< b

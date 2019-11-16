@@ -30,6 +30,8 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 
+infixl 7 ><
+
 -- | Right pre-semirings and (non-unital and unital) right semirings.
 -- 
 -- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
@@ -44,10 +46,10 @@ import qualified Data.IntMap as IntMap
 -- with a 'mempty' element that is neutral with respect to both addition and multiplication.
 --
 -- A unital right semiring is a pre-semiring with two distinct neutral elements, 'mempty' 
--- and 'unit', such that 'mempty' is right-neutral wrt addition, 'unit' is right-neutral wrt
+-- and 'sunit', such that 'mempty' is right-neutral wrt addition, 'sunit' is right-neutral wrt
 --  multiplication, and 'mempty' is right-annihilative wrt multiplication. 
 --
--- Note that 'unit' needn't be distinct from 'mempty', moreover addition and multiplication
+-- Note that 'sunit' needn't be distinct from 'mempty', moreover addition and multiplication
 -- needn't be commutative or left-distributive.
 --
 -- See the properties module for a detailed specification of the laws.
@@ -58,12 +60,12 @@ class Semigroup r => Semiring r where
   (><) :: r -> r -> r  
 
   -- A semiring homomorphism from the Boolean semiring to @r@. 
-  -- If this map is injective then @r@ has a distinct unit.
+  -- If this map is injective then @r@ has a distinct sunit.
   fromBoolean :: Monoid r => Bool -> r
   fromBoolean _ = mempty
 
-unit :: (Monoid r, Semiring r) => r
-unit = fromBoolean True
+sunit :: (Monoid r, Semiring r) => r
+sunit = fromBoolean True
 
 fromBooleanDef :: (Monoid r, Semiring r) => r -> Bool -> r
 fromBooleanDef _ False = mempty
@@ -72,7 +74,7 @@ fromBooleanDef o True = o
 -- | Fold over a collection using the multiplicative operation of a semiring.
 -- 
 -- @
--- 'product' f ≡ 'Data.foldr'' ((><) . f) 'unit'
+-- 'product' f ≡ 'Data.foldr'' ((><) . f) 'sunit'
 -- @
 --
 -- >>> (foldMap . product) id [[1, 2], [3, (4 :: Int)]] -- 1 >< 2 <> 3 >< 4
@@ -81,7 +83,7 @@ fromBooleanDef o True = o
 -- >>> (product . foldMap) id [[1, 2], [3, (4 :: Int)]] -- 1 <> 2 >< 3 <> 4
 -- 21
 --
--- For semirings without a distinct multiplicative unit this is equivalent to @const mempty@:
+-- For semirings without a distinct multiplicative sunit this is equivalent to @const mempty@:
 --
 -- >>> product Just [1..(5 :: Int)]
 -- Just 0
@@ -89,11 +91,11 @@ fromBooleanDef o True = o
 -- In this situation you most likely want to use 'product1'.
 --
 product :: Foldable t => Monoid r => Semiring r => (a -> r) -> t a -> r
-product f = foldr' ((><) . f) unit
+product f = foldr' ((><) . f) sunit
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
 --
--- As the collection is non-empty this does not require a distinct multiplicative unit:
+-- As the collection is non-empty this does not require a distinct multiplicative sunit:
 --
 -- >>> product1 Just $ 1 :| [2..(5 :: Int)]
 -- Just 120
@@ -120,19 +122,19 @@ cross a b = fold $ liftA2 (><) a b
 cross1 :: Foldable1 f => Apply f => Semiring r => f r -> f r -> r
 cross1 a b = fold1 $ liftF2 (><) a b
 
--- | Fold with additive & multiplicative units.
+-- | Fold with additive & multiplicative sunits.
 --
--- This function will zero out if there is no multiplicative unit.
+-- This function will zero out if there is no multiplicative sunit.
 --
 unital :: Monoid r => Semiring r => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
 unital = foldMap . product
 
--- | Fold with no multiplicative unit.
+-- | Fold with no multiplicative sunit.
 --
 nonunital :: Monoid r => Semiring r => Foldable f => Foldable1 g => (a -> r) -> f (g a) -> r
 nonunital = foldMap . product1
 
--- | Fold with no additive or multiplicative unit.
+-- | Fold with no additive or multiplicative sunit.
 --
 presemiring :: Semiring r => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
 presemiring = foldMap1 . product1
@@ -165,7 +167,7 @@ infixr 8 ^
 (^) = flip replicate'
 
 powers :: Monoid r => Semiring r => Natural -> r -> r
-powers n a = foldr' (<>) unit . flip unfoldr n $ \m -> 
+powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
 
 -------------------------------------------------------------------------------
@@ -264,7 +266,7 @@ instance (Monoid a, Semiring a) => Semiring (Op a b) where
   Op f >< Op g = Op $ \x -> f x >< g x
   {-# INLINE (><) #-}
 
-  fromBoolean = fromBooleanDef $ Op (const unit)
+  fromBoolean = fromBooleanDef $ Op (const sunit)
 
 instance (Monoid a, Monoid b, Semiring a, Semiring b) => Semiring (a, b) where
   (a, b) >< (c, d) = (a><c, b><d)
@@ -404,7 +406,7 @@ instance Semiring a => Semigroup (Prod a) where
   (<>) = liftA2 (><)
   {-# INLINE (<>) #-}
 
--- Note that 'unit' must be distinct from 'mempty' for this instance to be legal.
+-- Note that 'sunit' must be distinct from 'mempty' for this instance to be legal.
 instance (Monoid a, Semiring a) => Monoid (Prod a) where
-  mempty = Prod unit
+  mempty = Prod sunit
   {-# INLINE mempty #-}

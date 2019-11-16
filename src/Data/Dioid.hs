@@ -58,7 +58,7 @@ class (Yoneda a, Semiring a) => Dioid a where
 --
 -- 'Closed' adds a Kleene 'star' operator to a 'Semiring', with an infinite closure property:
 --
--- @'star' x ≡ 'star' x '><' x '<>' 'unit' ≡ x '><' 'star' x '<>' 'unit'@
+-- @'star' x ≡ 'star' x '><' x '<>' 'sunit' ≡ x '><' 'star' x '<>' 'sunit'@
 --
 -- If @r@ is a dioid then 'star' must be monotonic:
 --
@@ -71,7 +71,7 @@ class Semiring a => Closed a where
 
   star :: a -> a
   default star :: Monoid a => a -> a
-  star a = unit <> plus a
+  star a = sunit <> plus a
 
   plus :: a -> a
   plus a = a >< star a
@@ -85,7 +85,7 @@ class Semiring a => Closed a where
 --adjoint . star = plus . adjoint
 
 --star = (>< mempty) . (<> mempty)
---plus = (<> unit) . (>< unit)
+--plus = (<> sunit) . (>< sunit)
 
 
 

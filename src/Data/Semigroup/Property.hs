@@ -19,11 +19,11 @@ ideal_residuated x y = x \\ y =~ join (fmap (x<>) (connl ideal $ y))
 ideal_residuated' :: (Quantale a, Ideal a, Functor (Rep a)) => a -> a -> Bool
 ideal_residuated' x y = x // y =~ join (fmap (<>x) (connl ideal $ y))
 
-x \/ y = (x // y) <> y -- unit (minus_plus x) y -- (y // x) + x
+x \/ y = (x // y) <> y -- sunit (minus_plus x) y -- (y // x) + x
 x /\ y = x <> (x \\ y) -- (y + x) // x -- x \\ (x + y) 
 
 minimal \\ x =~ maximal =~ x \\ maximal
-mempty \\ x ~~ unit
+mempty \\ x ~~ sunit
  
 -}
 
@@ -84,10 +84,10 @@ x<>(x \\ y) = y<>(y \\ x),
 x <~ y <==> mempty ~~ x \\ y
 
 admits a meet:
-x /\ y = x <> (x \\ y) = counit (residl x) y
+x /\ y = x <> (x \\ y) = cosunit (residl x) y
 
 
-(x \\ y) \/ (y \\ x) ~~ sunit (prelinear)
+(x \\ y) \/ (y \\ x) ~~ ssunit (prelinear)
 
 (a \\ b) \\ c <~ ((b \\ a) \\ c) \\ c (prelinear)
 (x \\ y) \\ y ~~ (y \\ x) \\ x (Wajsberg)

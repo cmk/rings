@@ -10,7 +10,7 @@ Why use semirings? They are simple extensions of the `Foldable` interface, so fo
 
 ## Basic Definitions
 
-Unfortunately there is little standardization around the names of the structures defined by various relaxations of the ring axioms. In fact the ring axioms themselves are not without controversy: since [at least](https://en.wikipedia.org/wiki/Ring_(mathematics)#History) Noether's time, mathematicians have been in disagreement regarding whether to include muliplicative units in the definition of a ring, and by extension a semiring. Here we follow the terminology in Gondran & Minoux's _Graphs, Dioids and Semirings_.
+Unfortunately there is little standardization around the names of the structures defined by various relaxations of the ring axioms. In fact the ring axioms themselves are not without controversy: since [at least](https://en.wikipedia.org/wiki/Ring_(mathematics)#History) Noether's time, mathematicians have been in disagreement regarding whether to include muliplicative sunits in the definition of a ring, and by extension a semiring. Here we follow the terminology in Gondran & Minoux's _Graphs, Dioids and Semirings_.
 
 A right pre-semiring (sometimes referred to as a bisemigroup) is a type `R` endowed with two associative binary operations: `<>` and `><`, along with a right-distributivity property connecting them:
 
@@ -25,7 +25,7 @@ mempty <> a ≡ a
 mempty >< a ≡ a --1
 ```
 
-Neutrality, distributivity, and the lack of a second unit lead to a distinct absorbtion property:
+Neutrality, distributivity, and the lack of a second sunit lead to a distinct absorbtion property:
 
 ```
 a >< b ≡ a >< b <> b
@@ -33,11 +33,11 @@ a >< b ≡ a >< b <> b
 
 See also [Andrey's post](https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif) for more on (the commutative sub-class of) this class of structures.
 
-Finally a unital right semiring is a pre-semiring with two distinct neutral elements, `mempty` and `unit`, such that `mempty` is right-neutral wrt addition, `unit` is right-neutral wrt multiplication, and `mempty` is now (2) right-annihilative wrt multiplication:
+Finally a unital right semiring is a pre-semiring with two distinct neutral elements, `mempty` and `sunit`, such that `mempty` is right-neutral wrt addition, `sunit` is right-neutral wrt multiplication, and `mempty` is now (2) right-annihilative wrt multiplication:
 
 ```
 mempty <> a ≡ a
-unit >< a ≡ a
+sunit >< a ≡ a
 mempty >< a ≡ mempty --2
 ```
 
@@ -46,29 +46,29 @@ See `Data.Semiring.Property` for a detailed specification of the laws.
 Perhaps the easiest way to demonstrate the differences between the three families is through their respective universal folds:
 
 ```
--- No additive or multiplicative unit.
+-- No additive or multiplicative sunit.
 foldPresemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
 foldPresemiring = foldMap1 . product1
 
--- No multiplicative unit.
+-- No multiplicative sunit.
 foldNonunital :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
 foldNonunital = foldMap . product
 
--- Additive & multiplicative units.
+-- Additive & multiplicative sunits.
 foldUnital :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
-foldUnital = foldMap . product -- ≡ const mempty if unit = mempty
+foldUnital = foldMap . product -- ≡ const mempty if sunit = mempty
 ```
 
-The functions `product` and `product1` simply apply multiplication (with `unit` as the root in the case of `foldMap`) instead of addition, for example:
+The functions `product` and `product1` simply apply multiplication (with `sunit` as the root in the case of `foldMap`) instead of addition, for example:
 
 ```
 product :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
-product f = foldr' ((><) . f) unit
+product f = foldr' ((><) . f) sunit
 ```
 
 ## Dioids
 
-Given a commutative monoid (R,+,ε) unit can define a reflexive and transitive binary relation, referred to as the canonical preorder and denoted ≤:
+Given a commutative monoid (R,+,ε) sunit can define a reflexive and transitive binary relation, referred to as the canonical preorder and denoted ≤:
 
 a ≤ b ⇔ ∃ c ∈ R: b = a + c
 
@@ -94,7 +94,7 @@ a ≤ b and b ≤ a ⇒ a = b.
 
 It's a well-known theorem in semigroup theory that a non-trivial monoid cannot be both canonically _ordered_ (not just pre-ordered) and also have inverses (i.e. be a group). To see this it suffices to observe that if every element as an additive inverse then the order relation collapses to the trivial order and the resulting monoid consists only of ε.
 
-Extending this result to semirings, we have that the family of semiring structures can be naturally subdivided into two disjoint sub-families depending on whether the addition operation satisfies unit of the following two properties:
+Extending this result to semirings, we have that the family of semiring structures can be naturally subdivided into two disjoint sub-families depending on whether the addition operation satisfies sunit of the following two properties:
 
 - Addition endows the set R with a group structure;
 - Addition endows the set R with a canonically ordered monoid structure.
@@ -118,20 +118,20 @@ empty *> _ ≡ empty
 mempty >< _ ≡ mempty
 ```
 
-Right annihilative `unit`:
+Right annihilative `sunit`:
 
 ```
 pure a <|> _ ≡ pure a
-unit <> _ ≡ unit
+sunit <> _ ≡ sunit
 ```
 
 If R is a dioid then this last property implies that:
 
 ```
-(unit le) ≡ (unit ==)
+(sunit le) ≡ (sunit ==)
 ```
 
-Why? Because a right annihilativite multiplicative unit means that ∃ c ∈ R: 1 + c = a ⇔ 1 = a.
+Why? Because a right annihilativite multiplicative sunit means that ∃ c ∈ R: 1 + c = a ⇔ 1 = a.
 
 ## Further Reading
 
