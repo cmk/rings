@@ -15,16 +15,14 @@ cabal-version:       >=1.10
 library
   exposed-modules:
       Data.Dioid
-    , Data.Dioid.Signed
-    , Data.Dioid.Interval
     , Data.Dioid.Property
     , Data.Group
-    , Data.Quantale
     , Data.Semiring
     , Data.Semiring.Property
     , Data.Ring
     , Data.Bool.Instance
     , Data.Complex.Instance
+    , Data.Double.Instance
     , Data.Float.Instance
     , Data.Int.Instance
     , Data.Word.Instance
@@ -42,7 +40,6 @@ library
     , semigroupoids  == 5.*
     , property       >= 0.0.1 && < 1.0
     , connections    >= 0.0.2 && < 1.0
-    , contravariant  >= 1     && < 2
 
   hs-source-dirs: src
   default-language: Haskell2010

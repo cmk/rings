@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP #-}
-module Data.Float.Instance where
+module Data.Double.Instance where
 
 import Data.Semiring
-import Foreign.C.Types (CFloat(..))
-import Prelude (Monoid(..), Semigroup(..), Float)
+import Foreign.C.Types (CDouble(..))
+import Prelude (Monoid(..), Semigroup(..), Double)
 import qualified Prelude as N (Num(..))
 
 #define deriveSemigroup(ty)        \
@@ -24,9 +24,9 @@ instance Semiring (ty) where {     \
 ;  {-# INLINE fromBoolean #-}      \
 }
 
-deriveSemigroup(Float)
-deriveSemigroup(CFloat)
-deriveMonoid(Float)
-deriveMonoid(CFloat)
-deriveSemiring(Float)
-deriveSemiring(CFloat)
+deriveSemigroup(Double)
+deriveSemigroup(CDouble)
+deriveMonoid(Double)
+deriveMonoid(CDouble)
+deriveSemiring(Double)
+deriveSemiring(CDouble)

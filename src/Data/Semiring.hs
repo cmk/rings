@@ -11,9 +11,7 @@ import Data.Complex
 import Data.Foldable hiding (product)
 import Data.Functor.Apply
 import Data.Functor.Classes
-import Data.Functor.Contravariant
 import Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
-import Data.Functor.Contravariant.Divisible
 import Data.Functor.Identity (Identity(..))
 import Data.Group
 import Data.List (unfoldr)
@@ -378,13 +376,6 @@ instance Semiring (Equivalence a) where
   --where necessary. 
   fromBoolean False = Equivalence $ \_ _ -> True
   fromBoolean True = Equivalence $ \_ _ -> False
-
-
-instance Semiring (Comparison a) where
-  Comparison f >< Comparison g = Comparison $ \x y -> f x y >< g x y
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ Comparison $ \_ _ -> GT
 
 ---------------------------------------------------------------------
 --  Instances (containers)
