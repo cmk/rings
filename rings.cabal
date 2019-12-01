@@ -23,6 +23,7 @@ library
     , Data.Bool.Instance
     , Data.Complex.Instance
     , Data.Double.Instance
+    , Data.Fixed.Instance
     , Data.Float.Instance
     , Data.Int.Instance
     , Data.Word.Instance
