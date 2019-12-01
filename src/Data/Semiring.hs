@@ -31,7 +31,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 
-infixl 7 ><
+infixr 7 ><
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
 -- 
@@ -96,7 +96,7 @@ product f = foldr' ((><) . f) sunit
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
 --
--- As the collection is non-empty this does not require a distinct multiplicative sunit:
+-- As the collection is non-empty this does not require a distinct multiplicative unit:
 --
 -- >>> product1 Just $ 1 :| [2..(5 :: Int)]
 -- Just 120

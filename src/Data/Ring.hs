@@ -1,4 +1,10 @@
-module Data.Ring where
+module Data.Ring (
+    (<<)
+  , (><)
+  , (<>)
+  , negate
+  , Ring(..)
+) where
 
 import Data.Group
 import Data.Semiring
