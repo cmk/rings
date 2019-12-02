@@ -1,14 +1,16 @@
 name:                rings
-version:             0.0.2
+version:             0.0.2.1
 synopsis:            Rings, semirings, and dioids.
-description:         Lawful versions of the numeric typeclasses in base.
+description:         Lawful versions of several of the numeric typeclasses in base.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
 author:              Chris McKinlay
 maintainer:          chris.mckinlay@gmail.com
 category:            Math, Numerical
+stability:           Experimental
 build-type:          Simple
+tested-with:         GHC == 8.6.3
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
@@ -36,11 +38,11 @@ library
     , FlexibleInstances
 
   build-depends:       
-      base           >= 4.10  && < 5.0
-    , containers     >= 0.4.0 && < 0.7
+      base           >= 4.10    && < 5.0
+    , containers     >= 0.4.0   && < 0.7
     , semigroupoids  == 5.*
-    , property       >= 0.0.1 && < 1.0
-    , connections    >= 0.0.2 && < 1.0
+    , property       >= 0.0.1   && < 1.0
+    , connections    >= 0.0.2.1 && < 0.0.3
 
   hs-source-dirs: src
   default-language: Haskell2010
