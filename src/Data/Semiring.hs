@@ -1,4 +1,5 @@
 {-# Language ConstrainedClassMethods #-}
+{-# Language ConstraintKinds   #-}
 {-# Language DefaultSignatures #-}
 {-# Language DeriveFunctor #-}
 {-# Language DeriveGeneric #-}
@@ -63,10 +64,12 @@ class Semigroup r => Semiring r where
   fromBoolean :: Monoid r => Bool -> r
   fromBoolean _ = mempty
 
-sunit :: (Monoid r, Semiring r) => r
+type Unital r = (Monoid r, Semiring r)
+
+sunit :: Unital r => r
 sunit = fromBoolean True
 
-fromBooleanDef :: (Monoid r, Semiring r) => r -> Bool -> r
+fromBooleanDef :: Unital r => r -> Bool -> r
 fromBooleanDef _ False = mempty
 fromBooleanDef o True = o
 
@@ -89,7 +92,7 @@ fromBooleanDef o True = o
 --
 -- In this situation you most likely want to use 'product1'.
 --
-product :: Foldable t => Monoid r => Semiring r => (a -> r) -> t a -> r
+product :: Foldable t => Unital r => (a -> r) -> t a -> r
 product f = foldr' ((><) . f) sunit
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
@@ -110,7 +113,7 @@ product1 f = getProd . foldMap1 (Prod . f)
 -- >>> cross [1,2,3 :: Int] []
 -- 0
 --
-cross :: Foldable f => Applicative f => Monoid r => Semiring r => f r -> f r -> r
+cross :: Foldable f => Applicative f => Unital r => f r -> f r -> r
 cross a b = fold $ liftA2 (><) a b
 
 -- | Cross-multiply two non-empty collections.
@@ -140,15 +143,15 @@ replicate y0 x0
             | otherwise = g (x <> x) ((y - 1) `quot` 2) (x <> z)
 {-# INLINE replicate #-}
 
-replicate' :: Monoid r => Semiring r => Natural -> r -> r
+replicate' :: Unital r => Natural -> r -> r
 replicate' n r = getProd $ replicate n (Prod r)
 
 infixr 8 ^
 
-(^) :: Monoid r => Semiring r => r -> Natural -> r
+(^) :: Unital r => r -> Natural -> r
 (^) = flip replicate'
 
-powers :: Monoid r => Semiring r => Natural -> r -> r
+powers :: Unital r => Natural -> r -> r
 powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
 
