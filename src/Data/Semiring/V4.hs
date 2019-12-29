@@ -34,6 +34,7 @@ instance Unital a => Semiring (V4 a) where
   fromBoolean = pureRep . fromBoolean
 
 instance (Monoid a, Dioid a) => Dioid (V4 a) where
+  fromNatural = pureRep . fromNatural
 
 instance Group a => Group (V4 a) where
   (<<) = mzipWithRep (<<)

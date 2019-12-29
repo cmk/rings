@@ -2,7 +2,6 @@ module Data.Ring (
     (<<)
   , (><)
   , (<>)
-  , abs
   , negate
   , Ring(..)
 ) where

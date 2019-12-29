@@ -62,6 +62,7 @@ instance Unital a => Semiring (V3 a) where
   fromBoolean = pureRep . fromBoolean
 
 instance (Monoid a, Dioid a) => Dioid (V3 a) where
+  fromNatural = pureRep . fromNatural
 
 instance Group a => Group (V3 a) where
   (<<) = mzipWithRep (<<)

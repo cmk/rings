@@ -44,6 +44,7 @@ instance Unital a => Semiring (V2 a) where
   fromBoolean = pureRep . fromBoolean
 
 instance (Monoid a, Dioid a) => Dioid (V2 a) where
+  fromNatural = pureRep . fromNatural
 
 -- | Entry-wise vector or matrix subtraction.
 --

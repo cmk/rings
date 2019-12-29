@@ -49,15 +49,9 @@ class (Prd r, Semiring r) => Dioid r where
 
   -- | A dioid homomorphism from the naturals to /r/.
   fromNatural :: Natural -> r
-{-
-  psignum :: Monoid r => r -> Maybe r
-  psignum x = case pcomparePrd mempty x
-     Just GT -> Just sunit
-     Just EQ -> Just mempty
-     _ -> Nothing
--}
 
+instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b) where
+  fromNatural x = (fromNatural x, fromNatural x)
 
-instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b)
-
-instance (Monoid a, Monoid b, Monoid c, Dioid a, Dioid b, Dioid c) => Dioid (a, b, c)
+instance (Monoid a, Monoid b, Monoid c, Dioid a, Dioid b, Dioid c) => Dioid (a, b, c) where
+  fromNatural x = (fromNatural x, fromNatural x, fromNatural x)

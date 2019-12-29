@@ -34,8 +34,9 @@ import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Semiring hiding (nonunital)
 import Numeric.Natural
-import Test.Property.Util ((<==>),(==>))
-import qualified Test.Property as Prop hiding (distributive_on)
+import Test.Util ((<==>),(==>))
+import qualified Test.Function  as Prop
+import qualified Test.Operation as Prop hiding (distributive_on)
 import qualified Data.Semiring.Property as Prop
 
 ------------------------------------------------------------------------------------

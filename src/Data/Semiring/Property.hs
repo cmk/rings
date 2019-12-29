@@ -31,8 +31,9 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Foldable
 import Data.Semiring
 import Data.Semigroup.Foldable
-import Test.Property.Util
-import qualified Test.Property as Prop
+import Test.Util
+import qualified Test.Function  as Prop
+import qualified Test.Operation as Prop
 
 ------------------------------------------------------------------------------------
 -- Properties of pre-semirings & semirings
