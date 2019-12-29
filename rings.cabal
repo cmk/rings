@@ -1,7 +1,7 @@
 name:                rings
 version:             0.0.2.1
-synopsis:            Rings, semirings, and dioids.
-description:         Lawful versions of several of the numeric typeclasses in base.
+synopsis:            Groups, rings, semirings, and dioids.
+description:         Lawful rings and low-dimensional module and dioid algebra.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -16,12 +16,17 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-      Data.Dioid
+      Data.Ring
+    , Data.Dioid
     , Data.Dioid.Property
     , Data.Group
     , Data.Semiring
+    , Data.Semiring.V2
+    , Data.Semiring.V3
+    , Data.Semiring.V4
+    , Data.Semiring.Matrix
+    , Data.Semiring.Module
     , Data.Semiring.Property
-    , Data.Ring
     , Data.Bool.Instance
     , Data.Complex.Instance
     , Data.Double.Instance
@@ -39,8 +44,10 @@ library
 
   build-depends:       
       base           >= 4.10    && < 5.0
+    , adjunctions    >= 4.4     && < 5.0
     , containers     >= 0.4.0   && < 0.7
-    , semigroupoids  == 5.*
+    , distributive   >= 0.3     && < 1.0
+    , semigroupoids  >= 5.0     && < 6.0
     , property       >= 0.0.1   && < 1.0
     , connections    >= 0.0.2.1 && < 0.0.3
 

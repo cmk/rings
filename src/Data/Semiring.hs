@@ -30,6 +30,12 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 
+-- | Constraint kind representing a unital semiring.
+--
+-- Used for convenience and to distinguish unital semirings from semirings with only an additive unit.
+--
+type Unital r = (Monoid r, Semiring r)
+
 infixr 7 ><
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
@@ -56,19 +62,23 @@ infixr 7 ><
 --
 class Semigroup r => Semiring r where
 
-  -- Multiplicative operation
+  -- | Multiplicative operation.
   (><) :: r -> r -> r  
 
-  -- A semiring homomorphism from the Boolean semiring to @r@. 
-  -- If this map is injective then @r@ has a distinct sunit.
+  -- | Semiring homomorphism from the Boolean semiring to @r@.
+  --
+  -- If this map is injective then @r@ has a distinct multiplicative unit.
+  --
   fromBoolean :: Monoid r => Bool -> r
   fromBoolean _ = mempty
 
-type Unital r = (Monoid r, Semiring r)
-
+-- | Multiplicative unit of the semiring.
+--
 sunit :: Unital r => r
 sunit = fromBoolean True
 
+-- | Default implementation of 'fromBoolean' given a multiplicative unit.
+--
 fromBooleanDef :: Unital r => r -> Bool -> r
 fromBooleanDef _ False = mempty
 fromBooleanDef o True = o
@@ -129,9 +139,9 @@ cross1 a b = fold1 $ liftF2 (><) a b
 -- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
 --
 replicate :: Monoid r => Natural -> r -> r
-replicate y0 x0
-    | y0 == 0 = mempty
-    | otherwise = f x0 y0
+replicate n a
+    | n == 0 = mempty
+    | otherwise = f a n
     where
         f x y 
             | even y = f (x <> x) (y `quot` 2)
@@ -144,7 +154,7 @@ replicate y0 x0
 {-# INLINE replicate #-}
 
 replicate' :: Unital r => Natural -> r -> r
-replicate' n r = getProd $ replicate n (Prod r)
+replicate' n a = getProd $ replicate n (Prod a)
 
 infixr 8 ^
 
@@ -271,23 +281,29 @@ instance Semiring Ordering where
 -- False
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 15
 -- True
-instance (Monoid b, Semiring b) => Semiring (a -> b) where
+instance Unital b => Semiring (a -> b) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
   fromBoolean = const . fromBoolean
 
-instance (Monoid a, Semiring a) => Semiring (Op a b) where
+instance Unital a => Semiring (Op a b) where
   Op f >< Op g = Op $ \x -> f x >< g x
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ Op (const sunit)
 
-instance (Monoid a, Monoid b, Semiring a, Semiring b) => Semiring (a, b) where
+instance (Unital a, Unital b) => Semiring (a, b) where
   (a, b) >< (c, d) = (a><c, b><d)
   {-# INLINE (><) #-}
 
   fromBoolean = liftA2 (,) fromBoolean fromBoolean
+
+instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
+  (a, b, c) >< (d, e, f) = (a><d, b><e, c><f)
+  {-# INLINE (><) #-}
+
+  fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
 
 instance (Semigroup (Complex a), Group a, Semiring a) => Semiring (Complex a) where
   (x :+ y) >< (x' :+ y') = (x >< x' << y >< y') :+ (x >< y' <> y >< x')
