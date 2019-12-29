@@ -1,12 +1,14 @@
 {-# LANGUAGE CPP #-}
 module Data.Word.Instance where
 
+import Data.Connection
+import Data.Connection.Word
 import Data.Dioid
 import Data.Prd
 import Data.Semiring
 import Data.Word
 import Numeric.Natural
-import Prelude (Monoid(..), Semigroup(..))
+import Prelude (id, Monoid(..), Semigroup(..))
 import qualified Prelude as N (Num(..))
 
 #define deriveSemigroup(ty)        \
@@ -28,9 +30,6 @@ instance Semiring (ty) where {     \
 ;  {-# INLINE fromBoolean #-}      \
 }
 
-#define deriveDioid(ty)             \
-instance Dioid (ty) where {         \
-}
 
 deriveSemigroup(Word)
 deriveSemigroup(Word8)
@@ -53,9 +52,17 @@ deriveSemiring(Word32)
 deriveSemiring(Word64)
 deriveSemiring(Natural)
 
-deriveDioid(Word)
-deriveDioid(Word8)
-deriveDioid(Word16)
-deriveDioid(Word32)
-deriveDioid(Word64)
-deriveDioid(Natural)
+instance Dioid Word8 where
+  fromNatural = connr w08nat
+
+instance Dioid Word16 where
+  fromNatural = connr w16nat
+
+instance Dioid Word32 where
+  fromNatural = connr w32nat
+
+instance Dioid Word64 where
+  fromNatural = connr w64nat
+
+instance Dioid Natural where
+  fromNatural = id

@@ -5,6 +5,7 @@ module Data.Dioid where
 import Data.Connection.Yoneda
 import Data.Semiring
 import Data.Prd
+import Numeric.Natural
 
 -- A constraint kind for topological dioids
 type Topological a = (Dioid a, Kleene a, Yoneda a)
@@ -17,8 +18,6 @@ Idempotent dioids form a particularly rich class of dioids which contains many s
 – Doubly selective dioids
 – Idempotent-cancellative dioids and selective-cancellative dioids
 – Idempotent-invertible dioids and selective-invertible dioids
-
-Dioids (idempotent dioids in particular) play an important role in many applications in computer science, ranging from regular languages and Kleene algebras to shortest path algorithms using tropical semirings such as the max-plus semiring. They are also generalizations of distributive lattices, quantales, residuated lattices and relation algebras, each of which have been studied extensively in mathematics and logic.
 
 -}
 
@@ -46,7 +45,18 @@ Dioids (idempotent dioids in particular) play an important role in many applicat
 --
 -- See 'Data.Dioid.Property'
 --
-class (Prd a, Semiring a) => Dioid a
+class (Prd r, Semiring r) => Dioid r where
+
+  -- | A dioid homomorphism from the naturals to /r/.
+  fromNatural :: Natural -> r
+{-
+  psignum :: Monoid r => r -> Maybe r
+  psignum x = case pcomparePrd mempty x
+     Just GT -> Just sunit
+     Just EQ -> Just mempty
+     _ -> Nothing
+-}
+
 
 instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b)
 

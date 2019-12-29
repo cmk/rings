@@ -1,7 +1,7 @@
 name:                rings
-version:             0.0.2.1
+version:             0.0.2.2
 synopsis:            Groups, rings, semirings, and dioids.
-description:         Lawful rings and low-dimensional module and dioid algebra.
+description:         Lawful algebraic classes and a la carte instances.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE

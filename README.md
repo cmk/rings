@@ -68,6 +68,8 @@ product f = foldr' ((><) . f) sunit
 
 ## Dioids
 
+Dioids (idempotent dioids in particular) play an important role in many applications in computer science, ranging from regular languages and Kleene algebras to shortest path algorithms using tropical semirings such as the max-plus semiring. They are also generalizations of distributive lattices, quantales, residuated lattices and relation algebras, each of which have been studied extensively in mathematics and logic.
+
 Given a commutative monoid (R,+,ε) sunit can define a reflexive and transitive binary relation, referred to as the canonical preorder and denoted ≤:
 
 a ≤ b ⇔ ∃ c ∈ R: b = a + c

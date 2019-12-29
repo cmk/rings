@@ -8,7 +8,6 @@ module Data.Semiring where
 
 import Control.Applicative
 import Control.Monad
-import Data.Complex
 import Data.Foldable hiding (product)
 import Data.Functor.Apply
 import Data.Functor.Classes
@@ -45,7 +44,7 @@ infixr 7 ><
 -- right-distributivity property connecting them:
 --
 -- @
--- (a <> b) >< c ≡ (a >< c) <> (b >< c)
+-- (a '<>' b) '><' c ≡ (a '><' c) '<>' (b '><' c)
 -- @
 --
 -- A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring 
@@ -304,14 +303,6 @@ instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
   {-# INLINE (><) #-}
 
   fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
-
-instance (Semigroup (Complex a), Group a, Semiring a) => Semiring (Complex a) where
-  (x :+ y) >< (x' :+ y') = (x >< x' << y >< y') :+ (x >< y' <> y >< x')
-  {-# INLINE (><) #-}
-
-  fromBoolean False = mempty
-  fromBoolean True = fromBoolean True :+ mempty
-  {-# INLINE fromBoolean #-}
 
 instance Monoid a => Semiring [a] where 
   (><) = liftA2 (<>)

@@ -37,7 +37,8 @@ instance Semiring (ty) where {     \
 
 #define deriveRing(ty)             \
 instance Ring (ty) where {         \
-   abs = N.abs                     \
+   fromInteger = N.fromInteger     \
+;  abs = N.abs                     \
 ;  signum = N.signum               \
 ;  {-# INLINE abs #-}              \
 ;  {-# INLINE signum #-}           \

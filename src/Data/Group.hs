@@ -5,20 +5,17 @@ import Prelude hiding (Num(..))
 
 infixl 6 <<
 
--- |A 'Group' is a 'Monoid' plus a function, 'negate', such that: 
+-- | A 'Group' is a 'Monoid' plus a function, 'negate', such that: 
 --
--- @a << negate a == mempty@
+-- @g << negate g ≡ mempty@
 --
--- @negate a << a == mempty@
+-- @negate g << g ≡ mempty@
 --
-class Monoid a => Group a where
+class Monoid g => Group g where
   {-# MINIMAL (negate | (<<)) #-}
 
-  negate :: a -> a
+  negate :: g -> g
   negate x = mempty << x
 
-  (<<) :: a -> a -> a
+  (<<) :: g -> g -> g
   x << y = x <> negate y
-
-instance (Monoid (Complex a), Group a) => Group (Complex a) where
-  negate (x :+ y) = negate x :+ negate y

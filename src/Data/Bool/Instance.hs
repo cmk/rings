@@ -1,4 +1,3 @@
--- | Instance instances from base.
 module Data.Bool.Instance where
 
 import Data.Prd
@@ -26,3 +25,5 @@ instance Kleene Bool where
   {-# INLINE plus #-}
 
 instance Dioid Bool where
+  fromNatural 0 = False
+  fromNatural _ = True
