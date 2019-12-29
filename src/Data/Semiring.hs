@@ -1,4 +1,5 @@
 {-# Language ConstrainedClassMethods #-}
+{-# Language ConstraintKinds   #-}
 {-# Language DefaultSignatures #-}
 {-# Language DeriveFunctor #-}
 {-# Language DeriveGeneric #-}
@@ -29,6 +30,12 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 
+-- | Constraint kind representing a unital semiring.
+--
+-- Used for convenience and to distinguish unital semirings from semirings with only an additive unit.
+--
+type Unital r = (Monoid r, Semiring r)
+
 infixr 7 ><
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
@@ -55,18 +62,24 @@ infixr 7 ><
 --
 class Semigroup r => Semiring r where
 
-  -- Multiplicative operation
+  -- | Multiplicative operation.
   (><) :: r -> r -> r  
 
-  -- A semiring homomorphism from the Boolean semiring to @r@. 
-  -- If this map is injective then @r@ has a distinct sunit.
+  -- | Semiring homomorphism from the Boolean semiring to @r@.
+  --
+  -- If this map is injective then @r@ has a distinct multiplicative unit.
+  --
   fromBoolean :: Monoid r => Bool -> r
   fromBoolean _ = mempty
 
-sunit :: (Monoid r, Semiring r) => r
+-- | Multiplicative unit of the semiring.
+--
+sunit :: Unital r => r
 sunit = fromBoolean True
 
-fromBooleanDef :: (Monoid r, Semiring r) => r -> Bool -> r
+-- | Default implementation of 'fromBoolean' given a multiplicative unit.
+--
+fromBooleanDef :: Unital r => r -> Bool -> r
 fromBooleanDef _ False = mempty
 fromBooleanDef o True = o
 
@@ -89,7 +102,7 @@ fromBooleanDef o True = o
 --
 -- In this situation you most likely want to use 'product1'.
 --
-product :: Foldable t => Monoid r => Semiring r => (a -> r) -> t a -> r
+product :: Foldable t => Unital r => (a -> r) -> t a -> r
 product f = foldr' ((><) . f) sunit
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
@@ -110,7 +123,7 @@ product1 f = getProd . foldMap1 (Prod . f)
 -- >>> cross [1,2,3 :: Int] []
 -- 0
 --
-cross :: Foldable f => Applicative f => Monoid r => Semiring r => f r -> f r -> r
+cross :: Foldable f => Applicative f => Unital r => f r -> f r -> r
 cross a b = fold $ liftA2 (><) a b
 
 -- | Cross-multiply two non-empty collections.
@@ -126,9 +139,9 @@ cross1 a b = fold1 $ liftF2 (><) a b
 -- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
 --
 replicate :: Monoid r => Natural -> r -> r
-replicate y0 x0
-    | y0 == 0 = mempty
-    | otherwise = f x0 y0
+replicate n a
+    | n == 0 = mempty
+    | otherwise = f a n
     where
         f x y 
             | even y = f (x <> x) (y `quot` 2)
@@ -140,15 +153,15 @@ replicate y0 x0
             | otherwise = g (x <> x) ((y - 1) `quot` 2) (x <> z)
 {-# INLINE replicate #-}
 
-replicate' :: Monoid r => Semiring r => Natural -> r -> r
-replicate' n r = getProd $ replicate n (Prod r)
+replicate' :: Unital r => Natural -> r -> r
+replicate' n a = getProd $ replicate n (Prod a)
 
 infixr 8 ^
 
-(^) :: Monoid r => Semiring r => r -> Natural -> r
+(^) :: Unital r => r -> Natural -> r
 (^) = flip replicate'
 
-powers :: Monoid r => Semiring r => Natural -> r -> r
+powers :: Unital r => Natural -> r -> r
 powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
 
@@ -268,23 +281,29 @@ instance Semiring Ordering where
 -- False
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 15
 -- True
-instance (Monoid b, Semiring b) => Semiring (a -> b) where
+instance Unital b => Semiring (a -> b) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
   fromBoolean = const . fromBoolean
 
-instance (Monoid a, Semiring a) => Semiring (Op a b) where
+instance Unital a => Semiring (Op a b) where
   Op f >< Op g = Op $ \x -> f x >< g x
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ Op (const sunit)
 
-instance (Monoid a, Monoid b, Semiring a, Semiring b) => Semiring (a, b) where
+instance (Unital a, Unital b) => Semiring (a, b) where
   (a, b) >< (c, d) = (a><c, b><d)
   {-# INLINE (><) #-}
 
   fromBoolean = liftA2 (,) fromBoolean fromBoolean
+
+instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
+  (a, b, c) >< (d, e, f) = (a><d, b><e, c><f)
+  {-# INLINE (><) #-}
+
+  fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
 
 instance (Semigroup (Complex a), Group a, Semiring a) => Semiring (Complex a) where
   (x :+ y) >< (x' :+ y') = (x >< x' << y >< y') :+ (x >< y' <> y >< x')

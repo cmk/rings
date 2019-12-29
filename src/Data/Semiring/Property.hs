@@ -78,7 +78,7 @@ neutral_addition_on' (~~) = Prop.neutral_on (~~) (<>) mempty
 neutral_multiplication_on :: Semiring r => Rel r -> r -> r -> Bool
 neutral_multiplication_on (~~) = Prop.neutral_on (~~) (><) 
 
-neutral_multiplication_on' :: (Monoid r, Semiring r) => Rel r -> r -> Bool
+neutral_multiplication_on' :: Unital r => Rel r -> r -> Bool
 neutral_multiplication_on' (~~) = Prop.neutral_on (~~) (><) sunit
 
 -- | \( \forall a, b, c \in R: (a + b) + c \sim a + (b + c) \)
@@ -136,7 +136,7 @@ distributive_on (~~) = Prop.distributive_on (~~) (<>) (><)
 --
 -- See also 'Data.Warning' and < https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif >.
 --
-nonunital_on :: (Monoid r, Semiring r) => Rel r -> r -> r -> Bool
+nonunital_on :: Unital r => Rel r -> r -> r -> Bool
 nonunital_on (~~) a b = (a >< b) ~~ (a >< b <> b)
 
 ------------------------------------------------------------------------------------
@@ -166,14 +166,14 @@ nonunital_on (~~) a b = (a >< b) ~~ (a >< b <> b)
 --
 -- This is a required property.
 --
-annihilative_multiplication_on :: (Monoid r, Semiring r) => Rel r -> r -> Bool
+annihilative_multiplication_on :: Unital r => Rel r -> r -> Bool
 annihilative_multiplication_on (~~) r = Prop.annihilative_on (~~) (><) mempty r
 
 -- | 'fromBoolean' must be a semiring homomorphism into /R/.
 --
 -- This is a required property.
 --
-homomorphism_boolean :: forall r. (Eq r, Monoid r, Semiring r) => Bool -> Bool -> Bool
+homomorphism_boolean :: forall r. (Eq r, Unital r) => Bool -> Bool -> Bool
 homomorphism_boolean i j =
   fromBoolean True     == (sunit @r)  &&
   fromBoolean False    == (mempty @r) &&
@@ -221,7 +221,7 @@ commutative_multiplication_on (~~) = Prop.commutative_on (~~) (><)
 --
 -- For types with exact arithmetic this follows from 'distributive' & 'neutral_multiplication'.
 --
-distributive_finite_on :: (Monoid r, Semiring r) => Rel r -> [r] -> r -> Bool
+distributive_finite_on :: Unital r => Rel r -> [r] -> r -> Bool
 distributive_finite_on (~~) as b = (fold as >< b) ~~ (foldMap (>< b) as)
 
 -- | \( \forall M \geq 1; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b \sim \sum_{i=1}^M a_i * b \)
@@ -230,14 +230,14 @@ distributive_finite_on (~~) as b = (fold as >< b) ~~ (foldMap (>< b) as)
 --
 -- For types with exact arithmetic this follows from 'distributive' and the universality of 'fold1'.
 --
-distributive_finite1_on :: (Semiring r) => Rel r -> NonEmpty r -> r -> Bool
+distributive_finite1_on :: Semiring r => Rel r -> NonEmpty r -> r -> Bool
 distributive_finite1_on (~~) as b = (fold1 as >< b) ~~ (foldMap1 (>< b) as)
 
 -- | \( \forall M,N \geq 0; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) \sim \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
 -- If /R/ is also left-distributive then it supports cross-multiplication.
 --
-distributive_cross_on :: (Monoid r, Semiring r) => Rel r -> [r] -> [r] -> Bool
+distributive_cross_on :: Unital r => Rel r -> [r] -> [r] -> Bool
 distributive_cross_on (~~) as bs = (fold as >< fold bs) ~~ (cross as bs)
 
 -- | \( \forall M,N \geq 1; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) = \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)

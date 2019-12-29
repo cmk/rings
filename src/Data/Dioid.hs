@@ -46,4 +46,8 @@ Dioids (idempotent dioids in particular) play an important role in many applicat
 --
 -- See 'Data.Dioid.Property'
 --
-class (Prd a, Semiring a) => Dioid a where
+class (Prd a, Semiring a) => Dioid a
+
+instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b)
+
+instance (Monoid a, Monoid b, Monoid c, Dioid a, Dioid b, Dioid c) => Dioid (a, b, c)
