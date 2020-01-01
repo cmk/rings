@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP  #-}
+{-# LANGUAGE Safe #-}
+
 module Data.Ring (
     (<<)
   , (><)
@@ -6,9 +9,14 @@ module Data.Ring (
   , Ring(..)
 ) where
 
-import Data.Group
-import Data.Semiring
-import Prelude hiding (Num(..))
+import safe Data.Complex
+import safe Data.Fixed
+import safe Data.Int
+import safe Data.Group
+import safe Data.Semiring
+import safe GHC.Real
+import safe Prelude hiding (Num(..))
+import safe qualified Prelude as N
 
 -- | Rings.
 --
@@ -35,20 +43,52 @@ import Prelude hiding (Num(..))
 --
 -- See the properties module for a detailed specification of the laws.
 --
-class (Group r, Semiring r) => Ring r where
+class (Group a, Semiring a) => Ring a where
 
-  -- | A ring homomorphism from the integers to /r/.
-  fromInteger :: Integer -> r
+  -- | A ring homomorphism from the integers to /a/.
+  fromInteger :: Integer -> a
 
   -- | Absolute value of an element.
   --
   -- @ abs r ≡ r >< signum r @
   --
-  abs :: Ord r => r -> r
+  abs :: Ord a => a -> a
   abs x = if mempty <= x then x else negate x
 
   -- satisfies trichotomy law:
   -- Exactly one of the following is true: a is positive, -a is positive, or a = 0.
   -- This property follows from the fact that ordered rings are abelian, linearly ordered groups with respect to addition.
-  signum :: Ord r => r -> r
+  signum :: Ord a => a -> a
   signum x = if mempty <= x then sunit else negate sunit
+
+instance Ring Rational where
+  fromInteger x = fromInteger x :% sunit
+  {-# INLINE fromInteger #-}
+
+instance Ring a => Ring (Complex a) where
+  fromInteger x = fromInteger x :+ mempty
+  {-# INLINE fromInteger #-}
+
+#define deriveRing(ty)             \
+instance Ring (ty) where {         \
+   fromInteger = N.fromInteger     \
+;  abs = N.abs                     \
+;  signum = N.signum               \
+;  {-# INLINE abs #-}              \
+;  {-# INLINE signum #-}           \
+}
+
+deriveRing(Int)
+deriveRing(Int8)
+deriveRing(Int16)
+deriveRing(Int32)
+deriveRing(Int64)
+deriveRing(Integer)
+
+deriveRing(Uni)
+deriveRing(Deci)
+deriveRing(Centi)
+deriveRing(Milli)
+deriveRing(Micro)
+deriveRing(Nano)
+deriveRing(Pico)

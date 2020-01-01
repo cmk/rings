@@ -35,6 +35,8 @@ import Test.Util
 import qualified Test.Function  as Prop
 import qualified Test.Operation as Prop
 
+import Prelude
+
 ------------------------------------------------------------------------------------
 -- Properties of pre-semirings & semirings
 

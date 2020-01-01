@@ -3,39 +3,44 @@
 {-# Language DefaultSignatures #-}
 {-# Language DeriveFunctor #-}
 {-# Language DeriveGeneric #-}
-
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE CPP #-}
 module Data.Semiring where
 
-import Control.Applicative
-import Control.Monad
-import Data.Foldable hiding (product)
-import Data.Functor.Apply
-import Data.Functor.Classes
-import Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
-import Data.Functor.Identity (Identity(..))
-import Data.Group
-import Data.List (unfoldr)
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Semigroup
-import Data.Semigroup.Foldable
-import Data.Typeable (Typeable)
-import Foreign.Storable (Storable)
-import GHC.Generics (Generic, Generic1)
-import GHC.Real (even, quot)
-import Numeric.Natural
-import Prelude hiding ((^), replicate, sum, product)
-import qualified Data.Map as Map
-import qualified Data.Sequence as Seq
-import qualified Data.Set as Set
-import qualified Data.IntMap as IntMap
+import safe Control.Applicative
+import safe Control.Monad
+import safe Data.Complex
+import safe Data.Int
+import safe Data.Word
+import safe Data.Fixed
+import safe Data.Foldable hiding (product)
+import safe Data.Functor.Apply
+import safe Data.Functor.Classes
+import safe Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
+import safe Data.Functor.Identity (Identity(..))
+import safe Data.List (unfoldr)
+import safe Data.List.NonEmpty (NonEmpty(..))
+import safe Data.Semigroup
+import safe Data.Semigroup.Foldable
+import safe Data.Typeable (Typeable)
+import safe Foreign.Storable (Storable)
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
+import safe GHC.Generics (Generic, Generic1)
+import safe GHC.Real hiding ((^))-- (even, quot)
+import safe Numeric.Natural
+import safe Prelude hiding ((^), replicate, sum, product)
+import safe qualified Data.Map as Map
+import safe qualified Data.Sequence as Seq
+import safe qualified Data.Set as Set
+import safe qualified Data.IntMap as IntMap
 
 -- | Constraint kind representing a unital semiring.
 --
 -- Used for convenience and to distinguish unital semirings from semirings with only an additive unit.
 --
-type Unital r = (Monoid r, Semiring r)
+type Unital a = (Monoid a, Semiring a)
 
-infixr 7 ><
+infixl 7 ><
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
 -- 
@@ -59,28 +64,32 @@ infixr 7 ><
 --
 -- See the properties module for a detailed specification of the laws.
 --
-class Semigroup r => Semiring r where
+class Semigroup a => Semiring a where
 
   -- | Multiplicative operation.
-  (><) :: r -> r -> r  
+  (><) :: a -> a -> a  
 
   -- | Semiring homomorphism from the Boolean semiring to @r@.
   --
   -- If this map is injective then @r@ has a distinct multiplicative unit.
   --
-  fromBoolean :: Monoid r => Bool -> r
+  fromBoolean :: Monoid a => Bool -> a
   fromBoolean _ = mempty
-
--- | Multiplicative unit of the semiring.
---
-sunit :: Unital r => r
-sunit = fromBoolean True
 
 -- | Default implementation of 'fromBoolean' given a multiplicative unit.
 --
-fromBooleanDef :: Unital r => r -> Bool -> r
+fromBooleanDef :: Unital a => a -> Bool -> a
 fromBooleanDef _ False = mempty
 fromBooleanDef o True = o
+{-# INLINE fromBooleanDef #-}
+
+-- | Multiplicative unit.
+--
+-- Note that 'sunit' needn't be distinct from 'mempty' for a semiring to be valid.
+--
+sunit :: Unital a => a
+sunit = fromBoolean True
+{-# INLINE sunit #-}
 
 -- | Fold over a collection using the multiplicative operation of a semiring.
 -- 
@@ -94,15 +103,16 @@ fromBooleanDef o True = o
 -- >>> (product . foldMap) id [[1, 2], [3, (4 :: Int)]] -- 1 <> 2 >< 3 <> 4
 -- 21
 --
--- For semirings without a distinct multiplicative sunit this is equivalent to @const mempty@:
+-- For semirings without a distinct multiplicative unit this is equivalent to @const mempty@:
 --
 -- >>> product Just [1..(5 :: Int)]
 -- Just 0
 --
 -- In this situation you most likely want to use 'product1'.
 --
-product :: Foldable t => Unital r => (a -> r) -> t a -> r
+product :: Foldable t => Unital a => (b -> a) -> t b -> a
 product f = foldr' ((><) . f) sunit
+{-# INLINE product #-}
 
 -- | Fold over a non-empty collection using the multiplicative operation of a semiring.
 --
@@ -111,8 +121,9 @@ product f = foldr' ((><) . f) sunit
 -- >>> product1 Just $ 1 :| [2..(5 :: Int)]
 -- Just 120
 --
-product1 :: Foldable1 t => Semiring r => (a -> r) -> t a -> r
+product1 :: Foldable1 t => Semiring a => (b -> a) -> t b -> a
 product1 f = getProd . foldMap1 (Prod . f)
+{-# INLINE product1 #-}
 
 -- | Cross-multiply two collections.
 --
@@ -122,22 +133,30 @@ product1 f = getProd . foldMap1 (Prod . f)
 -- >>> cross [1,2,3 :: Int] []
 -- 0
 --
-cross :: Foldable f => Applicative f => Unital r => f r -> f r -> r
+cross :: Foldable f => Applicative f => Unital a => f a -> f a -> a
 cross a b = fold $ liftA2 (><) a b
+{-# INLINE cross #-}
 
 -- | Cross-multiply two non-empty collections.
 --
 -- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
 -- Right 4
 --
-cross1 :: Foldable1 f => Apply f => Semiring r => f r -> f r -> r
+cross1 :: Foldable1 f => Apply f => Semiring a => f a -> f a -> a
 cross1 a b = fold1 $ liftF2 (><) a b
+{-# INLINE cross1 #-}
+
+infixr 8 ^
+
+(^) :: Unital a => a -> Natural -> a
+(^) = flip replicate'
+{-# INLINE (^) #-}
 
 -- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
 --
 -- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
 --
-replicate :: Monoid r => Natural -> r -> r
+replicate :: Monoid a => Natural -> a -> a
 replicate n a
     | n == 0 = mempty
     | otherwise = f a n
@@ -152,67 +171,14 @@ replicate n a
             | otherwise = g (x <> x) ((y - 1) `quot` 2) (x <> z)
 {-# INLINE replicate #-}
 
-replicate' :: Unital r => Natural -> r -> r
+replicate' :: Unital a => Natural -> a -> a
 replicate' n a = getProd $ replicate n (Prod a)
+{-# INLINE replicate' #-}
 
-infixr 8 ^
-
-(^) :: Unital r => r -> Natural -> r
-(^) = flip replicate'
-
-powers :: Unital r => Natural -> r -> r
+powers :: Unital a => Natural -> a -> a
 powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
-
--------------------------------------------------------------------------------
--- 'Kleene'
--------------------------------------------------------------------------------
-
--- | Infinite closures of a semiring.
---
--- 'Kleene' adds a Kleene 'star' operator to a 'Semiring', with an infinite closure property:
---
--- @'star' x ≡ 'star' x '><' x '<>' 'sunit' ≡ x '><' 'star' x '<>' 'sunit'@
---
--- If @r@ is a dioid then 'star' must be monotonic:
---
--- @x '<~' y ==> 'star' x '<~' 'star' y
---
--- See also <https://en.wikipedia.org/wiki/Semiring#Kleene_semirings closed semiring>
---
-class Semiring a => Kleene a where
-  {-# MINIMAL star | plus #-} 
-
-  star :: a -> a
-  default star :: Monoid a => a -> a
-  star a = sunit <> plus a
-
-  plus :: a -> a
-  plus a = a >< star a
-
--- This only works if * is idempotent (a lattice?), as it just sums w/o powers
---star = fmap fold . many
---plus = fmap fold . some
-
---interior :: (r -> r) -> r -> r
---interior f r = (r ><) . f
---adjoint . star = plus . adjoint
-
---star = (>< mempty) . (<> mempty)
---plus = (<> sunit) . (>< sunit)
-
-instance Kleene () where
-  star  _ = ()
-  plus _ = ()
-  {-# INLINE star #-}
-  {-# INLINE plus #-}
-
-instance (Monoid b, Kleene b) => Kleene (a -> b) where
-  plus = fmap plus
-  {-# INLINE plus #-}
-
-  star = fmap star
-  {-# INLINE star #-}
+{-# INLINE powers #-}
 
 -------------------------------------------------------------------------------
 -- Pre-semirings
@@ -262,10 +228,52 @@ instance Semigroup a => Semiring (NonEmpty a) where
 -- Semirings
 -------------------------------------------------------------------------------
 
+#define deriveSemiring(ty)         \
+instance Semiring (ty) where {     \
+   (><) = (*)                      \
+;  fromBoolean = fromBooleanDef 1  \
+;  {-# INLINE (><) #-}             \
+;  {-# INLINE fromBoolean #-}      \
+}
+
+deriveSemiring(Word)
+deriveSemiring(Word8)
+deriveSemiring(Word16)
+deriveSemiring(Word32)
+deriveSemiring(Word64)
+deriveSemiring(Natural)
+
+deriveSemiring(Int)
+deriveSemiring(Int8)
+deriveSemiring(Int16)
+deriveSemiring(Int32)
+deriveSemiring(Int64)
+deriveSemiring(Integer)
+
+deriveSemiring(Uni)
+deriveSemiring(Deci)
+deriveSemiring(Centi)
+deriveSemiring(Milli)
+deriveSemiring(Micro)
+deriveSemiring(Nano)
+deriveSemiring(Pico)
+
+deriveSemiring(Float)
+deriveSemiring(CFloat)
+deriveSemiring(Double)
+deriveSemiring(CDouble)
+
 instance Semiring () where
   (><) _ _ = ()
 
   fromBoolean _ = ()
+
+instance Semiring Bool where
+  (><) = (&&)
+  {-# INLINE (><) #-}
+
+  fromBoolean = id
+  {-# INLINE fromBoolean #-}
 
 instance Semiring Ordering where
   LT >< LT = LT
@@ -275,6 +283,17 @@ instance Semiring Ordering where
   GT >< x  = x
 
   fromBoolean = fromBooleanDef GT
+
+instance Semiring a => Semigroup (Ratio a) where
+  x1 :% y1 <> x2 :% y2 = (x1><y2 <> y1><x2) :% (y1><y2)
+
+instance Unital a => Monoid (Ratio a) where
+  mempty = mempty :% sunit
+
+instance Unital a => Semiring (Ratio a) where
+  x1 :% y1 >< x2 :% y2 = (x1><x2) :% (y1><y2)
+
+  fromBoolean x = fromBoolean x :% sunit
 
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 10
 -- False
@@ -304,33 +323,35 @@ instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
 
   fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
 
+-- >>> [1, 2] >< [3, 4]
+-- [4,5,5,6]
 instance Monoid a => Semiring [a] where 
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ pure mempty
 
-instance (Monoid a, Semiring a) => Semiring (Maybe a) where 
+instance Unital a => Semiring (Maybe a) where 
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ pure mempty
 
-instance (Monoid a, Semiring a) => Semiring (Dual a) where
+instance Unital a => Semiring (Dual a) where
   (><) = liftA2 $ flip (><)
   {-# INLINE (><)  #-}
 
   fromBoolean = Dual . fromBoolean
   {-# INLINE fromBoolean #-}
 
-instance (Monoid a, Semiring a) => Semiring (Const a b) where
+instance Unital a => Semiring (Const a b) where
   (Const x) >< (Const y) = Const (x >< y)
   {-# INLINE (><)  #-}
 
   fromBoolean = Const . fromBoolean
   {-# INLINE fromBoolean #-}
 
-instance (Monoid a, Semiring a) => Semiring (Identity a) where
+instance Unital a => Semiring (Identity a) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
@@ -352,12 +373,13 @@ instance Semiring All where
   fromBoolean False = All True
   fromBoolean True = All False
 
-instance (Monoid a, Semiring a) => Semiring (IO a) where 
+instance Unital a => Semiring (IO a) where 
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ pure mempty
 
+{-
 ---------------------------------------------------------------------
 --  Instances (contravariant)
 ---------------------------------------------------------------------
@@ -386,6 +408,7 @@ instance Semiring (Equivalence a) where
   --where necessary. 
   fromBoolean False = Equivalence $ \_ _ -> True
   fromBoolean True = Equivalence $ \_ _ -> False
+-}
 
 ---------------------------------------------------------------------
 --  Instances (containers)
@@ -413,6 +436,88 @@ instance Monoid a => Semiring (IntMap.IntMap a) where
   fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
 
 ---------------------------------------------------------------------
+-- Instances (orphans)
+---------------------------------------------------------------------
+
+instance Semigroup Bool where
+  (<>) = (||)
+  {-# INLINE (<>) #-}
+
+instance Monoid Bool where mempty = False
+
+instance Semigroup a => Semigroup (Complex a) where
+  (x1 :+ y1) <> (x2 :+ y2) = (x1 <> x2) :+ (y1 <> y2)
+  {-# INLINE (<>) #-}
+
+instance Monoid a => Monoid (Complex a) where
+  mempty = mempty :+ mempty
+
+#define deriveSemigroup(ty)        \
+instance Semigroup (ty) where {    \
+   (<>) = (+)                      \
+;  {-# INLINE (<>) #-}             \
+}
+
+#define deriveMonoid(ty)           \
+instance Monoid (ty) where {       \
+   mempty = 0                      \
+}
+
+deriveSemigroup(Word)
+deriveSemigroup(Word8)
+deriveSemigroup(Word16)
+deriveSemigroup(Word32)
+deriveSemigroup(Word64)
+deriveSemigroup(Natural)
+
+deriveMonoid(Word)
+deriveMonoid(Word8)
+deriveMonoid(Word16)
+deriveMonoid(Word32)
+deriveMonoid(Word64)
+deriveMonoid(Natural)
+
+deriveSemigroup(Int)
+deriveSemigroup(Int8)
+deriveSemigroup(Int16)
+deriveSemigroup(Int32)
+deriveSemigroup(Int64)
+deriveSemigroup(Integer)
+
+deriveMonoid(Int)
+deriveMonoid(Int8)
+deriveMonoid(Int16)
+deriveMonoid(Int32)
+deriveMonoid(Int64)
+deriveMonoid(Integer)
+
+deriveSemigroup(Uni)
+deriveSemigroup(Deci)
+deriveSemigroup(Centi)
+deriveSemigroup(Milli)
+deriveSemigroup(Micro)
+deriveSemigroup(Nano)
+deriveSemigroup(Pico)
+
+deriveMonoid(Uni)
+deriveMonoid(Deci)
+deriveMonoid(Centi)
+deriveMonoid(Milli)
+deriveMonoid(Micro)
+deriveMonoid(Nano)
+deriveMonoid(Pico)
+
+deriveSemigroup(Float)
+deriveSemigroup(CFloat)
+deriveMonoid(Float)
+deriveMonoid(CFloat)
+
+deriveSemigroup(Double)
+deriveSemigroup(CDouble)
+deriveMonoid(Double)
+deriveMonoid(CDouble)
+
+---------------------------------------------------------------------
 -- Newtype wrappers
 ---------------------------------------------------------------------
 
@@ -430,6 +535,6 @@ instance Semiring a => Semigroup (Prod a) where
   {-# INLINE (<>) #-}
 
 -- Note that 'sunit' must be distinct from 'mempty' for this instance to be legal.
-instance (Monoid a, Semiring a) => Monoid (Prod a) where
+instance Unital a => Monoid (Prod a) where
   mempty = Prod sunit
   {-# INLINE mempty #-}

@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE Safe #-}
 
 -- | API essentially follows that of /linear/ & /hmatrix/.
 module Data.Semiring.Matrix (
@@ -50,23 +51,22 @@ module Data.Semiring.Matrix (
   , inv4d
   ) where
 
-import Data.Distributive
-import Data.Foldable as Foldable (fold, foldl')
-import Data.Functor.Compose
-import Data.Functor.Rep
-import Data.Group
-import Data.Prd
-import Data.Ring
-import Data.Semigroup.Foldable as Foldable1
-import Data.Semiring
-import Data.Semiring.Module
-import Data.Semiring.V2
-import Data.Semiring.V3
-import Data.Semiring.V4
-import Data.Tuple
+import safe Data.Distributive
+import safe Data.Foldable as Foldable (fold, foldl')
+import safe Data.Functor.Compose
+import safe Data.Functor.Rep
+import safe Data.Group
+import safe Data.Prd
+import safe Data.Ring
+import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semiring
+import safe Data.Semiring.Module
+import safe Data.Semiring.V2
+import safe Data.Semiring.V3
+import safe Data.Semiring.V4
+import safe Data.Tuple
 
-import Data.Double.Instance () -- Semiring instance.
-import Prelude hiding (sum, negate)
+import safe Prelude hiding (sum, negate)
 
 -- All matrices use row-major representation.
 

@@ -3,21 +3,22 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Semiring.V3 where
 
-import Data.Dioid
-import Data.Distributive
-import Data.Foldable as Foldable (fold, foldl')
-import Data.Functor.Rep
-import Data.Group
-import Data.Prd
-import Data.Ring
-import Data.Semigroup.Foldable as Foldable1
-import Data.Semiring
-import Data.Semiring.Module
+import safe Data.Dioid
+import safe Data.Distributive
+import safe Data.Foldable as Foldable (fold, foldl')
+import safe Data.Functor.Rep
+import safe Data.Group
+import safe Data.Prd
+import safe Data.Ring
+import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semiring
+import safe Data.Semiring.Module
 
-import Prelude hiding (sum, negate)
+import safe Prelude hiding (sum, negate)
 
 data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
 

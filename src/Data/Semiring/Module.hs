@@ -3,21 +3,21 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Semiring.Module where
 
-import Data.Distributive
-import Data.Functor.Compose
-import Data.Foldable as Foldable (fold, foldl')
-import Data.Semigroup.Foldable as Foldable1
-import Data.Functor.Rep
-import Data.Semiring
-import Data.Group
-import Data.Ring
-import Data.Prd
-import Data.Tuple
-import Data.Int.Instance ()
-import Prelude hiding (sum, negate)
+import safe Data.Distributive
+import safe Data.Functor.Compose
+import safe Data.Foldable as Foldable (fold, foldl')
+import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Functor.Rep
+import safe Data.Semiring
+import safe Data.Group
+import safe Data.Ring
+import safe Data.Prd
+import safe Data.Tuple
+import safe Prelude hiding (sum, negate)
 
 -- | Free semimodule over a generating set.
 --
@@ -40,15 +40,6 @@ grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
 fempty :: Monoid a => Representable f => f a
 fempty = pureRep mempty
 {-# INLINE fempty #-}
-
--- | Negation of a vector.
---
--- >>> neg (V2 2 4)
--- V2 (-2) (-4)
---
-neg :: Group a => Functor f => f a -> f a
-neg = fmap negate
-{-# INLINE neg #-}
 
 infixl 6 `sum`
 

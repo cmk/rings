@@ -1,25 +1,25 @@
 {-# Language ConstraintKinds #-}
+{-# LANGUAGE Safe            #-}
 
 module Data.Dioid where
 
-import Data.Connection.Yoneda
-import Data.Semiring
-import Data.Prd
-import Numeric.Natural
+import safe Data.Word
+import safe Data.Connection
+import safe Data.Connection.Word
+import safe Data.Connection.Yoneda
+import safe Data.Semiring
+import safe Data.Prd
+import safe Numeric.Natural
+import safe GHC.Real
+
+import safe Prelude hiding (Num(..))
+import safe qualified Prelude as N
 
 -- A constraint kind for topological dioids
-type Topological a = (Dioid a, Kleene a, Yoneda a)
+--type Topological a = (Dioid a, Kleene a, Yoneda a)
 
-{-
-An idempotent dioid is a dioid in which the addition /<>/ is idempotent. A frequently encountered special case is one where addition /<>/ is not only idempotent but also selective. A selective dioid is a dioid in which the addition /<>/ is selective (i.e.: ∀a, b ∈ E: a /<>/ b = a or b).
+type Positive = Ratio Natural
 
-Idempotent dioids form a particularly rich class of dioids which contains many sub-classes, in particular:
-– Doubly-idempotent dioids and distributive lattices
-– Doubly selective dioids
-– Idempotent-cancellative dioids and selective-cancellative dioids
-– Idempotent-invertible dioids and selective-invertible dioids
-
--}
 
 -- | Right pre-dioids and dioids.
 --
@@ -49,6 +49,31 @@ class (Prd r, Semiring r) => Dioid r where
 
   -- | A dioid homomorphism from the naturals to /r/.
   fromNatural :: Natural -> r
+
+instance Dioid () where
+  fromNatural _ = ()
+
+instance Dioid Bool where
+  fromNatural 0 = False
+  fromNatural _ = True
+
+instance Dioid Word8 where
+  fromNatural = connr w08nat
+
+instance Dioid Word16 where
+  fromNatural = connr w16nat
+
+instance Dioid Word32 where
+  fromNatural = connr w32nat
+
+instance Dioid Word64 where
+  fromNatural = connr w64nat
+
+instance Dioid Natural where
+  fromNatural = id
+
+instance Dioid Positive where
+  fromNatural x = x :% sunit
 
 instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b) where
   fromNatural x = (fromNatural x, fromNatural x)

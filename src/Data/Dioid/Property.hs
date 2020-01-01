@@ -1,7 +1,8 @@
 {-# Language AllowAmbiguousTypes #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Dioid.Property (
-  -- * Properties of dioids (aka ordered semirings) 
+  -- * Properties of dioids
     ordered_preordered
   , ordered_monotone_zero
   , ordered_monotone_addition
@@ -20,12 +21,14 @@ module Data.Dioid.Property (
   , annihilative_addition 
   , annihilative_addition' 
   , codistributive
+{-
   -- * Properties of kleene dioids
   , kleene_pstable
   , kleene_paffine 
   , kleene_stable 
   , kleene_affine 
   , idempotent_star
+-}
 ) where
 
 import Data.Prd
@@ -38,6 +41,8 @@ import Test.Util ((<==>),(==>))
 import qualified Test.Function  as Prop
 import qualified Test.Operation as Prop hiding (distributive_on)
 import qualified Data.Semiring.Property as Prop
+
+import Prelude
 
 ------------------------------------------------------------------------------------
 -- Properties of ordered semirings (aka dioids).
@@ -228,6 +233,7 @@ codistributive = Prop.distributive_on' (~~) (><) (<>)
 ------------------------------------------------------------------------------------
 -- Properties of kleene dioids
 
+{-
 -- | \( 1 + \sum_{i=1}^{P+1} a^i = 1 + \sum_{i=1}^{P} a^i \)
 --
 -- If /a/ is p-stable for some /p/, then we have:
@@ -282,3 +288,4 @@ idempotent_star = Prop.idempotent star
 --
 monotone_star :: (Monoid r, Dioid r, Kleene r) => r -> r -> Bool
 monotone_star = Prop.monotone_on (<~) (<~) star
+-}

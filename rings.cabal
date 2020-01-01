@@ -1,7 +1,7 @@
 name:                rings
 version:             0.0.2.4
-synopsis:            Groups, rings, semirings, and dioids.
-description:         Lawful algebraic classes and a la carte instances.
+synopsis:            Ring-like objects.
+description:         Groups, semirings, rings, division rings, and dioids.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -18,6 +18,7 @@ library
   exposed-modules:
       Data.Ring
     , Data.Dioid
+    --, Data.Dioid.Tropical
     , Data.Dioid.Property
     , Data.Group
     , Data.Semiring
@@ -27,14 +28,8 @@ library
     , Data.Semiring.Matrix
     , Data.Semiring.Module
     , Data.Semiring.Property
-
-    , Data.Bool.Instance
-    , Data.Complex.Instance
-    , Data.Double.Instance
-    , Data.Fixed.Instance
-    , Data.Float.Instance
-    , Data.Int.Instance
-    , Data.Word.Instance
+    , Data.Semifield
+    , Data.Semifield.Quaternion
 
   default-extensions:
       ScopedTypeVariables
@@ -42,6 +37,7 @@ library
     , MultiParamTypeClasses
     , UndecidableInstances
     , FlexibleInstances
+    , NoImplicitPrelude
 
   build-depends:       
       base           >= 4.10    && < 5.0
