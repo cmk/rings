@@ -1,7 +1,7 @@
 name:                rings
 version:             0.0.2.4
 synopsis:            Ring-like objects.
-description:         Groups, semirings, rings, division rings, and dioids.
+description:         Semirings, rings, division rings, modules, and dioids.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -16,20 +16,21 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-      Data.Ring
-    , Data.Dioid
+      Data.Dioid
     --, Data.Dioid.Tropical
     , Data.Dioid.Property
     , Data.Group
-    , Data.Semiring
-    , Data.Semiring.V2
-    , Data.Semiring.V3
-    , Data.Semiring.V4
-    , Data.Semiring.Matrix
-    , Data.Semiring.Module
-    , Data.Semiring.Property
-    , Data.Semifield
-    , Data.Semifield.Quaternion
+    , Data.Ring
+    , Data.Ring.Property
+    , Data.Field
+    , Data.Module
+    , Data.Module.V2
+    , Data.Module.V3
+    , Data.Module.V4
+    , Data.Module.Matrix
+    , Data.Module.Quaternion
+    , Data.Algebra
+
 
   default-extensions:
       ScopedTypeVariables

@@ -35,12 +35,12 @@ import Data.Prd
 import Data.Dioid
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Semiring hiding (nonunital)
+import Data.Ring hiding (nonunital)
 import Numeric.Natural
 import Test.Util ((<==>),(==>))
 import qualified Test.Function  as Prop
 import qualified Test.Operation as Prop hiding (distributive_on)
-import qualified Data.Semiring.Property as Prop
+import qualified Data.Ring.Property as Prop
 
 import Prelude
 

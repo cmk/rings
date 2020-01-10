@@ -3,13 +3,13 @@
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
-module Data.Semifield where
+module Data.Field where
 
 import safe Data.Complex
 import safe Data.Dioid
 import safe Data.Fixed
 import safe Data.Group
-import safe Data.Semiring
+import safe Data.Ring
 import safe Data.Ring
 import safe Numeric.Natural
 
@@ -39,11 +39,13 @@ semirings (and consequently positive dioids) are often referred to as semi-field
 
 infixl 7 //
 
--- | A semifield, near-field, or division ring.
+-- | A semifield, near-field, division ring, or associative division algebra.
 --
 -- Instances needn't be commutative, nor need they possess 'Monoid' or 'Group' instances.
 --
--- See also the wikipedia definitions of < https://en.wikipedia.org/wiki/Semifield semifield >, < https://en.wikipedia.org/wiki/Near-field_(mathematics) near-field >, and < https://en.wikipedia.org/wiki/Division_ring division ring >.
+-- They need only be right-associative pre-semirings.
+--
+-- See also the wikipedia definitions of < https://en.wikipedia.org/wiki/Semifield semifield >, < https://en.wikipedia.org/wiki/Near-field_(mathematics) near-field >, < https://en.wikipedia.org/wiki/Division_ring division ring >, and < https://en.wikipedia.org/wiki/Division_algebra division algebra >.
 -- 
 class Semiring a => Semifield a where
   {-# MINIMAL (//) #-}

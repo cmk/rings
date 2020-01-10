@@ -5,43 +5,25 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE Safe #-}
 
-module Data.Semiring.V3 where
+module Data.Module.V3  (
+    V3(..)
+  , triple
+  , I3(..)
+) where
 
 import safe Data.Dioid
 import safe Data.Distributive
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Rep
 import safe Data.Group
+import safe Data.Module
 import safe Data.Prd
 import safe Data.Ring
 import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Semiring
-import safe Data.Semiring.Module
 
-import safe Prelude hiding (sum, negate)
+import safe Prelude hiding (negate)
 
 data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
-
-infixl 7 <@>
-
--- | Cross product.
---
--- >>> V3 1 1 1 <@> V3 (-2) 1 1
--- V3 0 (-3) 3
---
--- The cross product satisfies the following properties:
---
--- @ 
--- a '<@>' a = 0 
--- a '<@>' b = − ( b '<@>' a ) , 
--- a '<@>' ( b + c ) = ( a '<@>' b ) + ( a '<@>' c ) , 
--- ( r a ) '<@>' b = a '<@>' ( r b ) = r ( a '<@>' b ) . 
--- a '<@>' ( b '<@>' c ) + b '<@>' ( c '<@>' a ) + c '<@>' ( a '<@>' b ) = 0 . 
--- @
--- 
-(<@>) :: Ring a => V3 a -> V3 a -> V3 a
-(<@>) (V3 a b c) (V3 d e f) = V3 (b><f << c><e) (c><d << a><f) (a><e << b><d)
-{-# INLINABLE (<@>) #-}
 
 -- | Scalar triple product.
 --
@@ -67,6 +49,9 @@ instance (Monoid a, Dioid a) => Dioid (V3 a) where
 
 instance Group a => Group (V3 a) where
   (<<) = mzipWithRep (<<)
+
+instance Semiring a => Semimodule a (V3 a) where
+  a .# f = (a ><) <$> f
 
 instance Functor V3 where
   fmap f (V3 a b c) = V3 (f a) (f b) (f c)
@@ -97,16 +82,3 @@ instance Representable V3 where
   index (V3 _ y _) I32 = y
   index (V3 _ _ z) I33 = z
   {-# INLINE index #-}
-
-data I3 = I31 | I32 | I33 deriving (Eq, Ord, Show)
-
-instance Prd I3 where
-  (<~) = (<=)
-  (>~) = (>=)
-  pcompare = pcompareOrd
-
-instance Minimal I3 where
-  minimal = I31
-
-instance Maximal I3 where
-  maximal = I33

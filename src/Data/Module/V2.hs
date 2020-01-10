@@ -5,19 +5,22 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE Safe #-}
 
-module Data.Semiring.V2 where
+module Data.Module.V2 (
+    V2(..)
+  , I2(..)
+) where
 
 import safe Data.Dioid
 import safe Data.Distributive
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Rep
 import safe Data.Group
+import safe Data.Module
 import safe Data.Prd
 import safe Data.Ring
 import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Semiring
 
-import safe Prelude hiding (sum, negate)
+import safe Prelude hiding (negate)
 
 data V2 a = V2 !a !a deriving (Eq,Ord,Show)
 
@@ -34,6 +37,9 @@ instance Semigroup a => Semigroup (V2 a) where
 
 instance Monoid a => Monoid (V2 a) where
   mempty = pureRep mempty
+
+instance Semiring a => Semimodule a (V2 a) where
+  a .# f = (a ><) <$> f
 
 -- | Entry-wise vector or matrix multiplication.
 --
@@ -75,8 +81,6 @@ instance Distributive V2 where
   distribute f = V2 (fmap (\(V2 x _) -> x) f) (fmap (\(V2 _ y) -> y) f)
   {-# INLINE distribute #-}
 
-data I2 = I21 | I22 deriving (Eq, Ord, Show)
-
 instance Representable V2 where
   type Rep V2 = I2
   tabulate f = V2 (f I21) (f I22)
@@ -85,14 +89,3 @@ instance Representable V2 where
   index (V2 x _) I21 = x
   index (V2 _ y) I22 = y
   {-# INLINE index #-}
-
-instance Prd I2 where
-  (<~) = (<=)
-  (>~) = (>=)
-  pcompare = pcompareOrd
-
-instance Minimal I2 where
-  minimal = I21
-
-instance Maximal I2 where
-  maximal = I22

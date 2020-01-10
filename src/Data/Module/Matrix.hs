@@ -6,7 +6,7 @@
 {-# LANGUAGE Safe #-}
 
 -- | API essentially follows that of /linear/ & /hmatrix/.
-module Data.Semiring.Matrix (
+module Data.Module.Matrix (
     type M22
   , type M23
   , type M24
@@ -51,19 +51,19 @@ module Data.Semiring.Matrix (
   , inv4d
   ) where
 
+import safe Data.Bool
 import safe Data.Distributive
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Compose
 import safe Data.Functor.Rep
 import safe Data.Group
 import safe Data.Prd
-import safe Data.Ring
 import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Semiring
-import safe Data.Semiring.Module
-import safe Data.Semiring.V2
-import safe Data.Semiring.V3
-import safe Data.Semiring.V4
+import safe Data.Ring
+import safe Data.Module
+import safe Data.Module.V2
+import safe Data.Module.V3
+import safe Data.Module.V4
 import safe Data.Tuple
 
 import safe Prelude hiding (sum, negate)
@@ -489,3 +489,13 @@ inv4d (V4 (V4 i00 i01 i02 i03)
                        (-i30 * s3 + i31 * s1 - i32 * s0)
                        (i20 * s3 - i21 * s1 + i22 * s0))
 {-# INLINE inv4d #-}
+
+lensRep :: Eq (Rep f) => Representable f => Rep f -> forall g. Functor g => (a -> g a) -> f a -> g (f a)
+lensRep i f s = setter s <$> f (getter s)
+  where getter = flip index i
+        setter s' b = tabulate $ \j -> bool (index s' j) b (i == j)
+{-# INLINE lensRep #-}
+
+grateRep :: Representable f => forall g. Functor g => (Rep f -> g a -> b) -> g (f a) -> f b
+grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
+{-# INLINE grateRep #-}

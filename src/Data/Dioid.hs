@@ -7,7 +7,7 @@ import safe Data.Word
 import safe Data.Connection
 import safe Data.Connection.Word
 import safe Data.Connection.Yoneda
-import safe Data.Semiring
+import safe Data.Ring
 import safe Data.Prd
 import safe Numeric.Natural
 import safe GHC.Real
@@ -45,10 +45,10 @@ type Positive = Ratio Natural
 --
 -- See 'Data.Dioid.Property'
 --
-class (Prd r, Semiring r) => Dioid r where
+class (Prd a, Semiring a) => Dioid a where
 
-  -- | A dioid homomorphism from the naturals to /r/.
-  fromNatural :: Natural -> r
+  -- | A dioid homomorphism from the naturals to /a/.
+  fromNatural :: Natural -> a
 
 instance Dioid () where
   fromNatural _ = ()
