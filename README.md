@@ -2,7 +2,7 @@
 
 # Semirings
 
-This library provides a type class for (gight) pre-semirings & semirings as well as some useful instances. The `Semiring` class imposes fairly minimal requirements—the various 'add-on' properties  (e.g. commutativity) are catalogued in `Data.Ring.Property`.
+This library provides a type class for (gight) pre-semirings & semirings as well as some useful instances. The `Semiring` class imposes fairly minimal requirements—the various 'add-on' properties  (e.g. commutativity) are catalogued in `Data.Semiring.Property`.
 
 Support for a wide range of pre-semirings and semirings and interoperability with `base` were primary considerations.
 
@@ -39,7 +39,7 @@ sunit >< a ≡ a
 mempty >< a ≡ mempty --2
 ```
 
-See `Data.Ring.Property` for a detailed specification of the laws.
+See `Data.Semiring.Property` for a detailed specification of the laws.
 
 Perhaps the easiest way to demonstrate the differences between the three families is through their respective universal folds:
 
@@ -69,10 +69,10 @@ product f = foldr' ((><) . f) sunit
 Dioids are semirings with a partial order that interacts with addition in a special way. An idempotent dioid is a dioid in which the addition /<>/ is idempotent. A frequently encountered special case is one where addition /<>/ is not only idempotent but also selective. A selective dioid is a dioid in which the addition /<>/ is selective (i.e.: ∀a, b ∈ E: a /<>/ b = a or b).
 
 Idempotent dioids form a particularly rich class of dioids which contains many sub-classes, in particular:
-– Doubly-idempotent dioids and distributive lattices
-– Doubly selective dioids
-– Idempotent-cancellative dioids and selective-cancellative dioids
-– Idempotent-invertible dioids and selective-invertible dioids
+- Doubly-idempotent dioids and distributive lattices
+- Doubly selective dioids
+- Idempotent-cancellative dioids and selective-cancellative dioids
+- Idempotent-invertible dioids and selective-invertible dioids
 
 Dioids (and idempotent dioids in particular) play an important role in many applications in computer science, ranging from regular languages and Kleene algebras to shortest path algorithms using tropical semirings such as the max-plus semiring. They are also generalizations of distributive lattices, quantales, residuated lattices and relation algebras, each of which have been studied extensively in mathematics and logic.
 
@@ -109,7 +109,7 @@ Extending this result to semirings, we have that the family of semiring structur
 
 In the first case, we are led to rings (imperfectly captured in `Num`), while in the second we are led to dioids: a (unital) dioid is a (unital) semiring R = (R, 0, 1, +, *) such that the preorder on R wrt + engenders a total order. Often this ordering arises because + is idempotent (e.g. `mean :: Fractional a => a -> a -> a`) or selective (e.g. `max :: Ord a => a -> a -> a`, `<|> :: Maybe a -> Maybe a -> Maybe a` etc).
 
-So ordering is the defining property of dioids, and it gives rise to a sup topology (i.e. residuation) useful for solving 'linear' algebra problems in many applications in computer science, ranging from control theory to regular languages and Kleene algebras to shortest path algorithms using tropical dioids (e.g. max-plus). Dioids are also generalizations of distributive lattices and quantales, which have been studied extensively in mathematics and logic. The `codistributive` identity in `Data.Ring.Property` provides the link between the two families.
+So ordering is the defining property of dioids, and it gives rise to a sup topology (i.e. residuation) useful for solving 'linear' algebra problems in many applications in computer science, ranging from control theory to regular languages and Kleene algebras to shortest path algorithms using tropical dioids (e.g. max-plus). Dioids are also generalizations of distributive lattices and quantales, which have been studied extensively in mathematics and logic. The `codistributive` identity in `Data.Semiring.Property` provides the link between the two families.
 
 Finally, it's worth noting that dioids encompass many of the various 'left-catch' laws in Haskell-land (e.g. `pure a <|> x ≡ pure`) as a result of the following positivity condition:
 

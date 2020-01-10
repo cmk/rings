@@ -5,28 +5,28 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE Safe #-}
 
-module Data.Module.V4 (
+module Data.Semimodule.V4 (
     V4(..)
   , I4(..)
 ) where
 
-import safe Data.Dioid
+import safe Data.Algebra
+--import safe Data.Dioid
 import safe Data.Distributive
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Rep
 import safe Data.Group
-import safe Data.Module
-import safe Data.Prd
-import safe Data.Ring
+import safe Data.Semimodule
+import safe Data.Semiring
 import safe Data.Semigroup.Foldable as Foldable1
 
 import safe Prelude hiding (negate)
 
 data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
 
-instance Prd a => Prd (V4 a) where
-  V4 a b c d <~ V4 e f g h = a <~ e && b <~ f && c <~ g && d <~ h
+data I4 = I41 | I42 | I43 | I44 deriving (Eq, Ord, Show)
 
+{-
 instance Semigroup a => Semigroup (V4 a) where
   (<>) = mzipWithRep (<>)
 
@@ -40,12 +40,10 @@ instance Unital a => Semiring (V4 a) where
   (><) = mzipWithRep (><)
   fromBoolean = pureRep . fromBoolean
 
-instance (Monoid a, Dioid a) => Dioid (V4 a) where
-  fromNatural = pureRep . fromNatural
 
 instance Group a => Group (V4 a) where
   (<<) = mzipWithRep (<<)
-
+-}
 instance Functor V4 where
   fmap f (V4 a b c d) = V4 (f a) (f b) (f c) (f d)
   {-# INLINE fmap #-}

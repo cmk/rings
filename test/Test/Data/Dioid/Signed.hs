@@ -5,14 +5,14 @@ import Prelude
 
 import Data.Ord (Down(..))
 import Data.Prd
-import Data.Ring
+import Data.Semiring
 import Data.Connection
 import Data.Dioid.Signed
 import Data.Float
 import Data.Semigroup.Quantale
 
 import qualified Data.Prd.Property as Prop
-import qualified Data.Ring.Property as Prop
+import qualified Data.Semiring.Property as Prop
 import qualified Data.Connection.Property as Prop
 
 import Hedgehog

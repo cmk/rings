@@ -1,42 +1,66 @@
-{-# LANGUAGE CPP #-}
-{-# Language ConstrainedClassMethods #-}
-{-# LANGUAGE Safe #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
-module Data.Field where
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE Safe                       #-}
+{-# LANGUAGE PolyKinds                  #-}
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DefaultSignatures          #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE TypeOperators              #-}
 
+module Data.Semifield where
+
+import safe Data.Bool
 import safe Data.Complex
-import safe Data.Dioid
 import safe Data.Fixed
+import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Group
-import safe Data.Ring
-import safe Data.Ring
+import safe Data.Int
+import safe Data.Magma
+--import safe Data.Semiring
+import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semigroup.Additive
+import safe Data.Semigroup.Multiplicative 
+import safe Data.Tuple
+import safe Data.Word
+import safe GHC.Real hiding (Fractional(..), (^^), (^))
 import safe Numeric.Natural
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
 
-import safe GHC.Real hiding (Fractional(..))
-import safe Prelude hiding (Num(..), Fractional(..))
-import safe qualified Prelude as N
+import Prelude ( Eq(..), Ord(..), Show(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, fromInteger, Float, Double)
+import qualified Prelude as P
+
+import GHC.Generics (Generic)
 
 
--- Convenience constraint representing a field.
--- Note this ignores the many classes between ring and field and may change at a later date.
+-- Sometimes called a division ring
+type Semifield a = ((Additive-Monoid) a, (Multiplicative-Group) a)
+
+type Field a = ((Additive-Group) a, (Multiplicative-Group) a)
+
+
+--class Semiring a => Involutive a where adjoint :: a -> a
+
+--type InvolutiveSemiring a = (Involutive a, Semiring a)
+
+--type AdditiveIdempotentSemiring a = ((Additive-Idempotent) a, Semiring a)
+
+infixr 8 ^^
+
+-- @ 'one' == a '^^' 0 @
 --
-type Field a = (Ring a, Semifield a)
+-- >>> 8 ^^ 0 :: Double
+-- 1.0
+-- >>> 8 ^^ 0 :: Pico
+-- 1.000000000000
+--
+(^^) :: (Multiplicative-Group) a => a -> Integer -> a
+a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
+
 
 
 {-
-(i) a <> b = mempty ==> a == mempty && b == mempty
-(ii) a >< b = mempty ==> a == mempty || b == mempty
-
-every dioid satisfies (i).
-Show that a dioid which is a group for the second law is a positive dioid. Positive
-semirings (and consequently positive dioids) are often referred to as semi-fields
-
-  --Just $ recip a = star <$> mon one a --default for Dioid instances if one-a exists?
--}
-
-
-
 infixl 7 //
 
 -- | A semifield, near-field, division ring, or associative division algebra.
@@ -107,3 +131,4 @@ deriveSemifield(Milli)
 deriveSemifield(Micro)
 deriveSemifield(Nano)
 deriveSemifield(Pico)
+-}
