@@ -18,7 +18,7 @@ import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Group
 import safe Data.Int
 import safe Data.Magma
---import safe Data.Semiring
+import safe Data.Semiring
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semigroup.Additive
 import safe Data.Semigroup.Multiplicative 
@@ -35,10 +35,44 @@ import GHC.Generics (Generic)
 
 
 -- Sometimes called a division ring
-type Semifield a = ((Additive-Monoid) a, (Multiplicative-Group) a)
+type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
 
-type Field a = ((Additive-Group) a, (Multiplicative-Group) a)
+type FieldLaw a = ((Additive-Group) a, (Multiplicative-Group) a)
 
+class (Semiring a, SemifieldLaw a) => Semifield a
+
+instance Semifield (Ratio Natural)
+instance Semifield Rational
+
+instance Semifield Uni
+instance Semifield Deci
+instance Semifield Centi
+instance Semifield Milli
+instance Semifield Micro
+instance Semifield Nano
+instance Semifield Pico
+
+instance Semifield Float
+instance Semifield Double
+instance Semifield CFloat
+instance Semifield CDouble
+
+class (Ring a, FieldLaw a) => Field a
+
+instance Field Rational
+
+instance Field Uni
+instance Field Deci
+instance Field Centi
+instance Field Milli
+instance Field Micro
+instance Field Nano
+instance Field Pico
+
+instance Field Float
+instance Field Double
+instance Field CFloat
+instance Field CDouble
 
 --class Semiring a => Involutive a where adjoint :: a -> a
 

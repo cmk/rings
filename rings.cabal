@@ -19,7 +19,7 @@ library
       Data.Group
     , Data.Semiring
 
-    --, Data.Semiring.Property
+    , Data.Semiring.Property
     , Data.Semifield
     , Data.Semimodule
     , Data.Semimodule.V2
@@ -38,8 +38,10 @@ library
     , TypeApplications
     , MultiParamTypeClasses
     , UndecidableInstances
+    , FlexibleContexts
     , FlexibleInstances
     , NoImplicitPrelude
+    , TypeOperators
 
   build-depends:       
       base           >= 4.10    && < 5.0

@@ -10,7 +10,20 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 
-module Data.Semiring where
+module Data.Semiring (
+    type (-)
+  , zero, one, two, (+), (*), (-), (^)
+  , sum, sum1, sumWith, sumWith1
+  , product, product1, productWith, productWith1
+  , cross, cross1
+  , eval, evalWith, eval1, evalWith1
+  , negate, abs, signum
+  , type PresemiringLaw, Presemiring
+  , type SemiringLaw, Semiring
+  , type RingLaw, Ring
+  , Additive(..)
+  , Multiplicative(..)
+) where
 
 import safe Control.Applicative
 import safe Control.Category ((>>>))
@@ -53,16 +66,14 @@ import qualified Data.Sequence as Seq
 
 type Nonnegative = Ratio Natural
 
---Tropical semirings
-type MinPlus a = Min a
-type MaxPlus a = Min (Down a)
-type MinTimes a = Max (Down a)
-type MaxTimes a = Max a
+-------------------------------------------------------------------------------
+-- Presemiring
+-------------------------------------------------------------------------------
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
 -- 
 -- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
--- with two associative binary (i.e. semigroup) operations: (<>) and (*), along with a 
+-- with two associative binary (i.e. semigroup) operations: '+' and '*', along with a 
 -- right-distributivity property connecting them:
 --
 -- @
@@ -72,26 +83,15 @@ type MaxTimes a = Max a
 -- A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring 
 -- with a 'mempty' element that is neutral with respect to both addition and multiplication.
 --
--- A unital right semiring is a pre-semiring with two distinct neutral elements, 'mempty' 
--- and 'one', such that 'mempty' is right-neutral wrt addition, 'one' is right-neutral wrt
---  multiplication, and 'mempty' is right-annihilative wrt multiplication. 
+-- A unital right semiring is a pre-semiring with two distinct neutral elements, 'zero' 
+-- and 'one', such that 'zero' is right-neutral wrt addition, 'one' is right-neutral wrt
+--  multiplication, and 'zero' is right-annihilative wrt multiplication. 
 --
--- Note that 'one' needn't be distinct from 'mempty', moreover addition and multiplication
--- needn't be commutative or left-distributive.
+-- Note that addition and multiplication needn't be commutative.
 --
 -- See the properties module for a detailed specification of the laws.
 --
 type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
-
-type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
-
-type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
-
-
-
---type MaxTimes a = ((Max-Monoid) a, (Multiplicative-Semigroup) a)
-
---type MinTimes a = ((Min-Monoid) a, (Multiplicative-Semigroup) a)
 
 class PresemiringLaw a => Presemiring a
 
@@ -109,29 +109,17 @@ infixl 7 *
 (*) :: Presemiring a => a -> a -> a
 (*) = M.mul
 
+-------------------------------------------------------------------------------
+-- Semiring
+-------------------------------------------------------------------------------
+
+type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
+
 class (Presemiring a, SemiringLaw a) => Semiring a
 
--- | Cross-multiply two collections.
---
--- >>> cross [1,2,3 :: Int] [1,2,3]
--- 36
---
--- >>> cross [1,2,3 :: Int] []
--- 0
---
-cross :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
-cross a b = sum $ liftA2 (*) a b
-{-# INLINE cross #-}
-
--- | Cross-multiply two non-empty collections.
---
--- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
--- Right 4
---
-cross1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
-cross1 a b = sum1 $ liftF2 (*) a b
-{-# INLINE cross1 #-}
-
+two :: (Additive-Semigroup) a => (Multiplicative-Monoid) a => a
+two = one `add` one
+{-# INLINE two #-}
 
 
 infixr 8 ^
@@ -143,35 +131,6 @@ infixr 8 ^
 --
 (^) :: Semiring a => a -> Natural -> a
 a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
-
--- | Evaluate a right-associated semiring expression.
--- 
--- @ (a11 * .. * a1m) + (a21 * .. * a2n) + ... @
---
--- >>> eval [[1, 2], [3, 4 :: Int]] -- 1 * 2 + 3 * 4
--- 14
--- >>> eval $ sequence [[1, 2], [3, 4 :: Int]] -- 1 + 2 * 3 + 4
--- 21
---
-eval :: Semiring a => Functor f => Foldable f => Foldable g => f (g a) -> a
-eval = sum . fmap product
-
-
--- >>> evalWith Max [[1..4 :: Int], [0..2 :: Int]]
--- Max {getMax = 24}
-evalWith :: Semiring r => Functor f => Functor g => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
-evalWith f = sum . fmap product . (fmap . fmap) f
-
-eval1 :: Presemiring a => Functor f => Foldable1 f => Foldable1 g => f (g a) -> a
-eval1 = sum1 . fmap product1
-
--- >>>  evalWith1 (Max . Down) $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
--- Max {getMax = Down 9}
--- >>>  evalWith1 Max $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
--- Max {getMax = 15}
--- 
-evalWith1 :: Presemiring r => Functor f => Functor g => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
-evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
 
 -- >>> sum [1..5 :: Int]
 -- 15
@@ -239,6 +198,60 @@ productWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
 productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
 {-# INLINE productWith1 #-}
 
+-- | Cross-multiply two collections.
+--
+-- >>> cross [1,2,3 :: Int] [1,2,3]
+-- 36
+--
+-- >>> cross [1,2,3 :: Int] []
+-- 0
+--
+cross :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
+cross a b = sum $ liftA2 (*) a b
+{-# INLINE cross #-}
+
+-- | Cross-multiply two non-empty collections.
+--
+-- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
+-- Right 4
+--
+cross1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
+cross1 a b = sum1 $ liftF2 (*) a b
+{-# INLINE cross1 #-}
+
+-- | Evaluate a right-associated semiring expression.
+-- 
+-- @ (a11 * .. * a1m) + (a21 * .. * a2n) + ... @
+--
+-- >>> eval [[1, 2], [3, 4 :: Int]] -- 1 * 2 + 3 * 4
+-- 14
+-- >>> eval $ sequence [[1, 2], [3, 4 :: Int]] -- 1 + 2 * 3 + 4
+-- 21
+--
+eval :: Semiring a => Functor f => Foldable f => Foldable g => f (g a) -> a
+eval = sum . fmap product
+
+-- >>> evalWith Max [[1..4 :: Int], [0..2 :: Int]]
+-- Max {getMax = 24}
+evalWith :: Semiring r => Functor f => Functor g => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
+evalWith f = sum . fmap product . (fmap . fmap) f
+
+eval1 :: Presemiring a => Functor f => Foldable1 f => Foldable1 g => f (g a) -> a
+eval1 = sum1 . fmap product1
+
+-- >>>  evalWith1 (Max . Down) $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = Down 9}
+-- >>>  evalWith1 Max $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = 15}
+-- 
+evalWith1 :: Presemiring r => Functor f => Functor g => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
+evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
+
+-------------------------------------------------------------------------------
+-- Ring
+-------------------------------------------------------------------------------
+
+type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 
 infixl 6 -
 
@@ -254,7 +267,7 @@ infixl 6 -
 --
 -- Furthermore, the binomial formula holds for any commuting pair of elements (that is, any /a/ and /b/ such that /a * b = b * a/).
 --
--- If /mempty = one/ in a ring /R/, then /R/ has only one element, and is called the zero ring.
+-- If /zero = one/ in a ring /R/, then /R/ has only one element, and is called the zero ring.
 -- Otherwise the additive identity, the additive inverse of each element, and the multiplicative identity are unique.
 --
 -- See < https://en.wikipedia.org/wiki/Ring_(mathematics) >.
@@ -276,13 +289,9 @@ negate :: (Additive-Group) a => a -> a
 negate a = zero `sub` a
 {-# INLINE negate #-}
 
-two :: (Additive-Semigroup) a => (Multiplicative-Monoid) a => a
-two = one `add` one
-{-# INLINE two #-}
-
 -- | Absolute value of an element.
 --
--- @ abs r ≡ r  `mul`  signum r @
+-- @ 'abs' r ≡ 'mul' r ('signum' r) @
 --
 -- https://en.wikipedia.org/wiki/Linearly_ordered_group
 abs :: (Additive-Group) a => Ord a => a -> a
@@ -487,20 +496,17 @@ instance Presemiring Double
 instance Presemiring CFloat
 instance Presemiring CDouble
 
--- Selective Predioids
+instance Presemiring IntSet.IntSet
 
-
-instance (Additive-Semigroup) a => Presemiring [a]
-instance (Additive-Semigroup) a => Presemiring (NonEmpty a)
 instance Presemiring a => Presemiring (Dual a)
 instance Presemiring a => Presemiring (r -> a)
 instance (Presemiring a, Presemiring b) => Presemiring (Either a b)
 instance Presemiring a => Presemiring (Maybe a)
 instance Presemiring a => Presemiring (IntMap.IntMap a)
-instance Presemiring IntSet.IntSet
+instance (Additive-Semigroup) a => Presemiring [a]
+instance (Additive-Semigroup) a => Presemiring (NonEmpty a)
 instance (Ord a, Presemiring a) => Presemiring (Set.Set a)
 instance (Ord k, Presemiring a) => Presemiring (Map.Map k a)
-
 
 instance Semiring ()
 instance Semiring Bool
@@ -535,9 +541,9 @@ instance Semiring CDouble
 
 instance Semiring a => Semiring (Dual a)
 instance Semiring a => Semiring (r -> a)
-instance (Additive-Monoid) a => Semiring [a]
 instance Semiring a => Semiring (Maybe a)
 instance Semiring a => Semiring (IntMap.IntMap a)
+instance (Additive-Monoid) a => Semiring [a]
 instance (Ord k, (Multiplicative-Monoid) k, Semiring a) => Semiring (Map.Map k a)
 
 -- Rings
@@ -558,5 +564,8 @@ instance Ring Micro
 instance Ring Nano
 instance Ring Pico
 
+-- Unlawful instances
 instance Ring Float
 instance Ring Double
+instance Ring CFloat
+instance Ring CDouble

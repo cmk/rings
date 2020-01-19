@@ -78,6 +78,9 @@ instance Representable Additive where
   {-# INLINE index #-}
 
 
+
+
+{-
 newtype Ordered a = Ordered { unOrdered :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
 instance Applicative Ordered where
@@ -95,9 +98,6 @@ instance Representable Ordered where
 
   index (Ordered x) () = x
   {-# INLINE index #-}
-
-{-
-
 
 newtype Plus a = Plus { unPlus :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
@@ -122,6 +122,7 @@ instance (Additive-Semigroup) a => Semigroup (Multiplicative (Plus a)) where
 
 instance (Additive-Monoid) a => Monoid (Multiplicative (Plus a)) where
   mempty = Multiplicative $ pure zero
+
 -}
 {-
 instance (Multiplicative-Semigroup) (Plus a) => Semigroup (Multiplicative ((Min-Plus) a)) where
@@ -459,8 +460,18 @@ instance (Additive-Monoid) a => Monoid (Additive (Down a)) where
 instance Semigroup (Min a) => Semigroup (Additive (Min a)) where
   (<>) = liftA2 (<>)
 
---instance Monoid (Min a) => Monoid (Additive (Min a)) where
---  mempty = pure mempty
+instance Semigroup (Max a) => Semigroup (Additive (Max a)) where
+  (<>) = liftA2 (<>)
+
+-- MinPlus Predioid
+-- >>> Min 1  `mul`  Min 2 :: Min Int
+-- Min {getMin = 3}
+instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+
+-- MinPlus Dioid
+instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
+  mempty = Multiplicative $ pure zero
 
 
 instance Semigroup (Additive ()) where
