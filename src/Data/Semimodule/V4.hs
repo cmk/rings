@@ -5,41 +5,45 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE Safe #-}
 
-module Data.Semiring.V4 where
+module Data.Semimodule.V4 (
+    V4(..)
+  , I4(..)
+) where
 
-import safe Data.Dioid
+import safe Data.Algebra
+--import safe Data.Dioid
 import safe Data.Distributive
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Rep
 import safe Data.Group
-import safe Data.Prd
-import safe Data.Ring
-import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semimodule
 import safe Data.Semiring
+import safe Data.Semigroup.Foldable as Foldable1
 
-import safe Prelude hiding (sum, negate)
+import safe Prelude hiding (negate)
 
 data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
 
-instance Prd a => Prd (V4 a) where
-  V4 a b c d <~ V4 e f g h = a <~ e && b <~ f && c <~ g && d <~ h
+data I4 = I41 | I42 | I43 | I44 deriving (Eq, Ord, Show)
 
+{-
 instance Semigroup a => Semigroup (V4 a) where
   (<>) = mzipWithRep (<>)
 
 instance Monoid a => Monoid (V4 a) where
   mempty = pureRep mempty
 
+instance Semiring a => Semimodule a (V4 a) where
+  a .# f = (a ><) <$> f
+
 instance Unital a => Semiring (V4 a) where
   (><) = mzipWithRep (><)
   fromBoolean = pureRep . fromBoolean
 
-instance (Monoid a, Dioid a) => Dioid (V4 a) where
-  fromNatural = pureRep . fromNatural
 
 instance Group a => Group (V4 a) where
   (<<) = mzipWithRep (<<)
-
+-}
 instance Functor V4 where
   fmap f (V4 a b c d) = V4 (f a) (f b) (f c) (f d)
   {-# INLINE fmap #-}
@@ -70,16 +74,3 @@ instance Representable V4 where
   index (V4 _ _ z _) I43 = z
   index (V4 _ _ _ w) I44 = w
   {-# INLINE index #-}
-
-data I4 = I41 | I42 | I43 | I44 deriving (Eq, Ord, Show)
-
-instance Prd I4 where
-  (<~) = (<=)
-  (>~) = (>=)
-  pcompare = pcompareOrd
-
-instance Minimal I4 where
-  minimal = I41
-
-instance Maximal I4 where
-  maximal = I44

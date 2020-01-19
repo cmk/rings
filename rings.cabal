@@ -1,7 +1,7 @@
 name:                rings
 version:             0.0.2.4
 synopsis:            Ring-like objects.
-description:         Groups, semirings, rings, division rings, and dioids.
+description:         Semirings, rings, division rings, modules, and algebras.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -16,20 +16,22 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-      Data.Ring
-    , Data.Dioid
-    --, Data.Dioid.Tropical
-    , Data.Dioid.Property
-    , Data.Group
+      Data.Group
     , Data.Semiring
-    , Data.Semiring.V2
-    , Data.Semiring.V3
-    , Data.Semiring.V4
-    , Data.Semiring.Matrix
-    , Data.Semiring.Module
-    , Data.Semiring.Property
+
+    --, Data.Semiring.Property
     , Data.Semifield
-    , Data.Semifield.Quaternion
+    , Data.Semimodule
+    , Data.Semimodule.V2
+    , Data.Semimodule.V3
+    , Data.Semimodule.V4
+    , Data.Semimodule.Matrix
+
+    , Data.Semigroup.Additive
+    , Data.Semigroup.Multiplicative
+    , Data.Magma
+    , Data.Algebra
+    , Data.Algebra.Quaternion
 
   default-extensions:
       ScopedTypeVariables
@@ -46,7 +48,6 @@ library
     , containers     >= 0.4.0   && < 0.7
     , distributive   >= 0.3     && < 1.0
     , semigroupoids  >= 5.0     && < 6.0
-    , connections    >= 0.0.2.2 && < 0.0.3
 
   hs-source-dirs: src
   default-language: Haskell2010

@@ -1,129 +1,115 @@
-{-# Language ConstrainedClassMethods #-}
-{-# Language ConstraintKinds   #-}
-{-# Language DefaultSignatures #-}
-{-# Language DeriveFunctor #-}
-{-# Language DeriveGeneric #-}
-{-# LANGUAGE Safe #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE Safe                       #-}
+{-# LANGUAGE PolyKinds                  #-}
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DefaultSignatures          #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE MonoLocalBinds             #-}
+
 module Data.Semiring where
 
 import safe Control.Applicative
-import safe Control.Monad
+import safe Control.Category ((>>>))
+import safe Data.Bool
+import safe Data.Ord
 import safe Data.Complex
-import safe Data.Int
-import safe Data.Word
+import safe Data.Maybe
+import safe Data.Either
 import safe Data.Fixed
-import safe Data.Foldable hiding (product)
-import safe Data.Functor.Apply
-import safe Data.Functor.Classes
-import safe Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
-import safe Data.Functor.Identity (Identity(..))
-import safe Data.List (unfoldr)
-import safe Data.List.NonEmpty (NonEmpty(..))
+import safe Data.Foldable as Foldable (Foldable, fold, foldr', foldl')
+import safe Data.Group
+import safe Data.Int
+import safe Data.List.NonEmpty
+import safe Data.Magma
 import safe Data.Semigroup
-import safe Data.Semigroup.Foldable
-import safe Data.Typeable (Typeable)
-import safe Foreign.Storable (Storable)
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-import safe GHC.Generics (Generic, Generic1)
-import safe GHC.Real hiding ((^))-- (even, quot)
+import safe Data.Semigroup.Foldable as Foldable1
+
+import safe Data.Semigroup.Additive as A
+import safe Data.Semigroup.Multiplicative as M
+
+import safe Data.Functor.Apply
+import safe Data.Tuple
+import safe Data.Word
+import safe GHC.Real hiding (Fractional(..), (^^), (^))
 import safe Numeric.Natural
-import safe Prelude hiding ((^), replicate, sum, product)
-import safe qualified Data.Map as Map
-import safe qualified Data.Sequence as Seq
-import safe qualified Data.Set as Set
-import safe qualified Data.IntMap as IntMap
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
 
--- | Constraint kind representing a unital semiring.
---
--- Used for convenience and to distinguish unital semirings from semirings with only an additive unit.
---
-type Unital a = (Monoid a, Semiring a)
+import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
+import safe qualified Prelude as P
 
-infixl 7 ><
+import GHC.Generics (Generic)
+
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
+import qualified Data.Sequence as Seq
+
+
+
+type Nonnegative = Ratio Natural
+
+--Tropical semirings
+type MinPlus a = Min a
+type MaxPlus a = Min (Down a)
+type MinTimes a = Max (Down a)
+type MaxTimes a = Max a
 
 -- | Right pre-semirings and (non-unital and unital) right semirings.
 -- 
 -- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
--- with two associative binary (i.e. semigroup) operations: (<>) and (><), along with a 
+-- with two associative binary (i.e. semigroup) operations: (<>) and (*), along with a 
 -- right-distributivity property connecting them:
 --
 -- @
--- (a '<>' b) '><' c ≡ (a '><' c) '<>' (b '><' c)
+-- (a '+' b) '*' c '==' (a '*' c) '+' (b '*' c)
 -- @
 --
 -- A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring 
 -- with a 'mempty' element that is neutral with respect to both addition and multiplication.
 --
 -- A unital right semiring is a pre-semiring with two distinct neutral elements, 'mempty' 
--- and 'sunit', such that 'mempty' is right-neutral wrt addition, 'sunit' is right-neutral wrt
+-- and 'one', such that 'mempty' is right-neutral wrt addition, 'one' is right-neutral wrt
 --  multiplication, and 'mempty' is right-annihilative wrt multiplication. 
 --
--- Note that 'sunit' needn't be distinct from 'mempty', moreover addition and multiplication
+-- Note that 'one' needn't be distinct from 'mempty', moreover addition and multiplication
 -- needn't be commutative or left-distributive.
 --
 -- See the properties module for a detailed specification of the laws.
 --
-class Semigroup a => Semiring a where
+type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
 
-  -- | Multiplicative operation.
-  (><) :: a -> a -> a  
+type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
 
-  -- | Semiring homomorphism from the Boolean semiring to @r@.
-  --
-  -- If this map is injective then @r@ has a distinct multiplicative unit.
-  --
-  fromBoolean :: Monoid a => Bool -> a
-  fromBoolean _ = mempty
+type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 
--- | Default implementation of 'fromBoolean' given a multiplicative unit.
---
-fromBooleanDef :: Unital a => a -> Bool -> a
-fromBooleanDef _ False = mempty
-fromBooleanDef o True = o
-{-# INLINE fromBooleanDef #-}
 
--- | Multiplicative unit.
---
--- Note that 'sunit' needn't be distinct from 'mempty' for a semiring to be valid.
---
-sunit :: Unital a => a
-sunit = fromBoolean True
-{-# INLINE sunit #-}
 
--- | Fold over a collection using the multiplicative operation of a semiring.
--- 
--- @
--- 'product' f ≡ 'Data.foldr'' ((><) . f) 'sunit'
--- @
---
--- >>> (foldMap . product) id [[1, 2], [3, (4 :: Int)]] -- 1 >< 2 <> 3 >< 4
--- 14
---
--- >>> (product . foldMap) id [[1, 2], [3, (4 :: Int)]] -- 1 <> 2 >< 3 <> 4
--- 21
---
--- For semirings without a distinct multiplicative unit this is equivalent to @const mempty@:
---
--- >>> product Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'product1'.
---
-product :: Foldable t => Unital a => (b -> a) -> t b -> a
-product f = foldr' ((><) . f) sunit
-{-# INLINE product #-}
+--type MaxTimes a = ((Max-Monoid) a, (Multiplicative-Semigroup) a)
 
--- | Fold over a non-empty collection using the multiplicative operation of a semiring.
---
--- As the collection is non-empty this does not require a distinct multiplicative unit:
---
--- >>> product1 Just $ 1 :| [2..(5 :: Int)]
--- Just 120
---
-product1 :: Foldable1 t => Semiring a => (b -> a) -> t b -> a
-product1 f = getProd . foldMap1 (Prod . f)
-{-# INLINE product1 #-}
+--type MinTimes a = ((Min-Monoid) a, (Multiplicative-Semigroup) a)
+
+class PresemiringLaw a => Presemiring a
+
+infixl 6 +
+infixl 7 *
+
+--class Presemiring a => Semiring a where
+-- >>> Dual [2] + Dual [3] :: Dual [Int]
+-- Dual {getDual = [3,2]}
+(+) :: Presemiring a => a -> a -> a
+(+) = A.add 
+
+-- >>> Dual [2] * Dual [3] :: Dual [Int]
+-- Dual {getDual = [5]}
+(*) :: Presemiring a => a -> a -> a
+(*) = M.mul
+
+class (Presemiring a, SemiringLaw a) => Semiring a
 
 -- | Cross-multiply two collections.
 --
@@ -133,8 +119,8 @@ product1 f = getProd . foldMap1 (Prod . f)
 -- >>> cross [1,2,3 :: Int] []
 -- 0
 --
-cross :: Foldable f => Applicative f => Unital a => f a -> f a -> a
-cross a b = fold $ liftA2 (><) a b
+cross :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
+cross a b = sum $ liftA2 (*) a b
 {-# INLINE cross #-}
 
 -- | Cross-multiply two non-empty collections.
@@ -142,242 +128,270 @@ cross a b = fold $ liftA2 (><) a b
 -- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
 -- Right 4
 --
-cross1 :: Foldable1 f => Apply f => Semiring a => f a -> f a -> a
-cross1 a b = fold1 $ liftF2 (><) a b
+cross1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
+cross1 a b = sum1 $ liftF2 (*) a b
 {-# INLINE cross1 #-}
+
+
+
+infixr 8 ^
+
+-- @ 'one' == a '^' 0 @
+--
+-- >>> 8 ^ 0 :: Int
+-- 1
+--
+(^) :: Semiring a => a -> Natural -> a
+a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
+
+-- | Evaluate a right-associated semiring expression.
+-- 
+-- @ (a11 * .. * a1m) + (a21 * .. * a2n) + ... @
+--
+-- >>> eval [[1, 2], [3, 4 :: Int]] -- 1 * 2 + 3 * 4
+-- 14
+-- >>> eval $ sequence [[1, 2], [3, 4 :: Int]] -- 1 + 2 * 3 + 4
+-- 21
+--
+eval :: Semiring a => Functor f => Foldable f => Foldable g => f (g a) -> a
+eval = sum . fmap product
+
+
+-- >>> evalWith Max [[1..4 :: Int], [0..2 :: Int]]
+-- Max {getMax = 24}
+evalWith :: Semiring r => Functor f => Functor g => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
+evalWith f = sum . fmap product . (fmap . fmap) f
+
+eval1 :: Presemiring a => Functor f => Foldable1 f => Foldable1 g => f (g a) -> a
+eval1 = sum1 . fmap product1
+
+-- >>>  evalWith1 (Max . Down) $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = Down 9}
+-- >>>  evalWith1 Max $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = 15}
+-- 
+evalWith1 :: Presemiring r => Functor f => Functor g => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
+evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
+
+-- >>> sum [1..5 :: Int]
+-- 15
+sum :: (Additive-Monoid) a => Presemiring a => Foldable f => f a -> a
+sum = sumWith id
+
+sum1 :: Presemiring a => Foldable1 f => f a -> a
+sum1 = sumWith1 id
+
+sumWith :: (Additive-Monoid) a => Presemiring a => Foldable t => (b -> a) -> t b -> a
+sumWith f = foldr' ((+) . f) zero
+{-# INLINE sumWith #-}
+
+-- >>> evalWith1 Max $ (1 :| [2..5 :: Int]) :| [1 :| [2..5 :: Int]]
+-- | Fold over a non-empty collection using the additive operation of an arbitrary semiring.
+--
+-- >>> sumWith1 First $ (1 :| [2..5 :: Int]) * (1 :| [2..5 :: Int])
+-- First {getFirst = 1}
+-- >>> sumWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Nothing}
+-- >>> sumWith1 Just $ 1 :| [2..5 :: Int]
+-- Just 15
+--
+sumWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+sumWith1 f = unAdditive . foldMap1 (Additive . f)
+{-# INLINE sumWith1 #-}
+
+-- >>> product [1..5 :: Int]
+-- 120
+product :: (Multiplicative-Monoid) a => Presemiring a => Foldable f => f a -> a
+product = productWith id
+
+--
+-- | The product of at a list of semiring elements (of length at least one)
+product1 :: Presemiring a => Foldable1 f => f a -> a
+product1 = productWith1 id
+
+-- | Fold over a collection using the multiplicative operation of an arbitrary semiring.
+-- 
+-- @
+-- 'product' f ≡ 'Data.foldr'' ((*) . f) 'one'
+-- @
+--
+--
+-- >>> productWith Just [1..5 :: Int]
+-- Just 120
+--
+productWith :: (Multiplicative-Monoid) a => Presemiring a => Foldable t => (b -> a) -> t b -> a
+productWith f = foldr' ((*) . f) one
+{-# INLINE productWith #-}
+
+
+-- | Fold over a non-empty collection using the multiplicative operation of a semiring.
+--
+-- As the collection is non-empty this does not require a distinct multiplicative unit:
+--
+-- >>> productWith1 Just $ 1 :| [2..5 :: Int]
+-- Just 120
+-- >>> productWith1 First $ 1 :| [2..(5 :: Int)]
+-- First {getFirst = 15}
+-- >>> productWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Just 11}
+--
+productWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
+{-# INLINE productWith1 #-}
+
+
+infixl 6 -
+
+-- | Rings.
+--
+-- A ring /R/ is a commutative group with a second monoidal operation '*' that distributes over '+'.
+--
+-- The basic properties of a ring follow immediately from the axioms:
+-- 
+-- @ r '*' 'zero' '==' 'zero' '==' 'zero' '*' r @
+--
+-- @ 'negate' 'one' '*' r '==' 'negate' r @
+--
+-- Furthermore, the binomial formula holds for any commuting pair of elements (that is, any /a/ and /b/ such that /a * b = b * a/).
+--
+-- If /mempty = one/ in a ring /R/, then /R/ has only one element, and is called the zero ring.
+-- Otherwise the additive identity, the additive inverse of each element, and the multiplicative identity are unique.
+--
+-- See < https://en.wikipedia.org/wiki/Ring_(mathematics) >.
+--
+-- If the ring is < https://en.wikipedia.org/wiki/Ordered_ring ordered > (i.e. has an 'Ord' instance), then the following additional properties must hold:
+--
+-- @ a '<=' b '==>' a '+' c '<=' b '+' c @
+--
+-- @ 'zero' '<=' a '&&' 'zero' '<=' b '==>' 'zero' '<=' a '*' b @
+--
+-- See the properties module for a detailed specification of the laws.
+--
+class (Semiring a, RingLaw a) => Ring a where
+
+(-) :: Ring a => a -> a -> a
+(-) = A.sub
+
+negate :: (Additive-Group) a => a -> a
+negate a = zero `sub` a
+{-# INLINE negate #-}
+
+two :: (Additive-Semigroup) a => (Multiplicative-Monoid) a => a
+two = one `add` one
+{-# INLINE two #-}
+
+-- | Absolute value of an element.
+--
+-- @ abs r ≡ r  `mul`  signum r @
+--
+-- https://en.wikipedia.org/wiki/Linearly_ordered_group
+abs :: (Additive-Group) a => Ord a => a -> a
+abs x = bool (negate x) x $ zero <= x
+{-# INLINE abs #-}
+
+-- satisfies trichotomy law:
+-- Exactly one of the following is true: a is positive, -a is positive, or a = 0.
+-- This property follows from the fact that ordered rings are abelian, linearly ordered groups with respect to addition.
+signum :: RingLaw a => Ord a => a -> a
+signum x = bool (negate one) one $ zero <= x
+{-# INLINE signum #-}
+
+
+
+
+{-
+-- | Default implementation of 'fromBoolean' given a multiplicative unit.
+--
+fromBooleanDef :: Unital a => a -> Bool -> a
+fromBooleanDef _ False = mempty
+fromBooleanDef o True = o
+{-# INLINE fromBooleanDef #-}
+
+-- | Multiplicative unit.
+--
+-- Note that 'one' needn't be distinct from 'mempty' for a semiring to be valid.
+--
+one :: Unital a => a
+one = fromBoolean True
+{-# INLINE one #-}
+
 
 infixr 8 ^
 
 (^) :: Unital a => a -> Natural -> a
-(^) = flip replicate'
+(^) = flip sinnum'
 {-# INLINE (^) #-}
 
 -- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
 --
 -- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
 --
-replicate :: Monoid a => Natural -> a -> a
-replicate n a
+sinnum :: Monoid a => Natural -> a -> a
+sinnum n a
     | n == 0 = mempty
     | otherwise = f a n
     where
         f x y 
             | even y = f (x <> x) (y `quot` 2)
             | y == 1 = x
-            | otherwise = g (x <> x) ((y - 1) `quot` 2) x
+            | otherwise = g (x <> x) ((y N.- 1) `quot` 2) x
         g x y z 
             | even y = g (x <> x) (y `quot` 2) z
             | y == 1 = x <> z
-            | otherwise = g (x <> x) ((y - 1) `quot` 2) (x <> z)
-{-# INLINE replicate #-}
+            | otherwise = g (x <> x) ((y N.- 1) `quot` 2) (x <> z)
+{-# INLINE sinnum #-}
 
-replicate' :: Unital a => Natural -> a -> a
-replicate' n a = getProd $ replicate n (Prod a)
-{-# INLINE replicate' #-}
+sinnum' :: Unital a => Natural -> a -> a
+sinnum' n a = getProd $ sinnum n (Prod a)
+{-# INLINE sinnum' #-}
 
 powers :: Unital a => Natural -> a -> a
-powers n a = foldr' (<>) sunit . flip unfoldr n $ \m -> 
-  if m == 0 then Nothing else Just (a^m,m-1)
+powers n a = foldr' (<>) one . flip unfoldr n $ \m -> 
+  if m == 0 then Nothing else Just (a^m,m N.- 1)
 {-# INLINE powers #-}
 
 -------------------------------------------------------------------------------
 -- Pre-semirings
 -------------------------------------------------------------------------------
 
--- | 'First a' forms a pre-semiring for any semigroup @a@.
---
--- >>> foldMap1 First $ 1 :| [2..(5 :: Int)] >< 1 :| [2..(5 :: Int)]
--- First {getFirst = 1}
---
--- >>> product1 First $ 1 :| [2..(5 :: Int)]
--- First {getFirst = 15}
---
--- >>> foldMap1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
--- First {getFirst = Nothing}
---
--- >>> product1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
--- First {getFirst = Just 11}
---
-instance Semigroup a => Semiring (First a) where
-  (><) = liftA2 (<>)
-  {-# INLINE (><)  #-}
-
-instance Semigroup a => Semiring (Last a) where
-  (><) = liftA2 (<>)
-  {-# INLINE (><)  #-}
-
-instance Ord a => Semiring (Max a) where
-  (><) = min
-  {-# INLINE (><)  #-}
-
-instance Ord a => Semiring (Min a) where
-  (><) = max
-  {-# INLINE (><)  #-}
-
 instance Semigroup a => Semiring (Either e a) where
-  (><) = liftA2 (<>)
-  {-# INLINE (><) #-}
+  (*) = liftA2 (<>)
+  {-# INLINE (*) #-}
 
--- >>> (1 :| [2 :: Int]) >< (3 :| [4 :: Int])
--- 4 :| [5,5,6]
-instance Semigroup a => Semiring (NonEmpty a) where
-  (><) = liftA2 (<>) 
-  {-# INLINE (><) #-}
-
--------------------------------------------------------------------------------
--- Semirings
--------------------------------------------------------------------------------
-
-#define deriveSemiring(ty)         \
-instance Semiring (ty) where {     \
-   (><) = (*)                      \
-;  fromBoolean = fromBooleanDef 1  \
-;  {-# INLINE (><) #-}             \
-;  {-# INLINE fromBoolean #-}      \
-}
-
-deriveSemiring(Word)
-deriveSemiring(Word8)
-deriveSemiring(Word16)
-deriveSemiring(Word32)
-deriveSemiring(Word64)
-deriveSemiring(Natural)
-
-deriveSemiring(Int)
-deriveSemiring(Int8)
-deriveSemiring(Int16)
-deriveSemiring(Int32)
-deriveSemiring(Int64)
-deriveSemiring(Integer)
-
-deriveSemiring(Uni)
-deriveSemiring(Deci)
-deriveSemiring(Centi)
-deriveSemiring(Milli)
-deriveSemiring(Micro)
-deriveSemiring(Nano)
-deriveSemiring(Pico)
-
-deriveSemiring(Float)
-deriveSemiring(CFloat)
-deriveSemiring(Double)
-deriveSemiring(CDouble)
-
-instance Semiring () where
-  (><) _ _ = ()
-
-  fromBoolean _ = ()
-
-instance Semiring Bool where
-  (><) = (&&)
-  {-# INLINE (><) #-}
-
-  fromBoolean = id
-  {-# INLINE fromBoolean #-}
 
 instance Semiring Ordering where
-  LT >< LT = LT
-  LT >< GT = LT
-  _  >< EQ = EQ
-  EQ >< _  = EQ
-  GT >< x  = x
+  LT * LT = LT
+  LT * GT = LT
+  _  * EQ = EQ
+  EQ * _  = EQ
+  GT * x  = x
 
   fromBoolean = fromBooleanDef GT
 
-instance Semiring a => Semigroup (Ratio a) where
-  x1 :% y1 <> x2 :% y2 = (x1><y2 <> y1><x2) :% (y1><y2)
 
-instance Unital a => Monoid (Ratio a) where
-  mempty = mempty :% sunit
-
-instance Unital a => Semiring (Ratio a) where
-  x1 :% y1 >< x2 :% y2 = (x1><x2) :% (y1><y2)
-
-  fromBoolean x = fromBoolean x :% sunit
-
--- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 10
--- False
--- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 15
--- True
-instance Unital b => Semiring (a -> b) where
-  (><) = liftA2 (><)
-  {-# INLINE (><) #-}
 
   fromBoolean = const . fromBoolean
 
 instance Unital a => Semiring (Op a b) where
-  Op f >< Op g = Op $ \x -> f x >< g x
-  {-# INLINE (><) #-}
+  Op f * Op g = Op $ \x -> f x * g x
+  {-# INLINE (*) #-}
 
-  fromBoolean = fromBooleanDef $ Op (const sunit)
+  fromBoolean = fromBooleanDef $ Op (const one)
 
 instance (Unital a, Unital b) => Semiring (a, b) where
-  (a, b) >< (c, d) = (a><c, b><d)
-  {-# INLINE (><) #-}
+  (a, b) * (c, d) = (a*c, b*d)
+  {-# INLINE (*) #-}
 
   fromBoolean = liftA2 (,) fromBoolean fromBoolean
 
 instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
-  (a, b, c) >< (d, e, f) = (a><d, b><e, c><f)
-  {-# INLINE (><) #-}
+  (a, b, c) * (d, e, f) = (a*d, b*e, c*f)
+  {-# INLINE (*) #-}
 
   fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
 
--- >>> [1, 2] >< [3, 4]
--- [4,5,5,6]
-instance Monoid a => Semiring [a] where 
-  (><) = liftA2 (<>)
-  {-# INLINE (><) #-}
 
-  fromBoolean = fromBooleanDef $ pure mempty
 
-instance Unital a => Semiring (Maybe a) where 
-  (><) = liftA2 (><)
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ pure mempty
-
-instance Unital a => Semiring (Dual a) where
-  (><) = liftA2 $ flip (><)
-  {-# INLINE (><)  #-}
-
-  fromBoolean = Dual . fromBoolean
-  {-# INLINE fromBoolean #-}
-
-instance Unital a => Semiring (Const a b) where
-  (Const x) >< (Const y) = Const (x >< y)
-  {-# INLINE (><)  #-}
-
-  fromBoolean = Const . fromBoolean
-  {-# INLINE fromBoolean #-}
-
-instance Unital a => Semiring (Identity a) where
-  (><) = liftA2 (><)
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ pure mempty
-
-instance Semiring Any where 
-  Any x >< Any y = Any $ x && y
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ Any True
-
-instance Semiring All where 
-  All x >< All y = All $ x || y
-  {-# INLINE (><) #-}
-
-  --Note that the truth values are flipped here to create a
-  --valid semiring homomorphism. Users should precompose with 'not'
-  --where necessary. 
-  fromBoolean False = All True
-  fromBoolean True = All False
-
-instance Unital a => Semiring (IO a) where 
-  (><) = liftA2 (><)
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ pure mempty
 
 {-
 ---------------------------------------------------------------------
@@ -387,8 +401,8 @@ instance Unital a => Semiring (IO a) where
 -- Note that due to the underlying 'Monoid' instance this instance
 -- has 'All' semiring semantics rather than 'Any'.
 instance Semiring (Predicate a) where
-  Predicate f >< Predicate g = Predicate $ \x -> f x || g x
-  {-# INLINE (><) #-}
+  Predicate f * Predicate g = Predicate $ \x -> f x || g x
+  {-# INLINE (*) #-}
 
   --Note that the truth values are flipped here to create a
   --valid semiring homomorphism. Users should precompose with 'not'
@@ -400,8 +414,8 @@ instance Semiring (Predicate a) where
 -- Note that due to the underlying 'Monoid' instance this instance
 -- has 'All' semiring semantics rather than 'Any'.
 instance Semiring (Equivalence a) where
-  Equivalence f >< Equivalence g = Equivalence $ \x y -> f x y || g x y
-  {-# INLINE (><) #-}
+  Equivalence f * Equivalence g = Equivalence $ \x y -> f x y || g x y
+  {-# INLINE (*) #-}
 
   --Note that the truth values are flipped here to create a
   --valid semiring homomorphism. Users should precompose with 'not'
@@ -415,126 +429,134 @@ instance Semiring (Equivalence a) where
 ---------------------------------------------------------------------
 
 instance Ord a => Semiring (Set.Set a) where
-  (><) = Set.intersection
+  (*) = Set.intersection
 
 instance Monoid a => Semiring (Seq.Seq a) where
-  (><) = liftA2 (<>)
-  {-# INLINE (><) #-}
+  (*) = liftA2 (<>)
+  {-# INLINE (*) #-}
 
   fromBoolean = fromBooleanDef $ Seq.singleton mempty
 
 instance (Ord k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
-  xs >< ys = foldMap (flip Map.map xs . (<>)) ys
-  {-# INLINE (><) #-}
+  xs * ys = foldMap (flip Map.map xs . (<>)) ys
+  {-# INLINE (*) #-}
 
   fromBoolean = fromBooleanDef $ Map.singleton mempty mempty
 
 instance Monoid a => Semiring (IntMap.IntMap a) where
-  xs >< ys = foldMap (flip IntMap.map xs . (<>)) ys
-  {-# INLINE (><) #-}
+  xs * ys = foldMap (flip IntMap.map xs . (<>)) ys
+  {-# INLINE (*) #-}
 
   fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
 
----------------------------------------------------------------------
--- Instances (orphans)
----------------------------------------------------------------------
-
-instance Semigroup Bool where
-  (<>) = (||)
-  {-# INLINE (<>) #-}
-
-instance Monoid Bool where mempty = False
-
-instance Semigroup a => Semigroup (Complex a) where
-  (x1 :+ y1) <> (x2 :+ y2) = (x1 <> x2) :+ (y1 <> y2)
-  {-# INLINE (<>) #-}
-
-instance Monoid a => Monoid (Complex a) where
-  mempty = mempty :+ mempty
-
-#define deriveSemigroup(ty)        \
-instance Semigroup (ty) where {    \
-   (<>) = (+)                      \
-;  {-# INLINE (<>) #-}             \
-}
-
-#define deriveMonoid(ty)           \
-instance Monoid (ty) where {       \
-   mempty = 0                      \
-}
-
-deriveSemigroup(Word)
-deriveSemigroup(Word8)
-deriveSemigroup(Word16)
-deriveSemigroup(Word32)
-deriveSemigroup(Word64)
-deriveSemigroup(Natural)
-
-deriveMonoid(Word)
-deriveMonoid(Word8)
-deriveMonoid(Word16)
-deriveMonoid(Word32)
-deriveMonoid(Word64)
-deriveMonoid(Natural)
-
-deriveSemigroup(Int)
-deriveSemigroup(Int8)
-deriveSemigroup(Int16)
-deriveSemigroup(Int32)
-deriveSemigroup(Int64)
-deriveSemigroup(Integer)
-
-deriveMonoid(Int)
-deriveMonoid(Int8)
-deriveMonoid(Int16)
-deriveMonoid(Int32)
-deriveMonoid(Int64)
-deriveMonoid(Integer)
-
-deriveSemigroup(Uni)
-deriveSemigroup(Deci)
-deriveSemigroup(Centi)
-deriveSemigroup(Milli)
-deriveSemigroup(Micro)
-deriveSemigroup(Nano)
-deriveSemigroup(Pico)
-
-deriveMonoid(Uni)
-deriveMonoid(Deci)
-deriveMonoid(Centi)
-deriveMonoid(Milli)
-deriveMonoid(Micro)
-deriveMonoid(Nano)
-deriveMonoid(Pico)
-
-deriveSemigroup(Float)
-deriveSemigroup(CFloat)
-deriveMonoid(Float)
-deriveMonoid(CFloat)
-
-deriveSemigroup(Double)
-deriveSemigroup(CDouble)
-deriveMonoid(Double)
-deriveMonoid(CDouble)
+-}
 
 ---------------------------------------------------------------------
--- Newtype wrappers
+--  Instances
 ---------------------------------------------------------------------
 
--- | Monoid under '><'. Analogous to 'Data.Monoid.Product', but uses the
--- 'Semiring' constraint, rather than 'Num'.
-newtype Prod a = Prod { getProd :: a }
-  deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Functor)
+-- Semirings
+instance Presemiring ()
+instance Presemiring Bool
+instance Presemiring Word
+instance Presemiring Word8
+instance Presemiring Word16
+instance Presemiring Word32
+instance Presemiring Word64
+instance Presemiring Natural
+instance Presemiring Nonnegative
 
-instance Applicative Prod where
-  pure = Prod
-  Prod f <*> Prod a = Prod (f a)
+instance Presemiring Int
+instance Presemiring Int8
+instance Presemiring Int16
+instance Presemiring Int32
+instance Presemiring Int64
+instance Presemiring Integer
+instance Presemiring Rational
 
-instance Semiring a => Semigroup (Prod a) where
-  (<>) = liftA2 (><)
-  {-# INLINE (<>) #-}
+instance Presemiring Uni
+instance Presemiring Deci
+instance Presemiring Centi
+instance Presemiring Milli
+instance Presemiring Micro
+instance Presemiring Nano
+instance Presemiring Pico
 
--- Note that 'sunit' must be distinct from 'mempty' for this instance to be legal.
-instance Unital a => Monoid (Prod a) where
-  mempty = Prod sunit
-  {-# INLINE mempty #-}
+instance Presemiring Float
+instance Presemiring Double
+instance Presemiring CFloat
+instance Presemiring CDouble
+
+-- Selective Predioids
+
+
+instance (Additive-Semigroup) a => Presemiring [a]
+instance (Additive-Semigroup) a => Presemiring (NonEmpty a)
+instance Presemiring a => Presemiring (Dual a)
+instance Presemiring a => Presemiring (r -> a)
+instance (Presemiring a, Presemiring b) => Presemiring (Either a b)
+instance Presemiring a => Presemiring (Maybe a)
+instance Presemiring a => Presemiring (IntMap.IntMap a)
+instance Presemiring IntSet.IntSet
+instance (Ord a, Presemiring a) => Presemiring (Set.Set a)
+instance (Ord k, Presemiring a) => Presemiring (Map.Map k a)
+
+
+instance Semiring ()
+instance Semiring Bool
+instance Semiring Word
+instance Semiring Word8
+instance Semiring Word16
+instance Semiring Word32
+instance Semiring Word64
+instance Semiring Natural
+instance Semiring Nonnegative
+
+instance Semiring Int
+instance Semiring Int8
+instance Semiring Int16
+instance Semiring Int32
+instance Semiring Int64
+instance Semiring Integer
+instance Semiring Rational
+
+instance Semiring Uni
+instance Semiring Deci
+instance Semiring Centi
+instance Semiring Milli
+instance Semiring Micro
+instance Semiring Nano
+instance Semiring Pico
+
+instance Semiring Float
+instance Semiring Double
+instance Semiring CFloat
+instance Semiring CDouble
+
+instance Semiring a => Semiring (Dual a)
+instance Semiring a => Semiring (r -> a)
+instance (Additive-Monoid) a => Semiring [a]
+instance Semiring a => Semiring (Maybe a)
+instance Semiring a => Semiring (IntMap.IntMap a)
+instance (Ord k, (Multiplicative-Monoid) k, Semiring a) => Semiring (Map.Map k a)
+
+-- Rings
+instance Ring ()
+instance Ring Int
+instance Ring Int8
+instance Ring Int16
+instance Ring Int32
+instance Ring Int64
+instance Ring Integer
+instance Ring Rational
+
+instance Ring Uni
+instance Ring Deci
+instance Ring Centi
+instance Ring Milli
+instance Ring Micro
+instance Ring Nano
+instance Ring Pico
+
+instance Ring Float
+instance Ring Double

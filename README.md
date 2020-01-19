@@ -69,10 +69,10 @@ product f = foldr' ((><) . f) sunit
 Dioids are semirings with a partial order that interacts with addition in a special way. An idempotent dioid is a dioid in which the addition /<>/ is idempotent. A frequently encountered special case is one where addition /<>/ is not only idempotent but also selective. A selective dioid is a dioid in which the addition /<>/ is selective (i.e.: ∀a, b ∈ E: a /<>/ b = a or b).
 
 Idempotent dioids form a particularly rich class of dioids which contains many sub-classes, in particular:
-– Doubly-idempotent dioids and distributive lattices
-– Doubly selective dioids
-– Idempotent-cancellative dioids and selective-cancellative dioids
-– Idempotent-invertible dioids and selective-invertible dioids
+- Doubly-idempotent dioids and distributive lattices
+- Doubly selective dioids
+- Idempotent-cancellative dioids and selective-cancellative dioids
+- Idempotent-invertible dioids and selective-invertible dioids
 
 Dioids (and idempotent dioids in particular) play an important role in many applications in computer science, ranging from regular languages and Kleene algebras to shortest path algorithms using tropical semirings such as the max-plus semiring. They are also generalizations of distributive lattices, quantales, residuated lattices and relation algebras, each of which have been studied extensively in mathematics and logic.
 
