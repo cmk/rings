@@ -1,111 +1,102 @@
 {-# Language AllowAmbiguousTypes #-}
-
+-- | See the /connections/ package for idempotent & selective semirings, and lattices.
 module Data.Semiring.Property (
-  -- * Properties of general pre-semirings & semirings
-    neutral_addition_on
-  , neutral_multiplication_on
-  , associative_addition_on 
+  -- * Required properties of pre-semirings
+    nonunital_on
+  , morphism_presemiring
+  , associative_addition_on
+  , commutative_addition_on
   , associative_multiplication_on
-  , commutative_addition_on 
+  , distributive_on
+  , distributive_finite1_on
+  , morphism_distribitive_on
+  -- * Required properties of semirings
+  , morphism_semiring
+  , neutral_addition_on
+  , neutral_multiplication_on
+  , annihilative_multiplication_on
+  , distributive_finite_on
+  -- * Left-distributive presemirings and semirings
+  , distributive_cross_on
+  , distributive_cross1_on
+  -- * Commutative presemirings & semirings 
   , commutative_multiplication_on
-  , distributive_on 
-  , nonunital_on
-  , annihilative_multiplication_on 
-  -- * Properties of cancellative pre-semirings & semirings 
+  -- * Cancellative presemirings & semirings 
   , cancellative_addition_on 
   , cancellative_multiplication_on 
-  -- * Properties of distributive pre-semirings & semirings 
-  , distributive_finite_on
-  , distributive_finite1_on 
-  , distributive_cross_on
-  , distributive_cross1_on 
 ) where
 
-import Data.List.NonEmpty (NonEmpty(..))
+
 import Data.Semiring
-import Test.Util
+import Test.Logic (Rel)
+import Data.Foldable (Foldable)
+import Data.Functor.Apply (Apply)
+import Data.Semigroup.Foldable (Foldable1)
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
+import Data.Semigroup.Property
 import qualified Test.Function  as Prop
 import qualified Test.Operation as Prop
 
 import Prelude hiding (Num(..), sum)
 
+
 ------------------------------------------------------------------------------------
--- Properties of pre-semirings & semirings
+-- Required properties of pre-semirings & semirings
 
--- | \( \forall a \in R: (z + a) \sim a \)
+-- | \( \forall a, b \in R: a * b \sim a * b + b \)
 --
--- A (pre-)semiring with a right-neutral additive one must satisfy:
+-- If /R/ is non-unital (i.e. /one/ is not distinct from /zero/) then it will instead satisfy 
+-- a right-absorbtion property. 
 --
--- @
--- 'neutral_addition' 'zero' ~~ const True
--- @
--- 
--- Or, equivalently:
+-- This follows from right-neutrality and right-distributivity.
 --
--- @
--- 'zero' '+' r ~~ r
--- @
+-- Compare 'codistributive' and 'closed_stable'.
 --
--- This is a required property.
+-- When /R/ is also left-distributive we get: \( \forall a, b \in R: a * b = a + a * b + b \)
 --
-neutral_addition_on :: (Additive-Monoid) r => Rel r -> r -> Bool
-neutral_addition_on (~~) = Prop.neutral_on (~~) add zero
+-- See also 'Data.Warning' and < https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif >.
+--
+nonunital_on :: Presemiring r => Rel r b -> r -> r -> b
+nonunital_on (~~) a b = (a * b) ~~ (a * b + b)
 
--- | \( \forall a \in R: (o * a) \sim a \)
+-- | Presemiring morphisms are distributive semigroup morphisms.
 --
--- A (pre-)semiring with a right-neutral multiplicative one must satisfy:
+-- This is a required property for presemiring morphisms.
 --
--- @
--- 'neutral_multiplication' 'one' ~~ const True
--- @
--- 
--- Or, equivalently:
---
--- @
--- 'one' '*' r ~~ r
--- @
---
--- This is a required property.
---
-neutral_multiplication_on :: (Multiplicative-Monoid) r => Rel r -> r -> Bool
-neutral_multiplication_on (~~) = Prop.neutral_on (~~) mul one
+morphism_presemiring :: Eq s => Presemiring r => Presemiring s => (r -> s) -> r -> r -> r -> Bool
+morphism_presemiring f x y z =
+  morphism_additive_on (==) f x y &&
+  morphism_multiplicative_on (==) f x y &&
+  morphism_distribitive_on (==) f x y z
+
+------------------------------------------------------------------------------------
+-- Required properties of semigroups
 
 -- | \( \forall a, b, c \in R: (a + b) + c \sim a + (b + c) \)
 --
--- /R/ must right-associate addition.
---
--- This should be verified by the underlying 'Semigroup' instance,
--- but is included here for completeness.
+-- All semigroups must right-associate addition.
 --
 -- This is a required property.
 --
-associative_addition_on :: (Additive-Semigroup) r => Rel r -> r -> r -> r -> Bool
-associative_addition_on (~~) = Prop.associative_on (~~) add 
+associative_addition_on :: (Additive-Semigroup) r => Rel r b -> r -> r -> r -> b
+associative_addition_on (~~) = Prop.associative_on (~~) (+) 
 
 -- | \( \forall a, b, c \in R: (a * b) * c \sim a * (b * c) \)
 --
--- /R/ must right-associate multiplication.
+-- All semigroups must right-associate multiplication.
 --
 -- This is a required property.
 --
-associative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r -> r -> r -> r -> Bool
-associative_multiplication_on (~~) = Prop.associative_on (~~) mul 
+associative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r b -> r -> r -> r -> b
+associative_multiplication_on (~~) = Prop.associative_on (~~) (*) 
 
 -- | \( \forall a, b \in R: a + b \sim b + a \)
 --
--- This is a required property.
+-- This is a an /optional/ property for semigroups, and a /required/ property for semirings.
 --
-commutative_addition_on :: (Additive-Semigroup) r => Rel r -> r -> r -> Bool
-commutative_addition_on (~~) = Prop.commutative_on (~~) add 
-
--- | \( \forall a, b \in R: a * b \sim b * a \)
---
--- This is an /optional/ property.
---
-commutative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r -> r -> r -> Bool
-commutative_multiplication_on (~~) = Prop.commutative_on (~~) mul 
+commutative_addition_on :: (Additive-Semigroup) r => Rel r b -> r -> r -> b
+commutative_addition_on (~~) = Prop.commutative_on (~~) (+) 
 
 -- | \( \forall a, b, c \in R: (a + b) * c \sim (a * c) + (b * c) \)
 --
@@ -122,34 +113,92 @@ commutative_multiplication_on (~~) = Prop.commutative_on (~~) mul
 --
 -- This is a required property.
 --
-distributive_on :: PresemiringLaw r => Rel r -> r -> r -> r -> Bool
-distributive_on (~~) = Prop.distributive_on (~~) add mul 
+distributive_on :: Presemiring r => Rel r b -> r -> r -> r -> b
+distributive_on (~~) = Prop.distributive_on (~~) (+) (*) 
+
+-- | \( \forall M \geq 1; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b \sim \sum_{i=1}^M a_i * b \)
+--
+-- /R/ must right-distribute multiplication over finite (non-empty) sums.
+--
+-- For types with exact arithmetic this follows from 'distributive' and the universality of 'fold1'.
+--
+distributive_finite1_on :: Presemiring r => Foldable1 f => Rel r b -> f r -> r -> b
+distributive_finite1_on (~~) as b = (sum1 as * b) ~~ (sumWith1 (* b) as)
+
+-- | \( \forall a, b, c \in R: f ((a + b) * c) \sim f (a * c) + f (b * c) \)
+-- 
+-- Presemiring morphisms must be compatible with right-distribution.
+--
+morphism_distribitive_on :: Presemiring r => Presemiring s => Rel s b -> (r -> s) -> r -> r -> r -> b
+morphism_distribitive_on (~~) f x y z = (f $ (x + y) * z) ~~ (f (x * z) + f (y * z))
 
 ------------------------------------------------------------------------------------
--- Properties of non-unital semirings (aka near-semirings)
+-- Required properties of semirings
 
--- | \( \forall a, b \in R: a * b \sim a * b + b \)
---
--- If /R/ is non-unital (i.e. /one/ is not distinct from /zero/) then it will instead satisfy 
--- a right-absorbtion property. 
---
--- This follows from right-neutrality and right-distributivity.
---
--- Compare 'codistributive' and 'closed_stable'.
---
--- When /R/ is also left-distributive we get: \( \forall a, b \in R: a * b = a + a * b + b \)
---
--- See also 'Data.Warning' and < https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif >.
---
-nonunital_on :: Presemiring r => Rel r -> r -> r -> Bool
-nonunital_on (~~) a b = (a * b) ~~ (a * b + b)
+morphism_additive_on :: (Additive-Semigroup) r => (Additive-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
+morphism_additive_on (~~) f x y = (f $ x + y) ~~ (f x + f y)
 
-------------------------------------------------------------------------------------
--- Properties of unital semirings
+morphism_multiplicative_on :: (Multiplicative-Semigroup) r => (Multiplicative-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
+morphism_multiplicative_on (~~) f x y = (f $ x * y) ~~ (f x * f y)
+
+morphism_additive_on' :: (Additive-Monoid) r => (Additive-Monoid) s => Rel s b -> (r -> s) -> b
+morphism_additive_on' (~~) f = (f zero) ~~ zero
+
+morphism_multiplicative_on' :: (Multiplicative-Monoid) r => (Multiplicative-Monoid) s => Rel s b -> (r -> s) -> b
+morphism_multiplicative_on' (~~) f = (f one) ~~ one
+
+-- | Semiring morphisms are monoidal presemiring morphisms.
+--
+-- This is a required property for semiring morphisms.
+--
+morphism_semiring :: Eq s => Semiring r => Semiring s => (r -> s) -> r -> r -> r -> Bool
+morphism_semiring f x y z =
+  morphism_presemiring f x y z &&
+  morphism_additive_on' (==) f &&
+  morphism_multiplicative_on' (==) f
+
+
+-- | \( \forall a \in R: (z + a) \sim a \)
+--
+-- A semigroup with a right-neutral additive identity must satisfy:
+--
+-- @
+-- 'neutral_addition' 'zero' ~~ const True
+-- @
+-- 
+-- Or, equivalently:
+--
+-- @
+-- 'zero' '+' r ~~ r
+-- @
+--
+-- This is a required property for additive monoids.
+--
+neutral_addition_on :: (Additive-Monoid) r => Rel r b -> r -> b
+neutral_addition_on (~~) = Prop.neutral_on (~~) (+) zero
+
+-- | \( \forall a \in R: (o * a) \sim a \)
+--
+-- A semigroup with a right-neutral multiplicative identity must satisfy:
+--
+-- @
+-- 'neutral_multiplication' 'one' ~~ const True
+-- @
+-- 
+-- Or, equivalently:
+--
+-- @
+-- 'one' '*' r ~~ r
+-- @
+--
+-- This is a required propert for multiplicative monoids.
+--
+neutral_multiplication_on :: (Multiplicative-Monoid) r => Rel r b -> r -> b
+neutral_multiplication_on (~~) = Prop.neutral_on (~~) (*) one
 
 -- | \( \forall a \in R: (z * a) \sim u \)
 --
--- A /R/ is unital then its addititive one must be right-annihilative, i.e.:
+-- A /R/ is semiring then its addititive one must be right-annihilative, i.e.:
 --
 -- @
 -- 'zero' '*' a ~~ 'zero'
@@ -171,46 +220,8 @@ nonunital_on (~~) a b = (a * b) ~~ (a * b + b)
 --
 -- This is a required property.
 --
-annihilative_multiplication_on :: Semiring r => Rel r -> r -> Bool
+annihilative_multiplication_on :: Semiring r => Rel r b -> r -> b
 annihilative_multiplication_on (~~) r = Prop.annihilative_on (~~) (*) zero r
-
-{-
--- | 'fromBoolean' must be a semiring homomorphism into /R/.
---
--- This is a required property.
---
-homomorphism_boolean :: forall r. (Eq r, Unital r) => Bool -> Bool -> Bool
-homomorphism_boolean i j =
-  fromBoolean True     == (one @r)  &&
-  fromBoolean False    == (zero @r) &&
-  fromBoolean (i && j) == fi * fj    && 
-  fromBoolean (i || j) == fi + fj 
-
-  where fi :: r = fromBoolean i
-        fj :: r = fromBoolean j
--}
-
-------------------------------------------------------------------------------------
--- Properties of cancellative semirings
-
--- | \( \forall a, b, c \in R: b + a \sim c + a \Rightarrow b = c \)
---
--- If /R/ is right-cancellative wrt addition then for all /a/
--- the section /(a +)/ is injective.
---
-cancellative_addition_on :: (Additive-Semigroup) r => Rel r -> r -> r -> r -> Bool
-cancellative_addition_on (~~) a = Prop.injective_on (~~) (`add` a)
-
--- | \( \forall a, b, c \in R: b * a \sim c * a \Rightarrow b = c \)
---
--- If /R/ is right-cancellative wrt multiplication then for all /a/
--- the section /(a *)/ is injective.
---
-cancellative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r -> r -> r -> r -> Bool
-cancellative_multiplication_on (~~) a = Prop.injective_on (~~) (`mul` a)
-
-------------------------------------------------------------------------------------
--- Properties of distributive & co-distributive semirings
 
 -- | \( \forall M \geq 0; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b \sim \sum_{i=1}^M a_i * b \)
 --
@@ -218,28 +229,78 @@ cancellative_multiplication_on (~~) a = Prop.injective_on (~~) (`mul` a)
 --
 -- For types with exact arithmetic this follows from 'distributive' & 'neutral_multiplication'.
 --
-distributive_finite_on :: Semiring r => Rel r -> [r] -> r -> Bool
+distributive_finite_on :: Semiring r => Foldable f => Rel r b -> f r -> r -> b
 distributive_finite_on (~~) as b = (sum as * b) ~~ (sumWith (* b) as)
 
--- | \( \forall M \geq 1; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b \sim \sum_{i=1}^M a_i * b \)
---
--- /R/ must right-distribute multiplication over finite (non-empty) sums.
---
--- For types with exact arithmetic this follows from 'distributive' and the universality of 'fold1'.
---
-distributive_finite1_on :: Presemiring r => Rel r -> NonEmpty r -> r -> Bool
-distributive_finite1_on (~~) as b = (sum1 as * b) ~~ (sumWith1 (* b) as)
+------------------------------------------------------------------------------------
+-- Left-distributive presemirings and semirings
 
 -- | \( \forall M,N \geq 0; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) \sim \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
 -- If /R/ is also left-distributive then it supports cross-multiplication.
 --
-distributive_cross_on :: Semiring r => Rel r -> [r] -> [r] -> Bool
+distributive_cross_on :: Semiring r => Applicative f => Foldable f => Rel r b -> f r -> f r -> b
 distributive_cross_on (~~) as bs = (sum as * sum bs) ~~ (cross as bs)
 
 -- | \( \forall M,N \geq 1; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) = \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
 -- If /R/ is also left-distributive then it supports (non-empty) cross-multiplication.
 --
-distributive_cross1_on :: Presemiring r => Rel r -> NonEmpty r -> NonEmpty r -> Bool
+distributive_cross1_on :: Presemiring r => Apply f => Foldable1 f => Rel r b -> f r -> f r -> b
 distributive_cross1_on (~~) as bs = (sum1 as * sum1 bs) ~~ (cross1 as bs)
+
+------------------------------------------------------------------------------------
+-- Commutative presemirings and semirings
+
+-- | \( \forall a, b \in R: a * b \sim b * a \)
+--
+-- This is a an /optional/ property for semigroups, and a /optional/ property for semirings.
+-- It is a /required/ property for rings.
+--
+commutative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r b -> r -> r -> b
+commutative_multiplication_on (~~) = Prop.commutative_on (~~) (*) 
+
+------------------------------------------------------------------------------------
+-- Properties of cancellative semigroups
+
+-- | \( \forall a, b, c \in R: b + a \sim c + a \Rightarrow b = c \)
+--
+-- If /R/ is right-cancellative wrt addition then for all /a/
+-- the section /(a +)/ is injective.
+--
+-- See < https://en.wikipedia.org/wiki/Cancellation_property >
+--
+cancellative_addition_on :: (Additive-Semigroup) r => Rel r Bool -> r -> r -> r -> Bool
+cancellative_addition_on (~~) a = Prop.injective_on (~~) (+ a)
+
+-- | \( \forall a, b, c \in R: b * a \sim c * a \Rightarrow b = c \)
+--
+-- If /R/ is right-cancellative wrt multiplication then for all /a/
+-- the section /(a *)/ is injective.
+--
+cancellative_multiplication_on :: (Multiplicative-Semigroup) r => Rel r Bool -> r -> r -> r -> Bool
+cancellative_multiplication_on (~~) a = Prop.injective_on (~~) (* a)
+
+-- | Idempotency property for additive semigroups.
+--
+-- @ 'idempotent_addition' = 'absorbative_addition' 'one' @
+-- 
+-- See < https://en.wikipedia.org/wiki/Band_(mathematics) >.
+--
+-- This is a required property for lattices.
+--
+idempotent_addition_on :: (Additive-Semigroup) r => Rel r b -> r -> b
+idempotent_addition_on (~~) r = (r + r) ~~ r
+
+-- | Idempotency property for semigroups.
+--
+-- @ 'idempotent_multiplication' = 'absorbative_multiplication' 'zero' @
+-- 
+-- See < https://en.wikipedia.org/wiki/Band_(mathematics) >.
+--
+-- This is a an /optional/ property for semigroups, and a /optional/ property for semirings.
+--
+-- This is a /required/ property for lattices.
+--
+idempotent_multiplication_on :: (Multiplicative-Semigroup) r => Rel r b -> r -> b
+idempotent_multiplication_on (~~) r = (r * r) ~~ r

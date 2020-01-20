@@ -7,7 +7,9 @@
 
 module Data.Semimodule.V4 (
     V4(..)
+  , type Dim4
   , I4(..)
+  , i4
 ) where
 
 import safe Data.Algebra
@@ -25,6 +27,15 @@ import safe Prelude hiding (negate)
 data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
 
 data I4 = I41 | I42 | I43 | I44 deriving (Eq, Ord, Show)
+
+type Dim4 f = (Representable f, Rep f ~ I4)
+
+i4 :: Dim4 f => a -> a -> a -> a -> f a
+i4 a b c d = tabulate f where
+  f I41 = a
+  f I42 = b
+  f I43 = c
+  f I44 = d
 
 {-
 instance Semigroup a => Semigroup (V4 a) where

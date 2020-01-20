@@ -186,7 +186,7 @@ instance Ternary a => (Additive-Loop) a where
 
 -- in Data.Group
 
--- | An commutative semigroup.
+-- | A commutative semigroup.
 --
 class Semigroup a => Commutative a
 

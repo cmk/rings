@@ -46,19 +46,25 @@ import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 
 
-add :: (Additive-Semigroup) a => a -> a -> a
-a `add` b = unAdditive (Additive a <> Additive b)
-{-# INLINE add #-}
+infixl 6 +
 
-sub :: (Additive-Group) a => a -> a -> a
-a `sub` b = unAdditive (Additive a << Additive b)
-{-# INLINE sub #-}
+-- >>> Dual [2] + Dual [3] :: Dual [Int]
+-- Dual {getDual = [3,2]}
+(+) :: (Additive-Semigroup) a => a -> a -> a
+a + b = unAdditive (Additive a <> Additive b)
+{-# INLINE (+) #-}
+
+infixl 6 -
+
+(-) :: (Additive-Group) a => a -> a -> a
+a - b = unAdditive (Additive a << Additive b)
+{-# INLINE (-) #-}
 
 zero :: (Additive-Monoid) a => a
 zero = unAdditive mempty
 {-# INLINE zero #-}
 
--- | A commutative 'Semigroup' under '`add`'.
+-- | A commutative 'Semigroup' under '+'.
 newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
 instance Applicative Additive where
@@ -118,7 +124,7 @@ instance Representable Plus where
   {-# INLINE index #-}
 
 instance (Additive-Semigroup) a => Semigroup (Multiplicative (Plus a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
 
 instance (Additive-Monoid) a => Monoid (Multiplicative (Plus a)) where
   mempty = Multiplicative $ pure zero
@@ -164,7 +170,7 @@ deriveAdditiveSemigroup(Int32)
 deriveAdditiveSemigroup(Int64)
 deriveAdditiveSemigroup(Integer)
 
-deriveAdditiveSemigroup(Word)
+deriveAdditiveSemigroup(Word)  --TODO clip these at maxBound to make dioids
 deriveAdditiveSemigroup(Word8)
 deriveAdditiveSemigroup(Word16)
 deriveAdditiveSemigroup(Word32)
@@ -269,7 +275,7 @@ deriveAdditiveQuasigroup(CDouble)
 
 #define deriveAdditiveLoop(ty)                  \
 instance Loop (Additive ty) where {             \
-   lreplicate n (Additive a) = Additive $ P.fromIntegral n  `mul`  (-a) \
+   lreplicate n (Additive a) = Additive $ P.fromIntegral n  *  (-a) \
 ;  {-# INLINE lreplicate #-}                    \
 }
 
@@ -295,7 +301,7 @@ deriveAdditiveLoop(CDouble)
 
 #define deriveAdditiveGroup(ty)                 \
 instance Group (Additive ty) where {            \
-   greplicate n (Additive a) = Additive $ P.fromInteger n  `mul`  a \
+   greplicate n (Additive a) = Additive $ P.fromInteger n  *  a \
 ;  {-# INLINE greplicate #-}                    \
 }
 
@@ -324,14 +330,14 @@ deriveAdditiveGroup(CDouble)
 ---------------------------------------------------------------------
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Complex a)) where
-  Additive (a :+ b) <> Additive (c :+ d) = Additive $ (a `add` b) :+ (c `add` d)
+  Additive (a :+ b) <> Additive (c :+ d) = Additive $ (a + b) :+ (c + d)
   {-# INLINE (<>) #-}
 
 instance (Additive-Monoid) a => Monoid (Additive (Complex a)) where
   mempty = Additive $ zero :+ zero
 
 instance (Additive-Group) a => Magma (Additive (Complex a)) where
-  Additive (a :+ b) << Additive (c :+ d) = Additive $ (a `sub` c) :+ (b `sub` d)
+  Additive (a :+ b) << Additive (c :+ d) = Additive $ (a - c) :+ (b - d)
   {-# INLINE (<<) #-}
 
 instance (Additive-Group) a => Quasigroup (Additive (Complex a))
@@ -343,7 +349,7 @@ instance (Additive-Group) a => Group (Additive (Complex a))
 
 -- type Rng a = ((Additive-Group) a, (Multiplicative-Semigroup) a)
 instance ((Additive-Group) a, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) <> Multiplicative (c :+ d) = Multiplicative $ (a `mul` c `sub` b `mul` d) :+ (a `mul` d `add` b `mul` c)
+  Multiplicative (a :+ b) <> Multiplicative (c :+ d) = Multiplicative $ (a * c - b * d) :+ (a * d + b * c)
   {-# INLINE (<>) #-}
 
 -- type Ring a = ((Additive-Group) a, (Multiplicative-Monoid) a)
@@ -351,7 +357,7 @@ instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Monoid (Multiplicati
   mempty = Multiplicative $ one :+ zero
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Magma (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) << Multiplicative (c :+ d) = Multiplicative $ ((a `mul` c `add` b `mul` d) `div` (c `mul` c `add` d `mul` d)) :+ ((b `mul` c `sub` a `mul` d) `div` (c `mul` c `add` d `mul` d))
+  Multiplicative (a :+ b) << Multiplicative (c :+ d) = Multiplicative $ ((a * c + b * d) / (c * c + d * d)) :+ ((b * c - a * d) / (c * c + d * d))
   {-# INLINE (<<) #-}
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Quasigroup (Multiplicative (Complex a))
@@ -366,14 +372,14 @@ instance ((Additive-Group) a, (Multiplicative-Group) a) => Group (Multiplicative
 ---------------------------------------------------------------------
 
 instance ((Additive-Semigroup) a, (Multiplicative-Semigroup) a) => Semigroup (Additive (Ratio a)) where
-  Additive (a :% b) <> Additive (c :% d) = Additive $ (a `mul` d `add` c `mul` b) :% (b  `mul`  d)
+  Additive (a :% b) <> Additive (c :% d) = Additive $ (a * d + c * b) :% (b  *  d)
   {-# INLINE (<>) #-}
 
 instance ((Additive-Monoid) a, (Multiplicative-Monoid) a) => Monoid (Additive (Ratio a)) where
   mempty = Additive $ zero :% one
 
 instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Magma (Additive (Ratio a)) where
-  Additive (a :% b) << Additive (c :% d) = Additive $ (a `mul` d `sub` c `mul` b) :% (b  `mul`  d)
+  Additive (a :% b) << Additive (c :% d) = Additive $ (a * d - c * b) :% (b  *  d)
   {-# INLINE (<<) #-}
 
 instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Quasigroup (Additive (Ratio a))
@@ -384,7 +390,7 @@ instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Loop (Additive (Rati
 instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Group (Additive (Ratio a))
 
 instance (Additive-Semigroup) b => Semigroup (Additive (a -> b)) where
-  (<>) = liftA2 . liftA2 $ add
+  (<>) = liftA2 . liftA2 $ (+)
   {-# INLINE (<>) #-}
 
 instance (Additive-Monoid) b => Monoid (Additive (a -> b)) where
@@ -399,7 +405,7 @@ instance Monoid (Additive [a]) where
 -- >>> [1, 2] * [3, 4]
 -- [4,5,5,6]
 instance (Additive-Semigroup) a => Semigroup (Multiplicative [a]) where 
-  (<>) = liftA2 . liftA2 $ add 
+  (<>) = liftA2 . liftA2 $ (+) 
   {-# INLINE (<>) #-}
 
 instance (Additive-Monoid) a => Monoid (Multiplicative [a]) where 
@@ -411,51 +417,54 @@ instance Semigroup (Additive (NonEmpty a)) where
   (<>) = liftA2 (<>)
 
 instance (Additive-Semigroup) a => Semigroup (Multiplicative (NonEmpty a)) where
-  (<>) = liftA2 add 
+  (<>) = liftA2 (+) 
   {-# INLINE (<>) #-}
 
 ---------------------------------------------------------------------
 -- Idempotent and selective instances
 ---------------------------------------------------------------------
 
-instance Semigroup (First a) => Semigroup (Additive (First a)) where
-  (<>) = liftA2 (<>)
+-- MinPlus Predioid
+-- >>> Min 1  *  Min 2 :: Min Int
+-- Min {getMin = 3}
+instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
 
-{-
-instance Ord a => Semigroup (Additive (Down a)) where
-  (<>) = liftA2 . liftA2 $ add
+-- MinPlus Dioid
+instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
+  mempty = Multiplicative $ pure zero
+
+instance (Additive-Semigroup) a => Semigroup (Additive (Down a)) where
+  (<>) = liftA2 . liftA2 $ (+) 
 
 instance (Additive-Monoid) a => Monoid (Additive (Down a)) where
+  --Additive (Down a) <> Additive (Down b)
   mempty = pure . pure $ zero
--}
 
--- for MinPlus, MaxTimes
-
+{-
 instance (Additive-Semigroup) a => Semigroup (Additive (Dual a)) where
-  (<>) = liftA2 . liftA2 $ flip add
+  (<>) = liftA2 . liftA2 $ flip (+)
 
 instance (Additive-Monoid) a => Monoid (Additive (Dual a)) where
   mempty = pure . pure $ zero
 
+instance Semigroup (First a) => Semigroup (Additive (First a)) where
+  (<>) = liftA2 (<>)
+
 -- FirstPlus Predioid
 instance (Additive-Semigroup) a => Semigroup (Multiplicative (First a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
 
 instance Semigroup (Last a) => Semigroup (Additive (Last a)) where
   (<>) = liftA2 (<>)
 
 -- LastPlus Predioid
 instance (Additive-Semigroup) a => Semigroup (Multiplicative (Last a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
 
-instance (Additive-Semigroup) a => Semigroup (Additive (Down a)) where
-  (<>) = liftA2 . liftA2 $ add 
 
-instance (Additive-Monoid) a => Monoid (Additive (Down a)) where
-  --Additive (Down a) <> Additive (Down b)
-  mempty = pure . pure $ zero
 
--- >>> Min 1 `add` Min 2 :: Min Int
+-- >>> Min 1 + Min 2 :: Min Int
 -- Min {getMin = 1}
 instance Semigroup (Min a) => Semigroup (Additive (Min a)) where
   (<>) = liftA2 (<>)
@@ -463,16 +472,8 @@ instance Semigroup (Min a) => Semigroup (Additive (Min a)) where
 instance Semigroup (Max a) => Semigroup (Additive (Max a)) where
   (<>) = liftA2 (<>)
 
--- MinPlus Predioid
--- >>> Min 1  `mul`  Min 2 :: Min Int
--- Min {getMin = 3}
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
 
--- MinPlus Dioid
-instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
-  mempty = Multiplicative $ pure zero
-
+-}
 
 instance Semigroup (Additive ()) where
   _ <> _ = pure ()
@@ -505,31 +506,34 @@ instance Monoid (Additive Bool) where
 -- instance (Meet-Monoid) (Down a) => Monoid (Meet (Down a)) where mempty = Down <$> mempty
 
 instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (a, b)) where
-  Additive (x1, y1) <> Additive (x2, y2) = Additive (x1 `add` x2, y1 `add` y2)
+  Additive (x1, y1) <> Additive (x2, y2) = Additive (x1 + x2, y1 + y2)
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Maybe a)) where
-  Additive (Just x) <> Additive (Just y) = Additive . Just $ x `add` y
+  Additive (Just x) <> Additive (Just y) = Additive . Just $ x + y
   Additive (x@Just{}) <> _           = Additive x
   Additive Nothing  <> y             = y
 
 instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (Either a b)) where
-  Additive (Right x) <> Additive (Right y) = Additive . Right $ x `add` y
+  Additive (Right x) <> Additive (Right y) = Additive . Right $ x + y
 
   Additive(x@Right{}) <> _     = Additive x
-  Additive (Left x)  <> Additive (Left y)  = Additive . Left $ x `add` y
+  Additive (Left x)  <> Additive (Left y)  = Additive . Left $ x + y
   Additive (Left _)  <> y     = y
 
+instance (Additive-Semigroup) a => Monoid (Additive (Maybe a)) where
+  mempty = Additive Nothing
+
 instance Ord a => Semigroup (Additive (Set.Set a)) where
-  a <> b = Set.union <$> a <*> b
+  (<>) = liftA2 Set.union 
 
 instance (Ord k, (Additive-Semigroup) a) => Semigroup (Additive (Map.Map k a)) where
-  a <> b = Map.unionWith add <$> a <*> b
+  (<>) = liftA2 (Map.unionWith (+))
 
 instance (Additive-Semigroup) a => Semigroup (Additive (IntMap.IntMap a)) where
-  a <> b = IntMap.unionWith add <$> a <*> b
+  (<>) = liftA2 (IntMap.unionWith (+))
 
 instance Semigroup (Additive IntSet.IntSet) where
-  a <> b = IntSet.union <$> a <*> b
+  (<>) = liftA2 IntSet.union 
 
 instance Monoid (Additive IntSet.IntSet) where
   mempty = Additive IntSet.empty
@@ -542,6 +546,3 @@ instance Ord a => Monoid (Additive (Set.Set a)) where
 
 instance (Ord k, (Additive-Semigroup) a) => Monoid (Additive (Map.Map k a)) where
   mempty = Additive Map.empty
-
-instance (Additive-Semigroup) a => Monoid (Additive (Maybe a)) where
-  mempty = Additive Nothing

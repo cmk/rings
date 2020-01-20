@@ -41,13 +41,13 @@ triple a b c = a .*. b >< c
 data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
 
 instance (Additive-Semigroup) a => Semigroup (V3 a) where
-  (<>) = mzipWithRep add
+  (<>) = mzipWithRep (+)
 
 instance (Additive-Monoid) a => Monoid (V3 a) where
   mempty = pureRep zero
 
 instance (Additive-Group) a => Magma (V3 a) where
-  (<<) = mzipWithRep sub
+  (<<) = mzipWithRep (-)
 
 instance (Additive-Group) a => Quasigroup (V3 a)
 
@@ -55,8 +55,8 @@ instance (Additive-Group) a => Loop (V3 a)
 
 instance (Additive-Group) a => Group (V3 a)
 
-instance Semiring a => Semimodule a (V3 a) where 
-  a *. f = (a *) <$> f
+--instance Semiring a => Semimodule a (V3 a) where 
+--  a *. f = (a *) <$> f
 
 instance Functor V3 where
   fmap f (V3 a b c) = V3 (f a) (f b) (f c)
@@ -94,6 +94,15 @@ instance Representable V3 where
 -------------------------------------------------------------------------------
 
 data I3 = I31 | I32 | I33 deriving (Eq, Ord, Show)
+
+
+type Dim3 f = (Representable f, Rep f ~ I3)
+
+i3 :: Dim3 f => a -> a -> a -> f a
+i3 a b c = tabulate f where
+  f I31 = a
+  f I32 = b
+  f I33 = c
 
 instance Ring r => Algebra r I3 where
   multiplyWith f = f' where

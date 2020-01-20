@@ -1,5 +1,5 @@
 name:                rings
-version:             0.0.2.4
+version:             0.0.3
 synopsis:            Ring-like objects.
 description:         Semirings, rings, division rings, modules, and algebras.
 homepage:            https://github.com/cmk/rings
@@ -29,6 +29,7 @@ library
 
     , Data.Semigroup.Additive
     , Data.Semigroup.Multiplicative
+    , Data.Semigroup.Property
     , Data.Magma
     , Data.Algebra
     , Data.Algebra.Quaternion
@@ -45,7 +46,7 @@ library
 
   build-depends:       
       base           >= 4.10    && < 5.0
-    , lawz           >= 0.0.1   && < 1.0
+    , lawz           >= 0.1     && < 1.0
     , adjunctions    >= 4.4     && < 5.0
     , containers     >= 0.4.0   && < 0.7
     , distributive   >= 0.3     && < 1.0

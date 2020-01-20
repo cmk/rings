@@ -55,18 +55,6 @@ V3 0.999925 0.000001 0.000000
 -}
 
 
-{-
-TODO: need to normalize if we can rotate w/ unnormalized quats?
-
--- | Obtain a idx length 'Quaternion' representing a rotation of @angle@ radians about @axis@.
---
--- See < https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation >
---
-axisAngle ::  V3 Double -> Double -> QuatD
-axisAngle axis angle = Quaternion (cos $ angle / 2) $ fmap (sin (angle / 2) *) axis
-{-# INLINE axisAngle #-}
--}
-
 -- | Obtain a 'Quaternion' from 4 base field elements.
 --
 quat :: a -> a -> a -> a -> Quaternion a
@@ -86,8 +74,8 @@ imag (Quaternion _ v) = v
 --
 -- @ norm x == real $ x * conj x @
 --
---norm :: Semiring a => Quaternion a -> a
---norm (Quaternion r v) = r * r + quadrance v
+norm' :: Semiring a => Quaternion a -> a
+norm' (Quaternion r v) = r * r + quadrance v
 
 -- | Scale a 'QuatD' to unit length.
 --
@@ -97,7 +85,6 @@ imag (Quaternion _ v) = v
 normalize :: QuatD -> QuatD
 normalize q = fmap (nrm *) q where nrm = N.sqrt . N.recip . real . norm $ q
 
-
 -- | Use a quaternion to rotate a vector.
 --
 -- rotate qk . rotate qj $ V3 1 1 0 :: V3 Int
@@ -105,6 +92,14 @@ normalize q = fmap (nrm *) q where nrm = N.sqrt . N.recip . real . norm $ q
 --
 rotate :: Ring a => Quaternion a -> V3 a -> V3 a
 rotate q v = ijk where Quaternion _ ijk = q * Quaternion zero v * conj q
+
+-- | Obtain a unit length 'Quaternion' representing a rotation of @angle@ radians about @axis@.
+--
+-- See < https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation >
+--
+axisAngle ::  V3 Double -> Double -> QuatD
+axisAngle axis angle = normalize $ Quaternion (cos $ angle / 2) $ fmap (sin (angle / 2) *) axis
+{-# INLINE axisAngle #-}
 
 -- TODO: add to Property module
 -- conj == conj'
@@ -122,8 +117,8 @@ prop_conj (~~) p q = sum $ mzipWithRep (~~) (conj (p * q)) (conj q * conj p)
 
 -- conj (p * q) = conj q * conj p
 -- conj q = (-0.5) * (q <> (i * q * i) <> (j * q * j) <> (k * q * k))
--- 2 * real q ≡ q <> conj q
--- 2 * imag q ≡ q << conj q
+-- 2 * real q '==' q <> conj q
+-- 2 * imag q '==' q << conj q
 conj :: Group a => Quaternion a -> Quaternion a
 conj (Quaternion r v) = Quaternion r $ fmap negate v
 -}
@@ -187,52 +182,51 @@ qj = Quaternion zero $ idx I32
 qk :: Semiring a => Quaternion a
 qk = Quaternion zero $ idx I33
 
-{-
+
 -- TODO place in doctest preamble
-cosAngle :: QuatP -> V3 Pico -> Pico
+cosAngle :: QuatD -> V3 Double -> Double
 cosAngle q v = v .*. (rotate q v)
 
 -- | Identity rotation.
 --
 -- All rotations written according to the < https://en.wikipedia.org/wiki/Right-hand_rule right-hand rule >.
 --
-q00 :: Field a => Quaternion a
+q00 :: QuatD
 q00 = unit
-
 
 -- | A \( \pi/2 \) radian rotation about the /y/ axis.
 --
 -- >>> m33 0 0 1 0 1 0 (-1) 0 0 *. V3 0 1 0 :: V3 Micro
 -- V3 0.000000 1.000000 0.000000
 --
-q01 :: Field a => Quaternion a
+q01 :: QuatD
 q01 = quat irt2 0 irt2 0
 
 -- | A \( \pi \) radian rotation about the /y/ axis.
 --
-q02 :: Field a => Quaternion a 
+q02 :: QuatD 
 q02 = qj
 
 -- | A \( 3 \pi/2 \) radian rotation about the /y/ axis.
 --
-q03 :: Field a => Quaternion a 
+q03 :: QuatD 
 q03 = quat irt2 0 (-irt2) 0
 
 -- | A \( \pi/2 \) radian rotation about the /z/ axis.
 --
--- >>> rotate (q04 :: QuatM) $ V3 0 0 1
+-- >>> rotate q04 $ V3 0 0 1
 -- V3 0.000000 0.000000 0.999996
--- >>> rotate (q04 :: QuatM) $ V3 1 1 0
+-- >>> rotate q04 $ V3 1 1 0
 -- V3 -0.999998 0.999997 0.000000
 --
-q04 :: Field a => Quaternion a 
+q04 :: QuatD 
 q04 = quat irt2 0 0 irt2
 
 -- | A \( 2 \pi/3 \) radian rotation about the /x-y-z/ axis.
 --
--- @ q05 ≡ q01 * q04 @
+-- @ q05 '==' q01 '*' q04 @
 --
--- >>> rotate (q05 :: QuatM) $ V3 1 1 1
+-- >>> rotate q05 $ V3 1 1 1
 -- V3 1.000000 1.000000 1.000000
 -- >>> cosAngle q05 (fmap (irt2*) $ V3 1 (-1) 0)
 -- -0.499999999991
@@ -241,19 +235,19 @@ q04 = quat irt2 0 0 irt2
 -- >>> cosAngle q05 (fmap (irt2*irt3*) $ V3 1 (-2) 1)
 -- -0.499999999993
 --
-q05 :: Field a => Quaternion a 
+q05 :: QuatD 
 q05 = quat 0.5 0.5 0.5 0.5
 
 -- | A \( \pi \) radian rotation about the /x-y/ axis.
 --
--- @ q06 ≡ q02 * q04 @
+-- @ q06 '==' q02 '*' q04 @
 --
--- >>> rotate (q06 :: QuatM) $ V3 1 1 0
+-- >>> rotate q06 $ V3 1 1 0
 -- V3 0.999997 0.999997 0.000000
--- >>> rotate (q06 :: QuatM) $ V3 0 0 1
+-- >>> rotate q06 $ V3 0 0 1
 -- V3 0.000000 0.000000 -0.999997
 --
-q06 :: Field a => Quaternion a 
+q06 :: QuatD 
 q06 = quat 0 irt2 irt2 0
 
 -- | A \( 2 \pi/3 \) radian rotation about the /(-x)-(-y)-z/ axis.
@@ -261,147 +255,147 @@ q06 = quat 0 irt2 irt2 0
 -- Equivalent to a \( 3 \pi/2 \) radian rotation about y axis,
 -- followed by \( \pi/2 \) radian rotation about z axis:
 --
--- @ q07 ≡ q03 * q04 @
+-- @ q07 '==' q03 '*' q04 @
 --
--- >>> rotate (q07 :: QuatM) $ V3 1 1 (-1)
+-- >>> rotate q07 $ V3 1 1 (-1)
 -- V3 1.000000 1.000000 -1.000000
 -- >>> cosAngle q07 ((irt2*irt3*) <$> V3 (-1) 2 1)
 -- -0.499999999993
 --
-q07 :: Field a => Quaternion a
+q07 :: QuatD
 q07 = quat 0.5 (-0.5) (-0.5) 0.5
 
 -- | A \( 3 \pi/2 \) radian rotation about the /z/ axis.
 --
--- >>> rotate (q08 :: QuatM) $ V3 0 0 1
+-- >>> rotate q08 $ V3 0 0 1
 -- V3 0.000000 0.000000 0.999996
--- >>> rotate (q08 :: QuatM) $ V3 1 1 0
+-- >>> rotate q08 $ V3 1 1 0
 -- V3 0.999997 -0.999997 0.000000
 --
-q08 :: Field a => Quaternion a
+q08 :: QuatD
 q08 = quat irt2 0 0 (-irt2)
 
 -- | A \( 2 \pi/3 \) radian rotation about the /(-x)-y-(-z)/ axis.
 --
--- @ q09 ≡ q01 * q08 @
+-- @ q09 '==' q01 '*' q08 @
 --
--- >>> rotate (q09 :: QuatM) $ V3 1 (-1) 1
+-- >>> rotate q09 $ V3 1 (-1) 1
 -- V3 1.000000 -1.000000 1.000000
 -- >>> cosAngle q09 ((irt2*irt3*) <$> V3 1 2 1)
 -- -0.499999999993
 --
-q09 :: Field a => Quaternion a
+q09 :: QuatD
 q09 = quat 0.5 (-0.5) 0.5 (-0.5)
 
 -- |
--- @ q10 ≡ q02 * q08 @
+-- @ q10 '==' q02 '*' q08 @
 --
-q10 :: Field a => Quaternion a
+q10 :: QuatD
 q10 = quat 0 (-irt2) irt2 0
 
 -- | A \( 2 \pi/3 \) radian rotation about the /x-(-y)-(-z)/ axis.
 --
--- @ q11 ≡ q03 * q08 @
+-- @ q11 '==' q03 '*' q08 @
 --
--- >>> rotate (q11 :: QuatM) $ V3 (-1) 1 1
+-- >>> rotate q11 $ V3 (-1) 1 1
 -- V3 1.000000 1.000000 -1.000000
 -- >>> cosAngle q11 ((irt2*irt3*) <$> V3 1 2 (-1))
 -- -0.499999999993
 --
-q11 :: Field a => Quaternion a
+q11 :: QuatD
 q11 = quat 0.5 0.5 (-0.5) (-0.5)
 
 -- | A \( \pi/2 \) radian rotation about the /x/ axis.
 --
--- >>> rotate (q12 :: QuatM) $ V3 1 0 0
+-- >>> rotate q12 $ V3 1 0 0
 -- V3 0.999996 0.000000 0.000000
--- >>> rotate (q12 :: QuatM) $ V3 0 1 1
+-- >>> rotate q12 $ V3 0 1 1
 -- V3 0.000000 -0.999998 0.999997
 -- 
-q12 :: Field a => Quaternion a
+q12 :: QuatD
 q12 = quat irt2 irt2 0 0
 
 -- |
 -- 
--- @ q13 ≡ q01 * q12 @
+-- @ q13 '==' q01 '*' q12 @
 --
-q13 :: Field a => Quaternion a
+q13 :: QuatD
 q13 = quat 0.5 0.5 0.5 (-0.5)
 
 -- |
 --
--- @ q14 ≡ q02 * q12 @
+-- @ q14 '==' q02 '*' q12 @
 -- 
-q14 :: Field a => Quaternion a
+q14 :: QuatD
 q14 = quat 0 0 irt2 (-irt2)
 
 -- |
 --
--- @ q15 ≡ q03 * q12 @
+-- @ q15 '==' q03 '*' q12 @
 --
-q15 :: Field a => Quaternion a
+q15 :: QuatD
 q15 = quat 0.5 0.5 (-0.5) 0.5
 
 -- | A \( \pi \) radian rotation about the /x/ axis.
 --
--- λ> rotate (q16 :: QuatM) $ V3 1 0 0
+-- λ> rotate q16 $ V3 1 0 0
 -- V3 1.000000 0.000000 0.000000
--- λ> rotate (q16 :: QuatM) $ V3 0 1 1
+-- λ> rotate q16 $ V3 0 1 1
 -- V3 0.000000 -1.000000 -1.000000
 -- 
-q16 :: Field a => Quaternion a
+q16 :: QuatD
 q16 = qi
 
 -- |
 --
--- @ q17 ≡ q01 * q16 @
+-- @ q17 '==' q01 '*' q16 @
 --
-q17 :: Field a => Quaternion a
+q17 :: QuatD
 q17 = quat 0 irt2 0 (-irt2)
 
 -- |
 --
--- @ q18 ≡ q02 * q16 @
+-- @ q18 '==' q02 '*' q16 @
 --
-q18 :: Field a => Quaternion a
+q18 :: QuatD
 q18 = conj qk
 
 -- |
 --
--- @ q19 ≡ q03 * q16 @
+-- @ q19 '==' q03 '*' q16 @
 --
-q19 :: Field a => Quaternion a
+q19 :: QuatD
 q19 = quat 0 irt2 0 irt2
 
 -- | A \( 3 \pi/2 \) radian rotation about the /x/ axis.
 --
--- >>> rotate (q20 :: QuatM) $ V3 1 0 0
+-- >>> rotate q20 $ V3 1 0 0
 -- V3 0.999996 0.000000 0.000000
--- >>> rotate (q20 :: QuatM) $ V3 0 1 1
+-- >>> rotate q20 $ V3 0 1 1
 -- V3 0.000000 0.999997 -0.999997
 --
-q20 :: Field a => Quaternion a
+q20 :: QuatD
 q20 = quat irt2 (-irt2) 0 0
 
 -- |
 --
--- @ q21 ≡ q01 * q20 @
+-- @ q21 '==' q01 '*' q20 @
 --
-q21 :: Field a => Quaternion a
+q21 :: QuatD
 q21 = quat 0.5 (-0.5) 0.5 0.5
 
 -- |
 --
--- @ q22 ≡ q02 * q20 @
+-- @ q22 '==' q02 '*' q20 @
 --
-q22 :: Field a => Quaternion a
+q22 :: QuatD
 q22 =  quat 0 0 irt2 irt2
 
 -- |
 --
--- @ q23 ≡ q03 * q20 @
+-- @ q23 '==' q03 '*' q20 @
 --
-q23 :: Field a => Quaternion a
+q23 :: QuatD
 q23 = quat 0.5 (-0.5) (-0.5) (-0.5)
 
 -------------------------------------------------------------------------------
@@ -409,28 +403,25 @@ q23 = quat 0.5 (-0.5) (-0.5) (-0.5)
 -------------------------------------------------------------------------------
 
 -- Inverse square root of 2.
-irt2 :: Field a => a
+irt2 :: Double
 irt2 = 0.70710678118
 
 -- Inverse square root of 3.
-irt3 :: Field a => a
+irt3 :: Double
 irt3 = 0.57735026919
-
--}
-
 
 -------------------------------------------------------------------------------
 -- Instances
 -------------------------------------------------------------------------------
 
 instance (Additive-Semigroup) a => Semigroup (Quaternion a) where
-  (<>) = mzipWithRep add 
+  (<>) = mzipWithRep (+) 
 
 instance (Additive-Monoid) a => Monoid (Quaternion a) where
   mempty = pureRep zero
 
 instance (Additive-Group) a => Magma (Quaternion a) where
-  (<<) = mzipWithRep sub
+  (<<) = mzipWithRep (-)
 
 instance (Additive-Group) a => Quasigroup (Quaternion a)
 
@@ -448,14 +439,13 @@ instance (Additive-Group) a => Loop (Additive (Quaternion a))
 instance (Additive-Group) a => Group (Additive (Quaternion a))
 
 instance Semiring a => Semimodule a (Quaternion a) where
-  (*.) = lmultRep
+  (*.) = multl
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Quaternion a)) where
   (<>) = mzipWithRep (<>)
 
 instance (Additive-Monoid) a => Monoid (Additive (Quaternion a)) where
   mempty = pure mempty
-
 
 instance Ring a => Semigroup (Multiplicative (Quaternion a)) where
   -- >>> qi * qj :: QuatM

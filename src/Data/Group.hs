@@ -104,9 +104,9 @@ infixl 6 <<
 
 -- | A 'Group' is a 'Monoid' plus a function, 'negate', such that: 
 --
--- @g << negate g ≡ mempty@
+-- @g << negate g '==' mempty@
 --
--- @negate g << g ≡ mempty@
+-- @negate g << g '==' mempty@
 --
 class Monoid a => Group a where
   {-# MINIMAL (negate | (<<)) #-}

@@ -13,20 +13,20 @@ Unfortunately there is little standardization around the names of the structures
 A right pre-semiring (sometimes referred to as a bisemigroup) is a type `R` endowed with two associative binary operations: `<>` and `><`, along with a right-distributivity property connecting them:
 
 ```
-(a <> b) >< c ≡ (a >< c) <> (b >< c)
+(a <> b) >< c '==' (a >< c) <> (b >< c)
 ```
 
 A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring with a `mempty` element (aka `mempty`) that is right-neutral with respect to _both_  addition and multiplication (1):
 
 ```
-mempty <> a ≡ a
-mempty >< a ≡ a --1
+mempty <> a '==' a
+mempty >< a '==' a --1
 ```
 
 Neutrality, distributivity, and the lack of a second sunit lead to a distinct absorbtion property:
 
 ```
-a >< b ≡ a >< b <> b
+a >< b '==' a >< b <> b
 ```
 
 See also [Andrey's post](https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif) for more on (the commutative sub-class of) this class of structures.
@@ -34,9 +34,9 @@ See also [Andrey's post](https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#wh
 Finally a unital right semiring is a pre-semiring with two distinct neutral elements, `mempty` and `sunit`, such that `mempty` is right-neutral wrt addition, `sunit` is right-neutral wrt multiplication, and `mempty` is now (2) right-annihilative wrt multiplication:
 
 ```
-mempty <> a ≡ a
-sunit >< a ≡ a
-mempty >< a ≡ mempty --2
+mempty <> a '==' a
+sunit >< a '==' a
+mempty >< a '==' mempty --2
 ```
 
 See `Data.Semiring.Property` for a detailed specification of the laws.
@@ -54,7 +54,7 @@ foldNonunital = foldMap . product
 
 -- Additive & multiplicative sunits.
 foldUnital :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
-foldUnital = foldMap . product -- ≡ const mempty if sunit = mempty
+foldUnital = foldMap . product -- '==' const mempty if sunit = mempty
 ```
 
 The functions `product` and `product1` simply apply multiplication (with `sunit` as the root in the case of `foldMap`) instead of addition, for example:
@@ -111,7 +111,7 @@ In the first case, we are led to rings (imperfectly captured in `Num`), while in
 
 So ordering is the defining property of dioids, and it gives rise to a sup topology (i.e. residuation) useful for solving 'linear' algebra problems in many applications in computer science, ranging from control theory to regular languages and Kleene algebras to shortest path algorithms using tropical dioids (e.g. max-plus). Dioids are also generalizations of distributive lattices and quantales, which have been studied extensively in mathematics and logic. The `codistributive` identity in `Data.Semiring.Property` provides the link between the two families.
 
-Finally, it's worth noting that dioids encompass many of the various 'left-catch' laws in Haskell-land (e.g. `pure a <|> x ≡ pure`) as a result of the following positivity condition:
+Finally, it's worth noting that dioids encompass many of the various 'left-catch' laws in Haskell-land (e.g. `pure a <|> x '==' pure`) as a result of the following positivity condition:
 
 Given a dioid R, if a ∈ R, b ∈ R and a + b = ε, then a = ε and b = ε.
 
@@ -122,21 +122,21 @@ For example, given an `Alternative` with left-catch semantics (e.g. `Maybe`, `Ei
 Right annihilative `mempty`:
 
 ```
-empty *> _ ≡ empty
-mempty >< _ ≡ mempty
+empty *> _ '==' empty
+mempty >< _ '==' mempty
 ```
 
 Right annihilative `sunit`:
 
 ```
-pure a <|> _ ≡ pure a
-sunit <> _ ≡ sunit
+pure a <|> _ '==' pure a
+sunit <> _ '==' sunit
 ```
 
 If R is a dioid then this last property implies that:
 
 ```
-(sunit le) ≡ (sunit ==)
+(sunit le) '==' (sunit ==)
 ```
 
 Why? Because a right annihilativite multiplicative sunit means that ∃ c ∈ R: 1 + c = a ⇔ 1 = a.

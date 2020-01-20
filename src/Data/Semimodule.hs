@@ -73,15 +73,15 @@ infixl 7 .*, *.
 --
 -- All instances must satisfy the following identities:
 -- 
--- @ r '*.' (x '<>' y) ≡ r '*.' x '<>' r '*.' y @
+-- @ r '*.' (x '<>' y) '==' r '*.' x '<>' r '*.' y @
 --
--- @ (r '+' s) '*.' x ≡ r '*.' x '<>' s '*.' x @
+-- @ (r '+' s) '*.' x '==' r '*.' x '<>' s '*.' x @
 --
--- @ (r '*' s) '*.' x ≡ r '*.' (s '*.' x) @
+-- @ (r '*' s) '*.' x '==' r '*.' (s '*.' x) @
 --
 -- When the ring of coefficients /r/ is unital we must additionally have:
 --
--- @ 'one' '*.' x ≡ x @
+-- @ 'one' '*.' x '==' x @
 --
 -- See the properties module for a detailed specification of the laws.
 --
@@ -97,6 +97,8 @@ class (Semiring r, Semigroup a) => Semimodule r a where
   (.*) :: a -> r -> a
   (.*) = flip (*.)
 
+
+
 -- | Default definition of 'negate' for a commutative group.
 --
 --negateDef :: CommutativeGroup a => a -> a
@@ -104,13 +106,13 @@ class (Semiring r, Semigroup a) => Semimodule r a where
 
 -- | Default definition of '(*.)' for a free module.
 --
-lmultRep :: Semiring a => Functor f => a -> f a -> f a
-lmultRep a f = (a *) <$> f
+multl :: Semiring a => Functor f => a -> f a -> f a
+multl a f = (a *) <$> f
 
 -- | Default definition of '(.*)' for a free module.
 --
-rmultRep :: Semiring a => Functor f => f a -> a -> f a
-rmultRep f a = (* a) <$> f
+multr :: Semiring a => Functor f => f a -> a -> f a
+multr f a = (* a) <$> f
 
 {-
 

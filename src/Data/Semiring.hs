@@ -70,22 +70,17 @@ type Nonnegative = Ratio Natural
 -- Presemiring
 -------------------------------------------------------------------------------
 
--- | Right pre-semirings and (non-unital and unital) right semirings.
+-- | Right pre-semirings. and (non-unital and unital) right semirings.
 -- 
 -- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
 -- with two associative binary (i.e. semigroup) operations: '+' and '*', along with a 
 -- right-distributivity property connecting them:
 --
+-- /Distributivity/
+--
 -- @
 -- (a '+' b) '*' c '==' (a '*' c) '+' (b '*' c)
 -- @
---
--- A non-unital right semiring (sometimes referred to as a bimonoid) is a pre-semiring 
--- with a 'mempty' element that is neutral with respect to both addition and multiplication.
---
--- A unital right semiring is a pre-semiring with two distinct neutral elements, 'zero' 
--- and 'one', such that 'zero' is right-neutral wrt addition, 'one' is right-neutral wrt
---  multiplication, and 'zero' is right-annihilative wrt multiplication. 
 --
 -- Note that addition and multiplication needn't be commutative.
 --
@@ -95,30 +90,35 @@ type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
 
 class PresemiringLaw a => Presemiring a
 
-infixl 6 +
-infixl 7 *
-
---class Presemiring a => Semiring a where
--- >>> Dual [2] + Dual [3] :: Dual [Int]
--- Dual {getDual = [3,2]}
-(+) :: Presemiring a => a -> a -> a
-(+) = A.add 
-
--- >>> Dual [2] * Dual [3] :: Dual [Int]
--- Dual {getDual = [5]}
-(*) :: Presemiring a => a -> a -> a
-(*) = M.mul
-
 -------------------------------------------------------------------------------
 -- Semiring
 -------------------------------------------------------------------------------
 
 type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
 
+-- | Right semirings.
+-- 
+-- A right semiring is a pre-semiring with two distinct neutral elements, 'zero' 
+-- and 'one', such that 'zero' is right-neutral wrt addition, 'one' is right-neutral wrt
+-- multiplication, and 'zero' is right-annihilative wrt multiplication. 
+--
+-- /Neutrality/
+--
+-- @
+-- 'zero' '+' r '==' r
+-- 'one' '*' r '==' r
+-- @
+--
+-- /Absorbtion/
+--
+-- @
+-- 'zero' '*' a '==' 'zero'
+-- @
+--
 class (Presemiring a, SemiringLaw a) => Semiring a
 
 two :: (Additive-Semigroup) a => (Multiplicative-Monoid) a => a
-two = one `add` one
+two = one + one
 {-# INLINE two #-}
 
 
@@ -171,7 +171,7 @@ product1 = productWith1 id
 -- | Fold over a collection using the multiplicative operation of an arbitrary semiring.
 -- 
 -- @
--- 'product' f ≡ 'Data.foldr'' ((*) . f) 'one'
+-- 'product' f '==' 'Data.foldr'' ((*) . f) 'one'
 -- @
 --
 --
@@ -219,7 +219,7 @@ cross1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
 cross1 a b = sum1 $ liftF2 (*) a b
 {-# INLINE cross1 #-}
 
--- | Evaluate a right-associated semiring expression.
+-- | Evaluate a semiring expression.
 -- 
 -- @ (a11 * .. * a1m) + (a21 * .. * a2n) + ... @
 --
@@ -253,8 +253,6 @@ evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
 
 type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 
-infixl 6 -
-
 -- | Rings.
 --
 -- A ring /R/ is a commutative group with a second monoidal operation '*' that distributes over '+'.
@@ -282,16 +280,13 @@ infixl 6 -
 --
 class (Semiring a, RingLaw a) => Ring a where
 
-(-) :: Ring a => a -> a -> a
-(-) = A.sub
-
 negate :: (Additive-Group) a => a -> a
-negate a = zero `sub` a
+negate a = zero - a
 {-# INLINE negate #-}
 
 -- | Absolute value of an element.
 --
--- @ 'abs' r ≡ 'mul' r ('signum' r) @
+-- @ 'abs' r '==' 'mul' r ('signum' r) @
 --
 -- https://en.wikipedia.org/wiki/Linearly_ordered_group
 abs :: (Additive-Group) a => Ord a => a -> a
@@ -304,9 +299,6 @@ abs x = bool (negate x) x $ zero <= x
 signum :: RingLaw a => Ord a => a -> a
 signum x = bool (negate one) one $ zero <= x
 {-# INLINE signum #-}
-
-
-
 
 {-
 -- | Default implementation of 'fromBoolean' given a multiplicative unit.
@@ -496,17 +488,14 @@ instance Presemiring Double
 instance Presemiring CFloat
 instance Presemiring CDouble
 
-instance Presemiring IntSet.IntSet
 
-instance Presemiring a => Presemiring (Dual a)
+instance Ring a => Presemiring (Complex a)
 instance Presemiring a => Presemiring (r -> a)
 instance (Presemiring a, Presemiring b) => Presemiring (Either a b)
 instance Presemiring a => Presemiring (Maybe a)
-instance Presemiring a => Presemiring (IntMap.IntMap a)
 instance (Additive-Semigroup) a => Presemiring [a]
 instance (Additive-Semigroup) a => Presemiring (NonEmpty a)
-instance (Ord a, Presemiring a) => Presemiring (Set.Set a)
-instance (Ord k, Presemiring a) => Presemiring (Map.Map k a)
+
 
 instance Semiring ()
 instance Semiring Bool
@@ -539,11 +528,16 @@ instance Semiring Double
 instance Semiring CFloat
 instance Semiring CDouble
 
-instance Semiring a => Semiring (Dual a)
+instance Ring a => Semiring (Complex a)
 instance Semiring a => Semiring (r -> a)
 instance Semiring a => Semiring (Maybe a)
-instance Semiring a => Semiring (IntMap.IntMap a)
 instance (Additive-Monoid) a => Semiring [a]
+
+instance Presemiring IntSet.IntSet
+instance Ord a => Presemiring (Set.Set a)
+instance Presemiring a => Presemiring (IntMap.IntMap a)
+instance (Ord k, Presemiring a) => Presemiring (Map.Map k a)
+instance Semiring a => Semiring (IntMap.IntMap a)
 instance (Ord k, (Multiplicative-Monoid) k, Semiring a) => Semiring (Map.Map k a)
 
 -- Rings
@@ -569,3 +563,5 @@ instance Ring Float
 instance Ring Double
 instance Ring CFloat
 instance Ring CDouble
+
+instance Ring a => Ring (Complex a)

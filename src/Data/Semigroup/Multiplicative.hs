@@ -54,33 +54,29 @@ infixr 1 -
 -- | Hyphenation operator.
 type (g - f) a = f (g a)  
 
+infixl 7 *
 
-mul :: (Multiplicative-Semigroup) a => a -> a -> a
-a `mul` b = unMultiplicative (Multiplicative a <> Multiplicative b)
-{-# INLINE mul #-}
+-- >>> Dual [2] * Dual [3] :: Dual [Int]
+-- Dual {getDual = [5]}
+(*) :: (Multiplicative-Semigroup) a => a -> a -> a
+a * b = unMultiplicative (Multiplicative a <> Multiplicative b)
+{-# INLINE (*) #-}
+
+infixl 7 /
+
+(/) :: (Multiplicative-Group) a => a -> a -> a
+a / b = unMultiplicative (Multiplicative a << Multiplicative b)
+{-# INLINE (/) #-}
+
+
 
 one :: (Multiplicative-Monoid) a => a
 one = unMultiplicative mempty
 {-# INLINE one #-}
 
--- infixl 7 /
-
 div :: (Multiplicative-Group) a => a -> a -> a
 a `div` b = unMultiplicative (Multiplicative a << Multiplicative b)
 {-# INLINE div #-}
-
--- | Take the reciprocal of a multiplicative group element.
---
--- >>> recip (3 :+ 4) :: Complex Rational
--- 3 % 25 :+ (-4) % 25
--- >>> recip (3 :+ 4) :: Complex Double
--- 0.12 :+ (-0.16)
--- >>> recip (3 :+ 4) :: Complex Pico
--- 0.120000000000 :+ -0.160000000000
--- 
-recip :: (Multiplicative-Group) a => a -> a 
-recip a = one `div` a
-{-# INLINE recip #-}
 
 newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
@@ -248,14 +244,14 @@ deriveMultiplicativeGroup(CDouble)
 ---------------------------------------------------------------------
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Ratio a)) where
-  Multiplicative (a :% b) <> Multiplicative (c :% d) = Multiplicative $ (a `mul` c) :% (b `mul` d)
+  Multiplicative (a :% b) <> Multiplicative (c :% d) = Multiplicative $ (a * c) :% (b * d)
   {-# INLINE (<>) #-}
 
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Ratio a)) where
   mempty = Multiplicative $ unMultiplicative mempty :% unMultiplicative mempty
 
 instance (Multiplicative-Monoid) a => Magma (Multiplicative (Ratio a)) where
-  Multiplicative (a :% b) << Multiplicative (c :% d) = Multiplicative $ (a `mul` d) :% (b `mul` c)
+  Multiplicative (a :% b) << Multiplicative (c :% d) = Multiplicative $ (a * d) :% (b * c)
   {-# INLINE (<<) #-}
 
 instance (Multiplicative-Monoid) a => Quasigroup (Multiplicative (Ratio a))
@@ -280,6 +276,16 @@ instance Monoid (Multiplicative ()) where
   mempty = pure ()
   {-# INLINE mempty #-}
 
+instance  Magma (Multiplicative ()) where
+  _ << _ = pure ()
+  {-# INLINE (<<) #-}
+
+instance Quasigroup (Multiplicative ())
+
+instance Loop (Multiplicative ())
+
+instance Group (Multiplicative ())
+
 instance Semigroup (Multiplicative Bool) where
   a <> b = (P.&&) <$> a <*> b
   {-# INLINE (<>) #-}
@@ -289,14 +295,14 @@ instance Monoid (Multiplicative Bool) where
   {-# INLINE mempty #-}
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Dual a)) where
-  (<>) = liftA2 . liftA2 $ flip mul
+  (<>) = liftA2 . liftA2 $ flip (*)
 
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Dual a)) where
   mempty = pure . pure $ one
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Down a)) where
   --Additive (Down a) <> Additive (Down b)
-  (<>) = liftA2 . liftA2 $ mul 
+  (<>) = liftA2 . liftA2 $ (*) 
 
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Down a)) where
   mempty = pure . pure $ one
@@ -304,18 +310,17 @@ instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Down a)) where
 -- MaxTimes Predioid
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Max a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 mul a b
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (*) a b
 
 -- MaxTimes Dioid
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Max a)) where
   mempty = Multiplicative $ pure one
 
-
 instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (a, b)) where
-  Multiplicative (x1, y1) <> Multiplicative (x2, y2) = Multiplicative (x1 `mul` x2, y1 `mul` y2)
+  Multiplicative (x1, y1) <> Multiplicative (x2, y2) = Multiplicative (x1 * x2, y1 * y2)
 
 instance (Multiplicative-Semigroup) b => Semigroup (Multiplicative (a -> b)) where
-  (<>) = liftA2 . liftA2 $ mul
+  (<>) = liftA2 . liftA2 $ (*)
   {-# INLINE (<>) #-}
 
 instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
@@ -324,56 +329,32 @@ instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Maybe a)) where
   Multiplicative Nothing  <> _             = Multiplicative Nothing
   Multiplicative (x@Just{}) <> Multiplicative Nothing   = Multiplicative Nothing
-  Multiplicative (Just x) <> Multiplicative (Just y) = Multiplicative . Just $ x `mul` y
-
-
-  -- Mul a <> Mul b = Mul $ liftA2 mul a b
+  Multiplicative (Just x) <> Multiplicative (Just y) = Multiplicative . Just $ x * y
+  -- Mul a <> Mul b = Mul $ liftA2 (*) a b
 
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Maybe a)) where
   mempty = Multiplicative $ pure one
 
 instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (Either a b)) where
-  Multiplicative (Right x) <> Multiplicative (Right y) = Multiplicative . Right $ x `mul` y
+  Multiplicative (Right x) <> Multiplicative (Right y) = Multiplicative . Right $ x * y
   Multiplicative(x@Right{}) <> y     = y
-  Multiplicative (Left x) <> Multiplicative (Left y)  = Multiplicative . Left $ x `mul` y
+  Multiplicative (Left x) <> Multiplicative (Left y)  = Multiplicative . Left $ x * y
   Multiplicative (x@Left{}) <> _     = Multiplicative x
 
 instance Ord a => Semigroup (Multiplicative (Set.Set a)) where
-  a <> b = Set.intersection <$> a <*> b
+  (<>) = liftA2 Set.intersection 
 
 instance (Ord k, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Map.Map k a)) where
-  a <> b = Map.intersectionWith mul <$> a <*> b
+  (<>) = liftA2 (Map.intersectionWith (*))
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (IntMap.IntMap a)) where
-  a <> b = IntMap.intersectionWith mul <$> a <*> b
+  (<>) = liftA2 (IntMap.intersectionWith (*))
 
 instance Semigroup (Multiplicative IntSet.IntSet) where
-  a <> b = IntSet.intersection <$> a <*> b
+  (<>) = liftA2 IntSet.intersection 
 
 instance (Ord k, (Multiplicative-Monoid) k, (Multiplicative-Monoid) a) => Monoid (Multiplicative (Map.Map k a)) where
   mempty = Multiplicative $ Map.singleton one one
 
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (IntMap.IntMap a)) where
   mempty = Multiplicative $ IntMap.singleton 0 one
-
-{-
-
-
-instance Monoid a => Semiring (Seq.Seq a) where
-  (*) = liftA2 (<>)
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ Seq.singleton mempty
-
-instance (Ord k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
-  xs * ys = foldMap (flip Map.map xs . (<>)) ys
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ Map.singleton mempty mempty
-
-instance Monoid a => Semiring (IntMap.IntMap a) where
-  xs * ys = foldMap (flip IntMap.map xs . (<>)) ys
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
--}

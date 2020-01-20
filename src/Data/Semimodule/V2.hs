@@ -7,7 +7,9 @@
 
 module Data.Semimodule.V2 (
     V2(..)
+  , type Dim2
   , I2(..)
+  , i2
 ) where
 
 import safe Data.Algebra
@@ -98,6 +100,12 @@ data I2 = I21 | I22 deriving (Eq, Ord, Show)
 
 --instance Semigroup I2 where (<>) = P.error "TODO"
 
+type Dim2 f = (Representable f, Rep f ~ I2)
+
+i2 :: Dim2 f => a -> a -> f a
+i2 a b = tabulate f where
+  f I21 = a
+  f I22 = b
 
 
 type HyperbolicBasis = I2
