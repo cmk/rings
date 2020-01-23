@@ -22,9 +22,7 @@ library
     , Data.Semiring.Property
     , Data.Semifield
     , Data.Semimodule
-    , Data.Semimodule.V2
-    , Data.Semimodule.V3
-    , Data.Semimodule.V4
+    , Data.Semimodule.Free
     , Data.Semimodule.Matrix
 
     , Data.Semigroup.Additive

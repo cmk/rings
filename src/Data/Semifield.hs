@@ -13,6 +13,14 @@ module Data.Semifield (
     (/)
   , (^^)
   , recip
+  , anan
+  , pinf
+  , ninf
+  , isNan
+  , isPinf
+  , isNinf
+  , finite
+  , finite'
   , type SemifieldLaw, Semifield
   , type FieldLaw, Field
 ) where
@@ -62,9 +70,32 @@ recip :: (Multiplicative-Group) a => a -> a
 recip a = one / a
 {-# INLINE recip #-}
 
-aNan :: Semifield a => a
-aNan = zero / zero
-{-# INLINE aNan #-}
+anan :: Semifield a => a
+anan = zero / zero
+{-# INLINE anan #-}
+
+pinf :: Semifield a => a
+pinf = one / zero
+{-# INLINE pinf #-}
+
+ninf :: Field a => a
+ninf = negate one / zero
+{-# INLINE ninf #-}
+
+isNan :: Eq a => Semifield a => a -> Bool
+isNan a = a == anan
+
+isPinf :: Eq a => Semifield a => a -> Bool
+isPinf a = a == pinf
+
+isNinf :: Eq a => Field a => a -> Bool
+isNinf a = a == ninf
+
+finite :: Eq a => Field a => a -> Bool
+finite = finite' * not . isNinf
+
+finite' :: Eq a => Semifield a => a -> Bool
+finite' = not . isNan * not . isPinf
 
 -- Sometimes called a division ring
 type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
@@ -98,7 +129,7 @@ instance Field a => Semifield (Complex a)
 
 type FieldLaw a = ((Additive-Group) a, (Multiplicative-Group) a)
 
-class (Ring a, FieldLaw a) => Field a
+class (Ring a, Semifield a, FieldLaw a) => Field a
 
 instance Field ()
 instance Field Rational

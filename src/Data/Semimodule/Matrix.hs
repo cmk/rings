@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RebindableSyntax           #-}
-{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 module Data.Semimodule.Matrix (
     type M22
@@ -64,9 +64,7 @@ import safe Data.Semigroup.Multiplicative
 import safe Data.Semiring
 import safe Data.Semifield
 import safe Data.Semimodule
-import safe Data.Semimodule.V2
-import safe Data.Semimodule.V3
-import safe Data.Semimodule.V4
+import safe Data.Semimodule.Free
 import safe Data.Tuple
 
 import safe Prelude hiding (Num(..), Fractional(..), sum, negate)

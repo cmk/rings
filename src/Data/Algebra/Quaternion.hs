@@ -22,7 +22,7 @@ import safe Data.Functor.Rep
 import safe Data.Group
 import safe Data.Semimodule
 import safe Data.Semimodule.Matrix
-import safe Data.Semimodule.V3
+import safe Data.Semimodule.Free
 import safe Data.Semiring
 import safe Data.Semigroup.Foldable
 import safe Data.Semigroup.Additive
