@@ -19,7 +19,6 @@ import safe Data.Semifield
 import safe Data.Fixed
 import safe Data.Functor.Compose
 import safe Data.Functor.Rep
-import safe Data.Group
 import safe Data.Int
 import safe Data.Semiring
 import safe Data.Semigroup.Foldable as Foldable1
@@ -34,16 +33,14 @@ import safe qualified Prelude as N
 import safe Data.Semigroup.Additive as A
 import safe Data.Semigroup.Multiplicative as M
 
-import safe Data.Magma
+import safe Prelude (fromInteger)
 
-type Free f = (Foldable1 f, Representable f, Eq (Rep f))
+
+type Free f = (Representable f, Eq (Rep f))
+
+type Basis b f = (Free f, Rep f ~ b)
 
 {-
-type Module r a = (Ring r, Group a, Semimodule r a)
-
--- Module over a field
--- classical vector spaces
-type VSpace r a = (Field r, Module r a)
 
 -- Semimodule over a semifield
 -- dioids
@@ -86,7 +83,6 @@ infixl 7 .*, *.
 -- See the properties module for a detailed specification of the laws.
 --
 class (Semiring r, Semigroup a) => Semimodule r a where
-
   -- | Left-multiply by a scalar.
   --
   (*.) :: r -> a -> a
@@ -99,11 +95,6 @@ class (Semiring r, Semigroup a) => Semimodule r a where
 
 
 
--- | Default definition of 'negate' for a commutative group.
---
---negateDef :: CommutativeGroup a => a -> a
---negateDef a = (-1 :: Integer) *. a
-
 -- | Default definition of '(*.)' for a free module.
 --
 multl :: Semiring a => Functor f => a -> f a -> f a
@@ -114,21 +105,18 @@ multl a f = (a *) <$> f
 multr :: Semiring a => Functor f => f a -> a -> f a
 multr f a = (* a) <$> f
 
-{-
+-- | Default definition of '<<' for a commutative group.
+--
+negateDef :: Semimodule Integer a => a -> a
+negateDef a = (-1 :: Integer) *. a
 
-u = V3 (1 :% 1) (2 :% 1) (3 :% 1) :: V3 Rational
-v = V3 (2 :% 1) (4 :% 1) (6 :% 1) :: V3 Rational
-r = 1 :% 2 :: Rational
-lerp r u v
--- V3 (6 % 4) (12 % 4) (18 % 4)
-
-u = V3 (1 :% 1) (2 :% 1) (3 :% 1) :: V3 Positive
-v = V3 (2 :% 1) (4 :% 1) (6 :% 1) :: V3 Positive
-r = 1 :% 2 :: Positive
-lerp r u v
-
--}
 -- | Linearly interpolate between two vectors.
+--
+-- >>> u = V3 (1 :% 1) (2 :% 1) (3 :% 1) :: V3 Rational
+-- >>> v = V3 (2 :% 1) (4 :% 1) (6 :% 1) :: V3 Rational
+-- >>> r = 1 :% 2 :: Rational
+-- >>> lerp r u v
+-- V3 (6 % 4) (12 % 4) (18 % 4)
 --
 lerp :: Module r a => r -> a -> a -> a
 lerp r f g = r *. f <> (one - r) *. g
@@ -138,19 +126,22 @@ infix 6 .*.
 
 -- | Dot product.
 --
-(.*.) :: Free f => Presemiring a => f a -> f a -> a
-(.*.) a b = sum1 $ liftR2 (*) a b -- mzipWithRep (*) a b
+-- >>> V3 1 2 3 .*. V3 1 2 3
+-- 14
+-- 
+(.*.) :: Free f => Foldable f => Semiring a => f a -> f a -> a
+(.*.) x y = sum $ liftR2 (*) x y
 {-# INLINE (.*.) #-}
 
 -- | Squared /l2/ norm of a vector.
 --
-quadrance :: Free f => Presemiring a => f a -> a
+quadrance :: Free f => Foldable f => Semiring a => f a -> a
 quadrance f = f .*. f
 {-# INLINE quadrance #-}
 
 -- | Squared /l2/ norm of the difference between two vectors.
 --
-qd :: Free f => Module a (f a) => f a -> f a -> a
+qd :: Free f => Foldable f => Module a (f a) => f a -> f a -> a
 qd f g = quadrance $ f << g
 {-# INLINE qd #-}
 

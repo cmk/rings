@@ -16,11 +16,6 @@ module Data.Semifield (
   , anan
   , pinf
   , ninf
-  , isNan
-  , isPinf
-  , isNinf
-  , finite
-  , finite'
   , type SemifieldLaw, Semifield
   , type FieldLaw, Field
 ) where
@@ -29,9 +24,7 @@ import safe Data.Bool
 import safe Data.Complex
 import safe Data.Fixed
 import safe Data.Foldable as Foldable (fold, foldl')
-import safe Data.Group
 import safe Data.Int
-import safe Data.Magma
 import safe Data.Semiring
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semigroup.Additive
@@ -81,21 +74,6 @@ pinf = one / zero
 ninf :: Field a => a
 ninf = negate one / zero
 {-# INLINE ninf #-}
-
-isNan :: Eq a => Semifield a => a -> Bool
-isNan a = a == anan
-
-isPinf :: Eq a => Semifield a => a -> Bool
-isPinf a = a == pinf
-
-isNinf :: Eq a => Field a => a -> Bool
-isNinf a = a == ninf
-
-finite :: Eq a => Field a => a -> Bool
-finite = finite' * not . isNinf
-
-finite' :: Eq a => Semifield a => a -> Bool
-finite' = not . isNan * not . isPinf
 
 -- Sometimes called a division ring
 type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
@@ -148,3 +126,23 @@ instance Field CFloat
 instance Field CDouble
 
 instance Field a => Field (Complex a)
+
+{-
+class (Ord a, Field a) => Real a
+
+instance Real Rational
+
+instance Real Uni
+instance Real Deci
+instance Real Centi
+instance Real Milli
+instance Real Micro
+instance Real Nano
+instance Real Pico
+
+instance Real Float
+instance Real Double
+instance Real CFloat
+instance Real CDouble
+-}
+

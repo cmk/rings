@@ -12,7 +12,8 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Algebra (
+module Data.Algebra where
+{- (
     (><)
   , (//)
   , unit
@@ -24,54 +25,53 @@ module Data.Algebra (
   , Unital(..)
   , Division(..)
 ) where
-
-import safe Data.Magma
-
+-}
+import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Distributive
-import safe Data.Semifield
 import safe Data.Fixed
 import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Compose
 import safe Data.Functor.Rep
-import safe Data.Group hiding ((//))
+ hiding ((//))
 import safe Data.Int
-import safe Data.Semiring
+import safe Data.Semifield
+import safe Data.Semigroup.Additive as A
 import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semigroup.Multiplicative as M
+import safe Data.Semimodule
+import safe Data.Semiring
 import safe Data.Tuple
 import safe Data.Word
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Real hiding (Fractional(..))
 import safe Numeric.Natural
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
-import safe qualified Prelude as P
-
-import safe Data.Semigroup.Additive as A
-import safe Data.Semigroup.Multiplicative as M
 import safe Test.Logic
-
-import Data.Semimodule
-import Control.Applicative
+import safe qualified Prelude as P
 
 -- | < https://en.wikipedia.org/wiki/Algebra_over_a_field#Generalization:_algebra_over_a_ring Algebra > over a semiring.
 --
 -- Needn't be associative or unital.
-class Presemiring r => Algebra r a where
+--
+class Semiring r => Algebra r a where
   multiplyWith :: (a -> a -> r) -> a -> r
 
 infixl 7 ><
 
--- | Algebra product.
+-- | Multiplication operator on a free algebra.
 --
--- /Caution/ (><) needn't be commutative, nor even associative:
+-- In particular this is cross product on the 'I3' basis in /R^3/:
 --
 -- >>> V3 1 0 0 >< V3 0 1 0 >< V3 0 1 0 :: V3 Int
 -- V3 (-1) 0 0
 -- >>> V3 1 0 0 >< (V3 0 1 0 >< V3 0 1 0) :: V3 Int
 -- V3 0 0 0
 --
--- However the cross product does satisfy the following properties:
+-- /Caution/ in general (><) needn't be commutative, nor even associative.
+--
+-- The cross product in particular satisfies the following properties:
 --
 -- @ 
 -- a '><' a = 'mempty'
@@ -93,26 +93,54 @@ infixl 7 ><
 -- Quaternion 0.000000 (V3 0.000000 0.000000 1.000000)
 -- >>> qi * qj :: QuatM
 -- Quaternion 0.000000 (V3 0.000000 0.000000 1.000000)
+--
+(><) :: (Representable f, Algebra r (Rep f)) => f r -> f r -> f r
+(><) x y = tabulate $ multiplyWith (\i1 i2 -> index x i1 * index y i2)
 
-(><) :: (Representable f, Algebra a (Rep f)) => f a -> f a -> f a
-(><) m n = tabulate $ multiplyWith (\b1 b2 -> index m b1 * index n b2)
+-- | Scalar triple product.
+--
+-- @
+-- 'triple' x y z = 'triple' z x y = 'triple' y z x
+-- 'triple' x y z = 'negate' '$' 'triple' x z y = 'negate' '$' 'triple' y x z
+-- 'triple' x x y = 'triple' x y y = 'triple' x y x = 'zero'
+-- ('triple' x y z) '*.' x = (x '><' y) '><' (x '><' z)
+-- @
+--
+-- >>> triple (V3 0 0 1) (V3 1 0 0) (V3 0 1 0) :: Double
+-- 1.0
+--
+triple :: Free f => Foldable f => Algebra a (Rep f) => f a -> f a -> f a -> a
+triple x y z = x .*. (y >< z)
+{-# INLINE triple #-}
 
 -- | < https://en.wikipedia.org/wiki/Composition_algebra Composition algebra > over a free semimodule.
 --
 class Algebra r a => Composition r a where
   conjugateWith :: (a -> r) -> a -> r
 
--- @ 'conj' a >< 'conj' b = 'conj' (b >< a) @
+  normWith :: (a -> r) -> r
+  
+
+-- @ 'conj' a '><' 'conj' b = 'conj' (b >< a) @
 prop_conj :: Representable f => Foldable f => Semiring b => Composition a (Rep f) => Rel a b -> f a -> f a -> b
 prop_conj (~~) p q = sum $ mzipWithRep (~~) (conj (p >< q)) (conj q >< conj p)
 
--- @ 'conj' a >< 'conj' b = 'conj' (b >< a) @
-conj :: Representable f => Composition a (Rep f) => f a -> f a
+-- @ 'conj' a '><' 'conj' b = 'conj' (b >< a) @
+conj :: Representable f => Composition r (Rep f) => f r -> f r
 conj = tabulate . conjugateWith . index
 
--- @ 'norm' a >< 'norm' b = 'norm' (a >< b) @
-norm :: (Representable f, Composition a (Rep f)) => f a -> f a
-norm x = x >< conj x
+-- | Norm of a composition algebra.
+--
+-- @ 
+-- 'norm' x '*' 'norm' y = 'norm' (x >< y)
+-- 'norm' . 'norm'' $ x = 'norm' x '*' 'norm' x
+-- @
+--
+norm :: (Representable f, Composition r (Rep f)) => f r -> r
+norm x = normWith $ index x
+
+norm' :: (Representable f, Composition r (Rep f)) => f r -> f r
+norm' x = x >< conj x
 
 class (Semiring r, Algebra r a) => Unital r a where
   unitWith :: r -> a -> r
@@ -124,69 +152,60 @@ class (Semiring r, Algebra r a) => Unital r a where
 -- >>> unit :: QuatD
 -- Quaternion 1.0 (V3 0.0 0.0 0.0)
 --
-unit :: Representable f => Unital a (Rep f) => f a
+unit :: Representable f => Unital r (Rep f) => f r
 unit = tabulate $ unitWith one
 
 -- | A (not necessarily associative) < https://en.wikipedia.org/wiki/Division_algebra division algebra >.
 --
-class (Field r, Unital r a) => Division r a where
-  reciprocalWith :: (a -> r) -> a -> r
-  divideWith :: (a -> a -> r) -> a -> r
+class (Semifield r, Unital r a) => Division r a where
+  --divideWith :: (a -> a -> r) -> a -> r
 
+  reciprocalWith :: (a -> r) -> a -> r
+  
+
+
+
+-- | @ 'reciprocal' x = (/ 'quadrance' x) '<$>' 'conj' x@
+reciprocal :: Representable f => Division a (Rep f) => f a -> f a
+reciprocal = tabulate . reciprocalWith . index
+
+-- reciprocal' x = (/ quadrance x) <$> conj x
 
 
 infixl 7 //
 
-(//) :: Representable f => Division a (Rep f) => f a -> f a -> f a
-(//) m n = tabulate $ divideWith (\b1 b2 -> index m b1 / index n b2)
+-- | Division operator on a free division algebra.
+--
+-- >>> (1 :+ 0) // (0 :+ 1)
+-- 0.0 :+ (-1.0)
+--
+(//) :: Representable f => Division r (Rep f) => f r -> f r -> f r
+(//) x y = x >< reciprocal y
 
---reciprocal q = (// quadrance q) <$> conj q 
-reciprocal :: Representable f => Division a (Rep f) => f a -> f a
-reciprocal = tabulate . reciprocalWith . index
-
-{-
--- bilinear form induced by the composition algebra (*2)
--- (V3 1 2 3) <.> (V3 4 5 6) :: V3 Int
--- (1 :+ 2) <.> (3 :+ 4) :: Complex Double
--- quat 1 1 1 1 <.> quat 1 1 1 1 :: QuatD
---(<.>) :: Representable f => Composition a (Rep f) => Module r a => f a -> f a -> a
---(<.>) :: Representable f => Composition a (Rep f) => Group (f a) => Field a => f a -> f a -> f a
---x <.> y = (recip A.two *) <$> (norm (x <> y) << norm x << norm y)
-
---(<.>) :: Representable f => Composition a (Rep f) => Group (f a) => Field a => f a -> f a -> a
---x <.> y = recip two * prod where prod = flip index mempty (norm (x <> y) << norm x << norm y)
-
--- bar (m22 1 2 3 4) (m22 1 2 3 4)
-bar
-  :: (Algebra a (Rep f), Foldable1 g, Eq (Rep g),
-      Representable f, Representable g
-     ) =>
-     f (g a) -> f (g a) -> f a
-bar m n = tabulate $ multiplyWith (\b1 b2 -> index m b1 .*. index n b2)
--}
-
-
-
-
-{-
-
--- https://en.wikipedia.org/wiki/Dual_number
-Semiring k => Algebra k DualBasis
-Semiring k => Algebra k ComplexBasis
-outer' :: Semiring a => Functor f => Functor g => f a -> g a -> f (g a)
-outer' a b = fmap (\x->fmap (><x) b) a
-
--- | `fromNatural` default definition
---fromNaturalRep :: (Unital r (Rep m), Representable m, Semiring r) => Natural -> m r
-fromNaturalRep :: (Representable f, Unital a (Rep f), Dioid a) => Natural -> f a
-fromNaturalRep n = tabulate $ unital (fromNatural n)
-
--- | `fromInteger` default definition
---fromIntegerRep :: (Unital r (Rep m), Representable m, Ring r) => Integer -> m r
-fromIntegerRep :: (Representable f, Unital a (Rep f), Ring a) => Integer -> f a
-fromIntegerRep n = tabulate $ unital (fromInteger n)
--}
-
+infix 6 .@. 
+-- | Bilinear form on a free composition algebra.
+--
+-- >>> V2 1 2 .@. V2 1 2
+-- 5.0
+-- >>> V2 1 2 .@. V2 2 (-1)
+-- 0.0
+-- >>> V3 1 1 1 .@. V3 1 1 (-2)
+-- 0.0
+-- 
+-- >>> (1 :+ 2) .@. (2 :+ (-1)) :: Double
+-- 0.0
+--
+-- >>> qi .@. qj :: Double
+-- 0.0
+-- >>> qj .@. qk :: Double
+-- 0.0
+-- >>> qk .@. qi :: Double
+-- 0.0
+-- >>> qk .@. qk :: Double
+-- 1.0
+--
+(.@.) :: Representable f => Composition a (Rep f) => Semigroup (f a) => Field a => f a -> f a -> a
+x .@. y = prod / two where prod = norm (x <> y) - norm x - norm y
 
 ---------------------------------------------------------------------
 -- Instances
@@ -257,12 +276,12 @@ instance Ring r => Composition r ComplexBasis where
     f' False = afe
     f' True = nfi
 
+  normWith f = flip multiplyWith zero $ \i1 i2 -> f i1 * conjugateWith f i2
+
 --instance Module r ComplexBasis => Unital r ComplexBasis where
 instance Ring r => Unital r ComplexBasis where
   unitWith x False = x
   unitWith _ _ = zero
 
-
-
-
-
+instance Field r => Division r ComplexBasis where
+  reciprocalWith f i = conjugateWith f i / normWith f 

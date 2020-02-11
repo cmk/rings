@@ -5,4 +5,4 @@ packages:
   - .
 extra-deps:
   - github: cmk/lawz
-    commit: 621edad65acc344578ebdcdb0f9800e7d4f9e895
+    commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d

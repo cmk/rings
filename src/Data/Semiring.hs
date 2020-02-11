@@ -23,6 +23,11 @@ module Data.Semiring (
   , type RingLaw, Ring
   , Additive(..)
   , Multiplicative(..)
+  , Magma(..)
+  , Quasigroup(..)
+  , Loop(..)
+  , Group(..)
+  , mreplicate
 ) where
 
 import safe Control.Applicative
@@ -37,7 +42,6 @@ import safe Data.Foldable as Foldable (Foldable, fold, foldr', foldl')
 import safe Data.Group
 import safe Data.Int
 import safe Data.List.NonEmpty
-import safe Data.Magma
 import safe Data.Semigroup
 import safe Data.Semigroup.Foldable as Foldable1
 
@@ -61,10 +65,6 @@ import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
-
-
-
-type Nonnegative = Ratio Natural
 
 -------------------------------------------------------------------------------
 -- Presemiring
@@ -200,9 +200,10 @@ productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
 
 -- | Cross-multiply two collections.
 --
+-- >>> cross (V3 1 2 3) (V3 1 2 3)
+-- 14
 -- >>> cross [1,2,3 :: Int] [1,2,3]
 -- 36
---
 -- >>> cross [1,2,3 :: Int] []
 -- 0
 --
@@ -465,7 +466,7 @@ instance Presemiring Word16
 instance Presemiring Word32
 instance Presemiring Word64
 instance Presemiring Natural
-instance Presemiring Nonnegative
+instance Presemiring (Ratio Natural)
 
 instance Presemiring Int
 instance Presemiring Int8
@@ -473,7 +474,7 @@ instance Presemiring Int16
 instance Presemiring Int32
 instance Presemiring Int64
 instance Presemiring Integer
-instance Presemiring Rational
+instance Presemiring (Ratio Integer)
 
 instance Presemiring Uni
 instance Presemiring Deci
@@ -505,7 +506,7 @@ instance Semiring Word16
 instance Semiring Word32
 instance Semiring Word64
 instance Semiring Natural
-instance Semiring Nonnegative
+instance Semiring (Ratio Natural)
 
 instance Semiring Int
 instance Semiring Int8
@@ -513,7 +514,7 @@ instance Semiring Int16
 instance Semiring Int32
 instance Semiring Int64
 instance Semiring Integer
-instance Semiring Rational
+instance Semiring (Ratio Integer)
 
 instance Semiring Uni
 instance Semiring Deci
@@ -548,7 +549,7 @@ instance Ring Int16
 instance Ring Int32
 instance Ring Int64
 instance Ring Integer
-instance Ring Rational
+instance Ring (Ratio Integer)
 
 instance Ring Uni
 instance Ring Deci

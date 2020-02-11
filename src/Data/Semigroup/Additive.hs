@@ -25,7 +25,6 @@ import safe Data.Group
 import safe Data.Int
 import safe Data.List
 import safe Data.List.NonEmpty
-import safe Data.Magma
 import safe Data.Ord
 import safe Data.Semigroup
 import safe Data.Semigroup.Foldable
