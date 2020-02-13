@@ -16,32 +16,17 @@
 
 module Data.Semimodule.Transform where
 
-import safe Control.Applicative
 import safe Control.Category (Category, (>>>))
-import safe Data.Algebra
-import safe Data.Bool
-import safe Data.Distributive
-import safe Data.Foldable as Foldable (fold, foldl')
-import safe Data.Functor.Rep
 import safe Data.Functor.Compose
 import safe Data.Functor.Product
-
+import safe Data.Functor.Rep
 import safe Data.Profunctor
-import safe Data.Semifield
-import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
-import safe Data.Semimodule.Vector
-import safe Data.Semiring
-import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
-import safe qualified Prelude as P
-
 import safe Data.Tuple (swap)
+import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Test.Logic
-import qualified Data.Bifunctor as B
-import qualified Control.Category as C
-
-import safe Prelude (fromInteger, fromRational)
-
+import safe qualified Control.Category as C
+import safe qualified Data.Bifunctor as B
 
 {-
 app' = app @I3 @V3 @I3 @V3 @Int

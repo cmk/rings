@@ -28,22 +28,15 @@ module Data.Semimodule.Vector (
 ) where
 
 import safe Control.Applicative
-import safe Control.Category (Category, (>>>))
 import safe Data.Algebra
 import safe Data.Bool
 import safe Data.Distributive
-import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Rep
-
-import safe Data.Profunctor
 import safe Data.Semifield
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
-import safe qualified Prelude as P
-
-
 
 -------------------------------------------------------------------------------
 -- V2
@@ -167,9 +160,9 @@ instance Semiring r => Algebra r I2 where
 instance Semiring r => Composition r I2 where
   conjugateWith = id
 
-  normWith f = flip multiplyWith I21 $ \i1 i2 ->
-                 flip multiplyWith I22 $ \j1 j2 ->
-                   f i1 * f i2 + f j1 * f j2
+  normWith f = flip multiplyWith I21 $ \ix1 ix2 ->
+                 flip multiplyWith I22 $ \jx1 jx2 ->
+                   f ix1 * f ix2 + f jx1 * f jx2
 
 -------------------------------------------------------------------------------
 -- V3
@@ -300,19 +293,19 @@ instance Ring r => Algebra r I3 where
 instance Ring r => Composition r I3 where
   conjugateWith = id
 
-  normWith f = flip multiplyWith' I31 $ \i1 i2 ->
-                 flip multiplyWith' I32 $ \j1 j2 ->
-                   flip multiplyWith' I33 $ \k1 k2 ->
-                     f i1 * f i2 + f j1 * f j2 + f k1 * f k2
+  normWith f = flip multiplyWith' I31 $ \ix1 ix2 ->
+                 flip multiplyWith' I32 $ \jx1 jx2 ->
+                   flip multiplyWith' I33 $ \kx1 kx2 ->
+                     f ix1 * f ix2 + f jx1 * f jx2 + f kx1 * f kx2
 
    where
-    multiplyWith' f = f' where
-      i31 = f I31 I31
-      i32 = f I32 I32
-      i33 = f I33 I33
-      f' I31 = i31
-      f' I32 = i32
-      f' I33 = i33
+    multiplyWith' f1 = f1' where
+      i31 = f1 I31 I31
+      i32 = f1 I32 I32
+      i33 = f1 I33 I33
+      f1' I31 = i31
+      f1' I32 = i32
+      f1' I33 = i33
 
 
 -------------------------------------------------------------------------------
@@ -346,7 +339,7 @@ instance Ring r => Composition r QuaternionBasis where
     f' I32 = negate . f $ Just I32
     f' I33 = negate . f $ Just I33
 
-  normWith f = flip multiplyWith zero $ \i1 i2 -> f i1 * conjugateWith f i2
+  normWith f = flip multiplyWith zero $ \ix1 ix2 -> f ix1 * conjugateWith f ix2
 
 instance Field r => Division r QuaternionBasis where
   reciprocalWith f i = conjugateWith f i / normWith f 

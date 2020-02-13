@@ -64,20 +64,16 @@ module Data.Semimodule.Matrix (
 
 import safe Data.Bool
 import safe Data.Distributive
-import safe Data.Foldable as Foldable (fold, foldl')
 import safe Data.Functor.Compose
 import safe Data.Functor.Rep
-
-import safe Data.Semigroup.Foldable as Foldable1
+import safe Data.Semifield
 import safe Data.Semigroup.Additive
 import safe Data.Semigroup.Multiplicative
-import safe Data.Semiring
-import safe Data.Semifield
 import safe Data.Semimodule
-import safe Data.Semimodule.Vector
 import safe Data.Semimodule.Transform
+import safe Data.Semimodule.Vector
+import safe Data.Semiring
 import safe Data.Tuple
-
 import safe Prelude hiding (Num(..), Fractional(..), sum, negate)
 
 

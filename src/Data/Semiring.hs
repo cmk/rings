@@ -31,40 +31,29 @@ module Data.Semiring (
 ) where
 
 import safe Control.Applicative
-import safe Control.Category ((>>>))
 import safe Data.Bool
-import safe Data.Ord
 import safe Data.Complex
-import safe Data.Maybe
 import safe Data.Either
 import safe Data.Fixed
-import safe Data.Foldable as Foldable (Foldable, fold, foldr', foldl')
+import safe Data.Foldable as Foldable (Foldable, foldr')
+import safe Data.Functor.Apply
 import safe Data.Group
 import safe Data.Int
 import safe Data.List.NonEmpty
-import safe Data.Semigroup
-import safe Data.Semigroup.Foldable as Foldable1
-
+import safe Data.Maybe
 import safe Data.Semigroup.Additive as A
+import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semigroup.Multiplicative as M
-
-import safe Data.Functor.Apply
-import safe Data.Tuple
 import safe Data.Word
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Real hiding (Fractional(..), (^^), (^))
 import safe Numeric.Natural
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-
-import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
+import safe Prelude (Ord(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), Integer, Float, Double)
 import safe qualified Prelude as P
-
-import GHC.Generics (Generic)
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
-import qualified Data.Sequence as Seq
+import safe qualified Data.IntMap as IntMap
+import safe qualified Data.IntSet as IntSet
+import safe qualified Data.Map as Map
+import safe qualified Data.Set as Set
 
 -------------------------------------------------------------------------------
 -- Presemiring

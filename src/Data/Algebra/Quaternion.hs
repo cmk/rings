@@ -16,27 +16,15 @@ module Data.Algebra.Quaternion where
 
 import safe Data.Algebra
 import safe Data.Distributive
-import safe Data.Semifield
-import safe Data.Functor.Rep
 import safe Data.Fixed
-
+import safe Data.Functor.Rep
+import safe Data.Semifield
+import safe Data.Semigroup.Foldable
 import safe Data.Semimodule
 import safe Data.Semimodule.Vector
-import safe Data.Semimodule.Matrix
-import safe Data.Semimodule.Transform
 import safe Data.Semiring
-import safe Data.Semigroup.Foldable
-import safe Data.Semigroup.Additive
-import safe Data.Semigroup.Multiplicative
 import safe GHC.Generics hiding (Rep)
-
-import safe Prelude (fromInteger, fromRational)
-import Prelude hiding (Num(..), Fractional(..), sum, product)
-import safe qualified Prelude as N
-
-import safe Test.Logic
-
-import GHC.Real hiding (Fractional(..))
+import safe Prelude hiding (Num(..), Fractional(..), sum, product)
 
 {- need tolerances:
 λ> prop_conj q12 (q3 :: QuatP)

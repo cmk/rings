@@ -12,44 +12,29 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Algebra where
-{- (
+module Data.Algebra (
     (><)
   , (//)
+  , (.@.)
   , unit
   , norm
   , conj
+  , triple
   , reciprocal
   , Algebra(..)
   , Composition(..)
   , Unital(..)
   , Division(..)
 ) where
--}
-import safe Control.Applicative
+
 import safe Data.Bool
-import safe Data.Complex
-import safe Data.Distributive
-import safe Data.Fixed
-import safe Data.Foldable as Foldable (fold, foldl')
-import safe Data.Functor.Compose
 import safe Data.Functor.Rep
- hiding ((//))
-import safe Data.Int
 import safe Data.Semifield
 import safe Data.Semigroup.Additive as A
-import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semigroup.Multiplicative as M
 import safe Data.Semimodule
-import safe Data.Semiring
-import safe Data.Tuple
-import safe Data.Word
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-import safe GHC.Real hiding (Fractional(..))
-import safe Numeric.Natural
+import safe Data.Semiring hiding ((//))
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
-import safe Test.Logic
-import safe qualified Prelude as P
 
 -- | < https://en.wikipedia.org/wiki/Algebra_over_a_field#Generalization:_algebra_over_a_ring Algebra > over a semiring.
 --
@@ -122,8 +107,8 @@ class Algebra r a => Composition r a where
   
 
 -- @ 'conj' a '><' 'conj' b = 'conj' (b >< a) @
-prop_conj :: Representable f => Foldable f => Semiring b => Composition a (Rep f) => Rel a b -> f a -> f a -> b
-prop_conj (~~) p q = sum $ mzipWithRep (~~) (conj (p >< q)) (conj q >< conj p)
+--prop_conj :: Representable f => Foldable f => Semiring b => Composition a (Rep f) => Rel a b -> f a -> f a -> b
+--prop_conj (~~) p q = sum $ mzipWithRep (~~) (conj (p >< q)) (conj q >< conj p)
 
 -- @ 'conj' a '><' 'conj' b = 'conj' (b >< a) @
 conj :: Representable f => Composition r (Rep f) => f r -> f r
@@ -139,8 +124,8 @@ conj = tabulate . conjugateWith . index
 norm :: (Representable f, Composition r (Rep f)) => f r -> r
 norm x = normWith $ index x
 
-norm' :: (Representable f, Composition r (Rep f)) => f r -> f r
-norm' x = x >< conj x
+--norm' :: (Representable f, Composition r (Rep f)) => f r -> f r
+--norm' x = x >< conj x
 
 class (Semiring r, Algebra r a) => Unital r a where
   unitWith :: r -> a -> r
