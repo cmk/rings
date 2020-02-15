@@ -11,13 +11,14 @@
 
 module Data.Semifield (
     (/)
+  , (\\)
   , (^^)
   , recip
   , anan
   , pinf
   , ninf
   , type SemifieldLaw, Semifield
-  , type FieldLaw, Field
+  , type FieldLaw, Field, Real
 ) where
 
 import safe Data.Bool
@@ -31,14 +32,15 @@ import safe Data.Semigroup.Additive
 import safe Data.Semigroup.Multiplicative 
 import safe Data.Tuple
 import safe Data.Word
-import safe GHC.Real hiding (Fractional(..), (^^), (^), div)
+import safe GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
 import safe Numeric.Natural
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 
 import Prelude ( Eq(..), Ord(..), Show(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, fromInteger, Float, Double)
 import qualified Prelude as P
 
-infixr 8 ^^
+
+infixr 8 \\, ^^
 
 -- @ 'one' '==' a '^^' 0 @
 --
@@ -50,7 +52,15 @@ infixr 8 ^^
 (^^) :: (Multiplicative-Group) a => a -> Integer -> a
 a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
 
+(\\) :: (Multiplicative-Group) a => a -> a -> a
+(\\) x y = recip x * y
+
 -- | Take the reciprocal of a multiplicative group element.
+--
+-- @ 
+-- x '/' y = x '*' 'recip' y
+-- x '\\' y = 'recip' x '*' y
+-- @
 --
 -- >>> recip (3 :+ 4) :: Complex Rational
 -- 3 % 25 :+ (-4) % 25
@@ -127,8 +137,7 @@ instance Field CDouble
 
 instance Field a => Field (Complex a)
 
-{-
-class (Ord a, Field a) => Real a
+class Field a => Real a
 
 instance Real Rational
 
@@ -144,5 +153,3 @@ instance Real Float
 instance Real Double
 instance Real CFloat
 instance Real CDouble
--}
-

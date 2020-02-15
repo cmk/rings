@@ -21,13 +21,16 @@ library
 
   exposed-modules:
       Data.Algebra
+    , Data.Algebra.Dual
+    , Data.Algebra.Split
+    , Data.Algebra.Geometric
     , Data.Algebra.Quaternion
     , Data.Semiring
     , Data.Semiring.Property
     , Data.Semifield
     , Data.Semimodule
-    , Data.Semimodule.Vector
-    , Data.Semimodule.Matrix
+    , Data.Semimodule.Free
+    , Data.Semimodule.Basis
     , Data.Semimodule.Transform
     , Data.Semigroup.Additive
     , Data.Semigroup.Multiplicative

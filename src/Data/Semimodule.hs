@@ -20,7 +20,7 @@ import safe Data.Fixed
 import safe Data.Functor.Compose
 import safe Data.Functor.Rep
 import safe Data.Int
-import safe Data.Semiring
+import safe Data.Semiring hiding (Quasigroup)
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Tuple
 import safe Data.Word
@@ -40,74 +40,99 @@ type Free f = (Representable f, Eq (Rep f))
 
 type Basis b f = (Free f, Rep f ~ b)
 
-{-
+type Bases b c f g = (Basis b f, Basis c g)
 
--- Semimodule over a semifield
--- dioids
-type DSpace r a = (Semifield r, Semimodule r a)
-
-
--- | Free semimodule over a generating set.
---
-type FreeSemimodule a f = (Free f, Semimodule a (f a))
-
-type FreeModule a f = (Free f, Module a (f a))
-
-type CommutativeGroup a = Module Integer a
-
--}
+type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
+type RightModule r a = (Ring r, (Additive-Group) a, RightSemimodule r a)
 
 
---instance (Unital (f a), Algebra (f a), Functor f) => Semifield (f a) where
-  --recip q = conj' q // norm' q
---  recip q = ((recip . norm' $ q) ><) <$> conj' q 
 
-type Module r a = (Ring r, Group a, Semimodule r a)
+type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
+type FreeModule a f = (Free f, Bimodule a a (f a))
 
-infixl 7 .*, *.
 
--- | < https://en.wikipedia.org/wiki/Semimodule Semimodule > over a commutative semiring.
+
+
+-- | < https://en.wikipedia.org/wiki/Semimodule Left semimodule > over a commutative semiring.
 --
 -- All instances must satisfy the following identities:
 -- 
--- @ r '*.' (x '<>' y) '==' r '*.' x '<>' r '*.' y @
+-- @
+-- 'lscale' s (x '+' y) = 'lscale' s x '+' 'lscale' s y
+-- 'lscale' (s1 '+' s2) x = 'lscale' s1 x '+' 'lscale' s2 x
+-- 'lscale' (s1 '*' s2) = 'lscale' s1 . 'lscale' s2
+-- 'lscale' 'zero' = 'zero'
+-- @
 --
--- @ (r '+' s) '*.' x '==' r '*.' x '<>' s '*.' x @
---
--- @ (r '*' s) '*.' x '==' r '*.' (s '*.' x) @
---
--- When the ring of coefficients /r/ is unital we must additionally have:
---
--- @ 'one' '*.' x '==' x @
---
+-- When the ring of coefficients /s/ is unital we must additionally have:
+-- @
+-- 'lscale' 'one' = 'id'
+-- @
+-- 
 -- See the properties module for a detailed specification of the laws.
 --
-class (Semiring r, Semigroup a) => Semimodule r a where
+class (Semiring l, (Additive-Monoid) a) => LeftSemimodule l a where
   -- | Left-multiply by a scalar.
   --
-  (*.) :: r -> a -> a
-  (*.) = flip (.*)
-  
+  lscale :: l -> a -> a
+
+
+class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where 
   -- | Right-multiply by a scalar.
   --
-  (.*) :: a -> r -> a
-  (.*) = flip (*.)
+  rscale :: r -> a -> a
+
+infixr 7 *., \., /. 
+(*.) :: LeftSemimodule l a => l -> a -> a
+(*.) = lscale
+
+(/.) :: Semifield a => Functor f => a -> f a -> f a
+a /. f = (a /) <$> f
+
+(\.) :: Semifield a => Functor f => a -> f a -> f a
+a \. f = (a \\) <$> f
+
+infixl 7 .*, .\, ./ 
+(.*) :: RightSemimodule r a => a -> r -> a
+(.*) = flip rscale
+
+(./) :: Semifield a => Functor f => f a -> a -> f a
+(./) = flip (/.)
+
+(.\) :: Semifield a => Functor f => f a -> a -> f a
+(.\) = flip (\.)
 
 
-
--- | Default definition of '(*.)' for a free module.
+-- | < https://en.wikipedia.org/wiki/Bimodule Bisemimodule > over a commutative semiring.
 --
-multl :: Semiring a => Functor f => a -> f a -> f a
-multl a f = (a *) <$> f
-
--- | Default definition of '(.*)' for a free module.
+-- All instances must satisfy the following identity:
 --
-multr :: Semiring a => Functor f => f a -> a -> f a
-multr f a = (* a) <$> f
+-- @
+-- 'lscale' l . 'rscale' r = 'rscale' r . 'lscale' l
+-- @
+--
+class (LeftSemimodule l a, RightSemimodule r a) => Bisemimodule l r a where
+
+  discale :: l -> r -> a -> a
+  discale l r = lscale l . rscale r
+
+type Bimodule l r a = (LeftModule l a, RightModule r a, Bisemimodule l r a)
+
+
+
+-- | Default definition of 'lscale' for a free module.
+--
+lscaleDef :: Semiring a => Functor f => a -> f a -> f a
+lscaleDef a f = (a *) <$> f
+
+-- | Default definition of 'rscale' for a free module.
+--
+rscaleDef :: Semiring a => Functor f => a -> f a -> f a
+rscaleDef a f = (* a) <$> f
 
 -- | Default definition of '<<' for a commutative group.
 --
-negateDef :: Semimodule Integer a => a -> a
+negateDef :: LeftModule Integer a => a -> a
 negateDef a = (-1 :: Integer) *. a
 
 -- | Linearly interpolate between two vectors.
@@ -118,32 +143,9 @@ negateDef a = (-1 :: Integer) *. a
 -- >>> lerp r u v
 -- V3 (6 % 4) (12 % 4) (18 % 4)
 --
-lerp :: Module r a => r -> a -> a -> a
-lerp r f g = r *. f <> (one - r) *. g
+lerp :: LeftModule r a => r -> a -> a -> a
+lerp r f g = r *. f + (one - r) *. g
 {-# INLINE lerp #-}
-
-infix 6 .*.
-
--- | Dot product.
---
--- >>> V3 1 2 3 .*. V3 1 2 3
--- 14
--- 
-(.*.) :: Free f => Foldable f => Semiring a => f a -> f a -> a
-(.*.) x y = sum $ liftR2 (*) x y
-{-# INLINE (.*.) #-}
-
--- | Squared /l2/ norm of a vector.
---
-quadrance :: Free f => Foldable f => Semiring a => f a -> a
-quadrance f = f .*. f
-{-# INLINE quadrance #-}
-
--- | Squared /l2/ norm of the difference between two vectors.
---
-qd :: Free f => Foldable f => Module a (f a) => f a -> f a -> a
-qd f g = quadrance $ f << g
-{-# INLINE qd #-}
 
 -- | Dirac delta function.
 --
@@ -151,74 +153,112 @@ dirac :: Eq i => Semiring a => i -> i -> a
 dirac i j = bool zero one (i == j)
 {-# INLINE dirac #-}
 
--- | Create a unit vector at an index.
---
--- >>> idx I21 :: V2 Int
--- V2 1 0
---
--- >>> idx I42 :: V4 Int
--- V4 0 1 0 0
---
-idx :: Free f => Semiring a => Rep f -> f a
-idx i = tabulate $ dirac i
-{-# INLINE idx #-}
-
 -------------------------------------------------------------------------------
 -- Instances
 -------------------------------------------------------------------------------
 
-instance Semiring r => Semimodule r () where 
-  _ *. _ = ()
+instance Semiring l => LeftSemimodule l () where 
+  lscale _ = const ()
 
-instance Semigroup a => Semimodule () a where 
-  _ *. a = a
+instance (Additive-Monoid) a => LeftSemimodule () a where 
+  lscale _ = id
 
-instance Monoid a => Semimodule Natural a where
-  (*.) = mreplicate
+instance (Additive-Monoid) a => LeftSemimodule Natural a where
+  lscale l a = unAdditive $ mreplicate l (Additive a)
 
-instance Group a => Semimodule Integer a where
-  (*.) = greplicate
+instance ((Additive-Monoid) a, (Additive-Group) a) => LeftSemimodule Integer a where
+  lscale l a = unAdditive $ greplicate l (Additive a)
 
-instance Semimodule r a => Semimodule r (e -> a) where 
-  a *. f = (a *.) <$> f
+instance LeftSemimodule l a => LeftSemimodule l (e -> a) where 
+  lscale l = fmap (l *.)
 
-instance (Semimodule r a, Semimodule r b) => Semimodule r (a, b) where
-  n *. (a, b) = (n *. a, n *. b)
+instance (LeftSemimodule l a, LeftSemimodule l b) => LeftSemimodule l (a, b) where
+  lscale n (a, b) = (n *. a, n *. b)
 
-instance (Semimodule r a, Semimodule r b, Semimodule r c) => Semimodule r (a, b, c) where
-  n *. (a, b, c) = (n *. a, n *. b, n *. c)
+instance (LeftSemimodule l a, LeftSemimodule l b, LeftSemimodule l c) => LeftSemimodule l (a, b, c) where
+  lscale n (a, b, c) = (n *. a, n *. b, n *. c)
 
-instance (Semiring a, Semimodule r a) => Semimodule r (Additive (Ratio a)) where 
-  a *. (Additive (x :% y)) = Additive $ (a *. x) :% y
+instance Semiring a => LeftSemimodule a (Ratio a) where 
+  lscale l (x :% y) = (l * x) :% y
 
-instance (Ring a, Semimodule r a) => Semimodule r (Additive (Complex a)) where 
-  a *. (Additive (x :+ y)) = Additive $ (a *. x) :+ (a *. y)
+instance Ring a => LeftSemimodule a (Complex a) where 
+  lscale l (x :+ y) = (l * x) :+ (l * y)
 
-#define deriveSemimodule(ty)                                 \
-instance Semiring ty => Semimodule ty (Additive ty) where {  \
-   r *. (Additive a) = Additive $ r * a                                \
-;  {-# INLINE (*.) #-}                                       \
+instance Ring a => LeftSemimodule (Complex a) (Complex a) where 
+   lscale = (*)  
+
+{-
+#define deriveLeftSemimodule(ty)                      \
+instance LeftSemimodule ty ty where {                 \
+   lscale = (*)                                       \
+;  {-# INLINE lscale #-}                              \
 }
 
-deriveSemimodule(Bool)
-deriveSemimodule(Int)
-deriveSemimodule(Int8)
-deriveSemimodule(Int16)
-deriveSemimodule(Int32)
-deriveSemimodule(Int64)
-deriveSemimodule(Word)
-deriveSemimodule(Word8)
-deriveSemimodule(Word16)
-deriveSemimodule(Word32)
-deriveSemimodule(Word64)
-deriveSemimodule(Uni)
-deriveSemimodule(Deci)
-deriveSemimodule(Centi)
-deriveSemimodule(Milli)
-deriveSemimodule(Micro)
-deriveSemimodule(Nano)
-deriveSemimodule(Pico)
-deriveSemimodule(Float)
-deriveSemimodule(Double)
-deriveSemimodule(CFloat)
-deriveSemimodule(CDouble)
+deriveLeftSemimodule(Bool)
+deriveLeftSemimodule(Int)
+deriveLeftSemimodule(Int8)
+deriveLeftSemimodule(Int16)
+deriveLeftSemimodule(Int32)
+deriveLeftSemimodule(Int64)
+deriveLeftSemimodule(Word)
+deriveLeftSemimodule(Word8)
+deriveLeftSemimodule(Word16)
+deriveLeftSemimodule(Word32)
+deriveLeftSemimodule(Word64)
+deriveLeftSemimodule(Uni)
+deriveLeftSemimodule(Deci)
+deriveLeftSemimodule(Centi)
+deriveLeftSemimodule(Milli)
+deriveLeftSemimodule(Micro)
+deriveLeftSemimodule(Nano)
+deriveLeftSemimodule(Pico)
+deriveLeftSemimodule(Float)
+deriveLeftSemimodule(Double)
+deriveLeftSemimodule(CFloat)
+deriveLeftSemimodule(CDouble)
+-}
+
+instance Semiring r => RightSemimodule r () where 
+  rscale _ = const ()
+
+instance (Additive-Monoid) a => RightSemimodule () a where 
+  rscale _ = id
+
+instance (Additive-Monoid) a => RightSemimodule Natural a where
+  rscale r a = unAdditive $ mreplicate r (Additive a)
+
+instance ((Additive-Monoid) a, (Additive-Group) a) => RightSemimodule Integer a where
+  rscale r a = unAdditive $ greplicate r (Additive a)
+
+instance RightSemimodule r a => RightSemimodule r (e -> a) where 
+  rscale r = fmap (.* r)
+
+instance (RightSemimodule r a, RightSemimodule r b) => RightSemimodule r (a, b) where
+  rscale n (a, b) = (a .* n, b .* n)
+
+instance (RightSemimodule r a, RightSemimodule r b, RightSemimodule r c) => RightSemimodule r (a, b, c) where
+  rscale n (a, b, c) = (a .* n, b .* n, c .* n)
+
+instance Semiring a => RightSemimodule a (Ratio a) where 
+  rscale r (x :% y) = (r * x) :% y
+
+instance Ring a => RightSemimodule a (Complex a) where 
+  rscale r (x :+ y) = (r * x) :+ (r * y)
+
+instance Ring a => RightSemimodule (Complex a) (Complex a) where 
+  rscale = (*) 
+
+instance Semiring r => Bisemimodule r r ()
+
+instance Bisemimodule r r a => Bisemimodule r r (e -> a)
+
+instance (Bisemimodule r r a, Bisemimodule r r b) => Bisemimodule r r (a, b)
+
+instance (Bisemimodule r r a, Bisemimodule r r b, Bisemimodule r r c) => Bisemimodule r r (a, b, c)
+
+instance Semiring a => Bisemimodule a a (Ratio a)
+
+instance Ring a => Bisemimodule a a (Complex a)
+
+instance Ring a => Bisemimodule (Complex a) (Complex a) (Complex a)
+

@@ -151,7 +151,6 @@ instance Monoid (Max a) => Monoid ((Max-Plus) a) where
 -}
 
 
-
 ---------------------------------------------------------------------
 -- Num-based
 ---------------------------------------------------------------------
@@ -505,12 +504,24 @@ instance Monoid (Additive Bool) where
 -- instance (Meet-Monoid) (Down a) => Monoid (Meet (Down a)) where mempty = Down <$> mempty
 
 instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (a, b)) where
-  Additive (x1, y1) <> Additive (x2, y2) = Additive (x1 + x2, y1 + y2)
+  (<>) = liftA2 $ \(x1,y1) (x2,y2) -> (x1+x2, y1+y2)
+
+instance ((Additive-Monoid) a, (Additive-Monoid) b) => Monoid (Additive (a, b)) where
+  mempty = pure (zero, zero)
+
+instance ((Additive-Semigroup) a, (Additive-Semigroup) b, (Additive-Semigroup) c) => Semigroup (Additive (a, b, c)) where
+  (<>) = liftA2 $ \(x1,y1,z1) (x2,y2,z2) -> (x1+x2, y1+y2, z1+z2)
+
+instance ((Additive-Monoid) a, (Additive-Monoid) b, (Additive-Monoid) c) => Monoid (Additive (a, b, c)) where
+  mempty = pure (zero, zero, zero)
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Maybe a)) where
   Additive (Just x) <> Additive (Just y) = Additive . Just $ x + y
   Additive (x@Just{}) <> _           = Additive x
   Additive Nothing  <> y             = y
+
+instance (Additive-Semigroup) a => Monoid (Additive (Maybe a)) where
+  mempty = Additive Nothing
 
 instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (Either a b)) where
   Additive (Right x) <> Additive (Right y) = Additive . Right $ x + y
@@ -518,9 +529,6 @@ instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive
   Additive(x@Right{}) <> _     = Additive x
   Additive (Left x)  <> Additive (Left y)  = Additive . Left $ x + y
   Additive (Left _)  <> y     = y
-
-instance (Additive-Semigroup) a => Monoid (Additive (Maybe a)) where
-  mempty = Additive Nothing
 
 instance Ord a => Semigroup (Additive (Set.Set a)) where
   (<>) = liftA2 Set.union 

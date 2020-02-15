@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE Safe                       #-}
-{-# LANGUAGE PolyKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -21,6 +20,7 @@ import safe Data.Functor.Compose
 import safe Data.Functor.Product
 import safe Data.Functor.Rep
 import safe Data.Profunctor
+import safe Data.Semiring
 import safe Data.Semimodule
 import safe Data.Tuple (swap)
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
@@ -29,7 +29,7 @@ import safe qualified Control.Category as C
 import safe qualified Data.Bifunctor as B
 
 {-
-app' = app @I3 @V3 @I3 @V3 @Int
+app' = app @E3 @V3 @E3 @V3 @Int
 
 -- >>> app' foo $ V3 1 2 3
 -- V3 2 1 3
@@ -40,11 +40,17 @@ app' = app @I3 @V3 @I3 @V3 @Int
 --
 foo = Tran $ \f -> f . t
  where
-  t I31 = I32
-  t I32 = I31
-  t I33 = I33
+  t E31 = E32
+  t E32 = E31
+  t E33 = E33
+
 -}
 
+infixr 2 **
+infixr 1 ++
+
+type (f ** g) = Compose f g
+type (f ++ g) = Product f g
 
 ---------------------------------------------------------------------
 
@@ -57,7 +63,7 @@ foo = Tran $ \f -> f . t
 --
 type Index b c = forall a . Tran a b c
 
--- | A general linear transformation between free semimodules indexed with bases /b/ and /c/.
+-- | A general transformation between free semimodules indexed with bases /b/ and /c/.
 --
 newtype Tran a b c = Tran { runTran :: (c -> a) -> (b -> a) } deriving Functor
 
@@ -111,12 +117,12 @@ projr = app exr
 
 -- | Left (post) composition with a linear transformation.
 --
-compl :: Basis b f1 => Basis c f2 => Free g => Index b c -> f2 (g a) -> f1 (g a)
+compl :: Bases b c f1 f2 => Free g => Index b c -> f2 (g a) -> f1 (g a)
 compl f = getCompose . app (first f) . Compose
 
 -- | Right (pre) composition with a linear transformation.
 --
-compr :: Basis b g1 => Basis c g2 => Free f => Index b c -> f (g2 a) -> f (g1 a)
+compr :: Bases b c g1 g2 => Free f => Index b c -> f (g2 a) -> f (g1 a)
 compr f = getCompose . app (second f) . Compose
 
 -- | Left and right composition with a linear transformation.
@@ -125,15 +131,15 @@ compr f = getCompose . app (second f) . Compose
 --
 -- When /f . g = id/ this induces a similarity transformation:
 --
--- >>> perm1 = arr (+ I32)
--- >>> perm2 = arr (+ I33)
+-- >>> perm1 = arr (+ E32)
+-- >>> perm2 = arr (+ E33)
 -- >>> m = m33 1 2 3 4 5 6 7 8 9 :: M33 Int
--- >>> conjugate perm1 perm2 m :: M33 Int
+-- >>> complr perm1 perm2 m :: M33 Int
 -- V3 (V3 5 6 4) (V3 8 9 7) (V3 2 3 1)
 --
 -- See also < https://en.wikipedia.org/wiki/Matrix_similarity > & < https://en.wikipedia.org/wiki/Conjugacy_class >.
 --
-complr :: Basis b1 f1 => Basis c1 f2 => Basis b2 g1 => Basis c2 g2 => Index b1 c1 -> Index b2 c2 -> f2 (g2 a) -> f1 (g1 a)
+complr :: Bases b1 c1 f1 f2 => Bases b2 c2 g1 g2 => Index b1 c1 -> Index b2 c2 -> f2 (g2 a) -> f1 (g1 a)
 complr f g =  getCompose . app (f *** g) . Compose
 
 -- | Transpose a matrix.
@@ -150,7 +156,7 @@ transpose = getCompose . app braid . Compose
 
 ---------------------------------------------------------------------
 
--- arr toI3 :: Dim3 e => Index e I3
+-- arr toE3 :: Dim3 e => Index e E3
 
 -- @ 'arr' f = 'rmap' f 'C.id' @
 arr :: (b -> c) -> Index b c
@@ -245,3 +251,6 @@ aselect' = aselect join
 aselected :: Index a b1 -> Index a b2 -> Index a (b1 + b2)
 aselected = aselect id
 {-# INLINE aselected #-}
+
+
+

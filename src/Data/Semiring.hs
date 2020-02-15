@@ -24,8 +24,8 @@ module Data.Semiring (
   , Additive(..)
   , Multiplicative(..)
   , Magma(..)
-  , Quasigroup(..)
-  , Loop(..)
+  , Quasigroup
+  , Loop
   , Group(..)
   , mreplicate
 ) where
