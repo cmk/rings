@@ -1,7 +1,7 @@
 name:                rings
-version:             0.0.3
+version:             0.0.3.1
 synopsis:            Ring-like objects.
-description:         Semirings, rings, division rings, modules, and algebras.
+description:         Semirings, rings, division rings, and modules.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -20,21 +20,16 @@ library
   ghc-options:      -Wall -optc-std=c99
 
   exposed-modules:
-      Data.Algebra
-    , Data.Algebra.Dual
-    , Data.Algebra.Split
-    , Data.Algebra.Geometric
-    , Data.Algebra.Quaternion
-    , Data.Semiring
+      Data.Semiring
     , Data.Semiring.Property
     , Data.Semifield
+    , Data.Semigroup.Additive
+    , Data.Semigroup.Multiplicative
+    , Data.Semigroup.Property
     , Data.Semimodule
     , Data.Semimodule.Free
     , Data.Semimodule.Basis
     , Data.Semimodule.Transform
-    , Data.Semigroup.Additive
-    , Data.Semigroup.Multiplicative
-    , Data.Semigroup.Property
 
   default-extensions:
       ScopedTypeVariables

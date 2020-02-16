@@ -146,7 +146,7 @@ y = f 6.049403
 x = f 0.37794903
 y = f 0.3269925
 
-cosunit (residl x) y
+cosaempty (residl x) y
 
 
 residl x = Conn (<>x) . (//x) $ y

@@ -11,27 +11,42 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Semimodule where
+module Data.Semimodule (
+  -- * Types
+    type Free
+  , type Basis
+  , type Basis2
+  , type Basis3 
+  , type FreeModule 
+  , type FreeSemimodule
+  -- * Left modules
+  , type LeftModule
+  , LeftSemimodule(..)
+  , lscaleDef
+  , negateDef
+  , lerp
+  , (*.)
+  , (/.)
+  , (\.)
+  -- * Right modules
+  , type RightModule
+  , RightSemimodule(..)
+  , rscaleDef
+  , (.*)
+  , (./)
+  , (.\)
+  -- * Bimodules
+  , type Bimodule
+  , Bisemimodule(..)
+) where
 
-import safe Data.Bool
 import safe Data.Complex
 import safe Data.Semifield
-import safe Data.Fixed
-import safe Data.Functor.Compose
 import safe Data.Functor.Rep
-import safe Data.Int
-import safe Data.Semiring hiding (Quasigroup)
-import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Tuple
-import safe Data.Word
+import safe Data.Semiring
 import safe GHC.Real hiding (Fractional(..))
 import safe Numeric.Natural
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
-import safe qualified Prelude as N
-
-import safe Data.Semigroup.Additive as A
-import safe Data.Semigroup.Multiplicative as M
 
 import safe Prelude (fromInteger)
 
@@ -40,18 +55,19 @@ type Free f = (Representable f, Eq (Rep f))
 
 type Basis b f = (Free f, Rep f ~ b)
 
-type Bases b c f g = (Basis b f, Basis c g)
+type Basis2 b c f g = (Basis b f, Basis c g)
 
-type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
-type RightModule r a = (Ring r, (Additive-Group) a, RightSemimodule r a)
+type Basis3 b c d f g h = (Basis b f, Basis c g, Basis d h)
 
-
-
-type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
 type FreeModule a f = (Free f, Bimodule a a (f a))
 
+type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
 
+-------------------------------------------------------------------------------
+-- Left modules
+-------------------------------------------------------------------------------
 
+type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
 
 -- | < https://en.wikipedia.org/wiki/Semimodule Left semimodule > over a commutative semiring.
 --
@@ -76,59 +92,10 @@ class (Semiring l, (Additive-Monoid) a) => LeftSemimodule l a where
   --
   lscale :: l -> a -> a
 
-
-class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where 
-  -- | Right-multiply by a scalar.
-  --
-  rscale :: r -> a -> a
-
-infixr 7 *., \., /. 
-(*.) :: LeftSemimodule l a => l -> a -> a
-(*.) = lscale
-
-(/.) :: Semifield a => Functor f => a -> f a -> f a
-a /. f = (a /) <$> f
-
-(\.) :: Semifield a => Functor f => a -> f a -> f a
-a \. f = (a \\) <$> f
-
-infixl 7 .*, .\, ./ 
-(.*) :: RightSemimodule r a => a -> r -> a
-(.*) = flip rscale
-
-(./) :: Semifield a => Functor f => f a -> a -> f a
-(./) = flip (/.)
-
-(.\) :: Semifield a => Functor f => f a -> a -> f a
-(.\) = flip (\.)
-
-
--- | < https://en.wikipedia.org/wiki/Bimodule Bisemimodule > over a commutative semiring.
---
--- All instances must satisfy the following identity:
---
--- @
--- 'lscale' l . 'rscale' r = 'rscale' r . 'lscale' l
--- @
---
-class (LeftSemimodule l a, RightSemimodule r a) => Bisemimodule l r a where
-
-  discale :: l -> r -> a -> a
-  discale l r = lscale l . rscale r
-
-type Bimodule l r a = (LeftModule l a, RightModule r a, Bisemimodule l r a)
-
-
-
 -- | Default definition of 'lscale' for a free module.
 --
 lscaleDef :: Semiring a => Functor f => a -> f a -> f a
 lscaleDef a f = (a *) <$> f
-
--- | Default definition of 'rscale' for a free module.
---
-rscaleDef :: Semiring a => Functor f => a -> f a -> f a
-rscaleDef a f = (* a) <$> f
 
 -- | Default definition of '<<' for a commutative group.
 --
@@ -147,11 +114,67 @@ lerp :: LeftModule r a => r -> a -> a -> a
 lerp r f g = r *. f + (one - r) *. g
 {-# INLINE lerp #-}
 
--- | Dirac delta function.
+infixr 7 *., \., /. 
+
+(*.) :: LeftSemimodule l a => l -> a -> a
+(*.) = lscale
+
+(/.) :: Semifield a => Functor f => a -> f a -> f a
+a /. f = (a /) <$> f
+
+(\.) :: Semifield a => Functor f => a -> f a -> f a
+a \. f = (a \\) <$> f
+
+
+-------------------------------------------------------------------------------
+-- Right modules
+-------------------------------------------------------------------------------
+
+type RightModule r a = (Ring r, (Additive-Group) a, RightSemimodule r a)
+
+-- | < https://en.wikipedia.org/wiki/Semimodule Right semimodule > over a commutative semiring.
 --
-dirac :: Eq i => Semiring a => i -> i -> a
-dirac i j = bool zero one (i == j)
-{-# INLINE dirac #-}
+-- The laws for right semimodules are analagous to those of left semimodules.
+--
+-- See the properties module for a detailed specification.
+--
+class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where
+
+  -- | Right-multiply by a scalar.
+  --
+  rscale :: r -> a -> a
+
+-- | Default definition of 'rscale' for a free module.
+--
+rscaleDef :: Semiring a => Functor f => a -> f a -> f a
+rscaleDef a f = (* a) <$> f
+
+infixl 7 .*, .\, ./ 
+(.*) :: RightSemimodule r a => a -> r -> a
+(.*) = flip rscale
+
+(./) :: Semifield a => Functor f => f a -> a -> f a
+(./) = flip (/.)
+
+(.\) :: Semifield a => Functor f => f a -> a -> f a
+(.\) = flip (\.)
+
+-------------------------------------------------------------------------------
+-- Bimodules
+-------------------------------------------------------------------------------
+
+type Bimodule l r a = (LeftModule l a, RightModule r a, Bisemimodule l r a)
+
+-- | < https://en.wikipedia.org/wiki/Bimodule Bisemimodule > over a commutative semiring.
+--
+-- @
+-- 'lscale' l . 'rscale' r = 'rscale' r . 'lscale' l
+-- @
+--
+class (LeftSemimodule l a, RightSemimodule r a) => Bisemimodule l r a where
+
+  discale :: l -> r -> a -> a
+  discale l r = lscale l . rscale r
 
 -------------------------------------------------------------------------------
 -- Instances

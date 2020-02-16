@@ -15,45 +15,44 @@ module Data.Semigroup.Multiplicative where
 import safe Data.Ord
 import safe Control.Applicative
 import safe Data.Bool
-import safe Data.Complex
+import safe Data.Distributive
+import safe Data.Functor.Rep
 import safe Data.Maybe
 import safe Data.Either
 import safe Data.Fixed
-import safe Data.Foldable as Foldable (Foldable, foldr', foldl')
 import safe Data.Group
 import safe Data.Int
-import safe Data.List
-import safe Data.List.NonEmpty
 import safe Data.Semigroup
-import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Tuple
 import safe Data.Word
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Generics (Generic)
 import safe GHC.Real hiding (Fractional(..), div, (^^), (^))
 import safe Numeric.Natural
---import safe Prelude ( Eq, Ord, Show, Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+
+import safe Prelude
+ ( Eq(..), Ord, Show, Applicative(..), Functor(..), Monoid(..)
+ , Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+
 import safe qualified Prelude as P
+import safe qualified Data.Map as Map
+import safe qualified Data.Set as Set
+import safe qualified Data.IntMap as IntMap
+import safe qualified Data.IntSet as IntSet
 
-import safe Prelude ( Eq(..), Ord, Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
-import safe qualified Prelude as P
-
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
-import qualified Data.Sequence as Seq
-
-
-import safe Data.Distributive
-import safe Data.Functor.Rep
 
 infixr 1 -
 
 -- | Hyphenation operator.
 type (g - f) a = f (g a)  
 
-infixl 7 *
+-- | A (potentially non-commutative) 'Semigroup' under '+'.
+newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
+
+one :: (Multiplicative-Monoid) a => a
+one = unMultiplicative mempty
+{-# INLINE one #-}
+
+infixl 7 *, \\, /
 
 -- >>> Dual [2] * Dual [3] :: Dual [Int]
 -- Dual {getDual = [5]}
@@ -61,23 +60,51 @@ infixl 7 *
 a * b = unMultiplicative (Multiplicative a <> Multiplicative b)
 {-# INLINE (*) #-}
 
-infixl 7 /
-
 (/) :: (Multiplicative-Group) a => a -> a -> a
 a / b = unMultiplicative (Multiplicative a << Multiplicative b)
 {-# INLINE (/) #-}
 
+-- | Left division by a multiplicative group element.
+--
+-- When '*' is commutative we must have:
+--
+-- @ x '\\' y = y '/' x @
+--
+(\\) :: (Multiplicative-Group) a => a -> a -> a
+(\\) x y = recip x * y
 
+infixr 8 ^^
 
-one :: (Multiplicative-Monoid) a => a
-one = unMultiplicative mempty
-{-# INLINE one #-}
+-- | Integral power of a multiplicative group element.
+--
+-- @ 'one' '==' a '^^' 0 @
+--
+-- >>> 8 ^^ 0 :: Double
+-- 1.0
+-- >>> 8 ^^ 0 :: Pico
+-- 1.000000000000
+--
+(^^) :: (Multiplicative-Group) a => a -> Integer -> a
+a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
 
-div :: (Multiplicative-Group) a => a -> a -> a
-a `div` b = unMultiplicative (Multiplicative a << Multiplicative b)
-{-# INLINE div #-}
+-- | Reciprocal of a multiplicative group element.
+--
+-- @ 
+-- x '/' y = x '*' 'recip' y
+-- x '\\' y = 'recip' x '*' y
+-- @
+--
+-- >>> recip (3 :+ 4) :: Complex Rational
+-- 3 % 25 :+ (-4) % 25
+-- >>> recip (3 :+ 4) :: Complex Double
+-- 0.12 :+ (-0.16)
+-- >>> recip (3 :+ 4) :: Complex Pico
+-- 0.120000000000 :+ -0.160000000000
+-- 
+recip :: (Multiplicative-Group) a => a -> a 
+recip a = one / a
+{-# INLINE recip #-}
 
-newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
 instance Applicative Multiplicative where
   pure = Multiplicative
@@ -96,7 +123,7 @@ instance Representable Multiplicative where
   {-# INLINE index #-}
 
 ---------------------------------------------------------------------
--- Num-based instances
+-- Instances
 ---------------------------------------------------------------------
 
 #define deriveMultiplicativeSemigroup(ty)       \
@@ -327,7 +354,7 @@ instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Maybe a)) where
   Multiplicative Nothing  <> _             = Multiplicative Nothing
-  Multiplicative (x@Just{}) <> Multiplicative Nothing   = Multiplicative Nothing
+  Multiplicative (Just{}) <> Multiplicative Nothing   = Multiplicative Nothing
   Multiplicative (Just x) <> Multiplicative (Just y) = Multiplicative . Just $ x * y
   -- Mul a <> Mul b = Mul $ liftA2 (*) a b
 
@@ -336,7 +363,7 @@ instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Maybe a)) where
 
 instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (Either a b)) where
   Multiplicative (Right x) <> Multiplicative (Right y) = Multiplicative . Right $ x * y
-  Multiplicative(x@Right{}) <> y     = y
+  Multiplicative (Right{}) <> y     = y
   Multiplicative (Left x) <> Multiplicative (Left y)  = Multiplicative . Left $ x * y
   Multiplicative (x@Left{}) <> _     = Multiplicative x
 

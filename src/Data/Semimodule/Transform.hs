@@ -13,14 +13,48 @@
 {-# LANGUAGE RankNTypes                 #-}
 
 
-module Data.Semimodule.Transform where
+module Data.Semimodule.Transform (
+  -- * Types
+    type (**) 
+  , type (++) 
+  , type Dim
+  , type Endo
+  , Tran(..)
+  , app
+  , arr
+  , invmap
+  -- * Matrix combinators
+  , rows
+  , cols
+  , projl
+  , projr
+  , compl
+  , compr
+  , complr
+  , transpose
+  -- * Dimensional combinators
+  , braid
+  , sbraid
+  , first
+  , second
+  , left
+  , right
+  , (***)
+  , (+++)
+  , (&&&)
+  , (|||)
+  , ($$$)
+  , adivide
+  , adivide'
+  , aselect
+  , aselect'
+) where
 
 import safe Control.Category (Category, (>>>))
 import safe Data.Functor.Compose
 import safe Data.Functor.Product
 import safe Data.Functor.Rep
 import safe Data.Profunctor
-import safe Data.Semiring
 import safe Data.Semimodule
 import safe Data.Tuple (swap)
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
@@ -28,47 +62,28 @@ import safe Test.Logic
 import safe qualified Control.Category as C
 import safe qualified Data.Bifunctor as B
 
-{-
-app' = app @E3 @V3 @E3 @V3 @Int
-
--- >>> app' foo $ V3 1 2 3
--- V3 2 1 3
--- >>> app' foo >>> app' foo $ V3 1 2 3
--- V3 1 2 3
--- >>> app' (foo >>> foo) $ V3 1 2 3
--- V3 1 2 3
---
-foo = Tran $ \f -> f . t
- where
-  t E31 = E32
-  t E32 = E31
-  t E33 = E33
-
--}
-
 infixr 2 **
 infixr 1 ++
 
 type (f ** g) = Compose f g
 type (f ++ g) = Product f g
 
----------------------------------------------------------------------
-
--- | A binary relation between two basis indices.
+-- | A dimensional (binary) relation between two bases.
 --
--- @ 'Index' b c @ relations correspond to (compositions of) 
+-- @ 'Dim' b c @ relations correspond to (compositions of) 
 -- permutation, projection, and embedding transformations.
 --
 -- See also < https://en.wikipedia.org/wiki/Logical_matrix >.
 --
-type Index b c = forall a . Tran a b c
+type Dim b c = forall a . Tran a b c
 
--- | A general transformation between free semimodules indexed with bases /b/ and /c/.
+-- | An endomorphism over a free semimodule.
+--
+type Endo a b = Tran a b b
+
+-- | A morphism between free semimodules indexed with bases /b/ and /c/.
 --
 newtype Tran a b c = Tran { runTran :: (c -> a) -> (b -> a) } deriving Functor
-
-app :: Basis b f => Basis c g => Tran a b c -> g a -> f a
-app t = tabulate . runTran t . index
 
 instance Category (Tran a) where
   id = Tran id
@@ -77,6 +92,20 @@ instance Category (Tran a) where
 instance Profunctor (Tran a) where
   lmap f (Tran t) = Tran $ \ca -> t ca . f
   rmap = fmap
+
+---------------------------------------------------------------------
+
+-- | Apply a transformation to a vector.
+--
+app :: Basis2 b c f g => Tran a b c -> g a -> f a
+app t = tabulate . runTran t . index
+
+-- | Lift a function on basis indices into a transformation.
+--
+-- @ 'arr' f = 'rmap' f 'C.id' @
+--
+arr :: (b -> c) -> Tran a b c
+arr f = Tran (. f)
 
 -- | /Tran a b c/ is an invariant functor on /a/.
 --
@@ -87,17 +116,13 @@ invmap f g (Tran t) = Tran $ \x -> t (x >>> g) >>> f
 
 ---------------------------------------------------------------------
 
--- | An endomorphism over a free semimodule.
---
-type Endo a b = Tran a b b
-
 -- | Obtain a matrix by stacking rows.
 --
 -- >>> rows (V2 1 2) :: M22 Int
 -- V2 (V2 1 2) (V2 1 2)
 --
-rows :: Free f => Free g => g a -> f (g a)
-rows = getCompose . app in1 
+rows :: Basis2 b c f g => g a -> (f**g) a
+rows = app $ arr snd
 {-# INLINE rows #-}
 
 -- | Obtain a matrix by stacking columns.
@@ -105,29 +130,35 @@ rows = getCompose . app in1
 -- >>> cols (V2 1 2) :: M22 Int
 -- V2 (V2 1 1) (V2 2 2)
 --
-cols :: Free f => Free g => f a -> f (g a)
-cols = getCompose . app in2
+cols :: Basis2 b c f g => f a -> (f**g) a
+cols = app $ arr fst
 {-# INLINE cols #-}
 
-projl :: Free f => Free g => Product f g a -> f a
-projl = app exl
+-- | Project onto the left-hand component of a direct sum.
+--
+projl :: Basis2 b c f g => (f++g) a -> f a
+projl = app $ arr Left
+{-# INLINE projl #-}
 
-projr :: Free f => Free g => Product f g a -> g a
-projr = app exr
+-- | Project onto the right-hand component of a direct sum.
+--
+projr :: Basis2 b c f g => (f++g) a -> g a
+projr = app $ arr Right
+{-# INLINE projr #-}
 
 -- | Left (post) composition with a linear transformation.
 --
-compl :: Bases b c f1 f2 => Free g => Index b c -> f2 (g a) -> f1 (g a)
-compl f = getCompose . app (first f) . Compose
+compl :: Basis3 b c d f1 f2 g => Dim b c -> (f2**g) a -> (f1**g) a
+compl f = app (first f)
 
 -- | Right (pre) composition with a linear transformation.
 --
-compr :: Bases b c g1 g2 => Free f => Index b c -> f (g2 a) -> f (g1 a)
-compr f = getCompose . app (second f) . Compose
+compr :: Basis3 b c d f g1 g2 => Dim c d -> (f**g2) a -> (f**g1) a
+compr f = app (second f)
 
 -- | Left and right composition with a linear transformation.
 --
--- @ 'complr f g' = 'compl f' . 'compr g' @
+-- @ 'complr' f g = 'compl' f '>>>' 'compr' g @
 --
 -- When /f . g = id/ this induces a similarity transformation:
 --
@@ -139,8 +170,8 @@ compr f = getCompose . app (second f) . Compose
 --
 -- See also < https://en.wikipedia.org/wiki/Matrix_similarity > & < https://en.wikipedia.org/wiki/Conjugacy_class >.
 --
-complr :: Bases b1 c1 f1 f2 => Bases b2 c2 g1 g2 => Index b1 c1 -> Index b2 c2 -> f2 (g2 a) -> f1 (g1 a)
-complr f g =  getCompose . app (f *** g) . Compose
+complr :: Basis2 b1 c1 f1 f2 => Basis2 b2 c2 g1 g2 => Dim b1 c1 -> Dim b2 c2 -> (f2**g2) a -> (f1**g1) a
+complr f g = app (f *** g)
 
 -- | Transpose a matrix.
 --
@@ -150,107 +181,99 @@ complr f g =  getCompose . app (f *** g) . Compose
 -- >>> transpose $ m23 1 2 3 4 5 6 :: M32 Int
 -- V3 (V2 1 4) (V2 2 5) (V2 3 6)
 --
-transpose :: Free f => Free g => f (g a) -> g (f a)
-transpose = getCompose . app braid . Compose
+transpose :: Basis2 b c f g => (f**g) a -> (g**f) a
+transpose = app braid
 {-# INLINE transpose #-}
 
 ---------------------------------------------------------------------
 
--- arr toE3 :: Dim3 e => Index e E3
-
--- @ 'arr' f = 'rmap' f 'C.id' @
-arr :: (b -> c) -> Index b c
-arr f = Tran (. f)
-
-in1 :: Index (a , b) b
-in1 = arr snd
-{-# INLINE in1 #-}
-
-in2 :: Index (a , b) a
-in2 = arr fst
-{-# INLINE in2 #-}
-
-exl :: Index a (a + b)
-exl = arr Left
-{-# INLINE exl #-}
-
-exr :: Index b (a + b)
-exr = arr Right
-{-# INLINE exr #-}
-
-braid :: Index (a , b) (b , a)
+-- | Swap components of a tensor product.
+--
+braid :: Dim (a , b) (b , a)
 braid = arr swap
 {-# INLINE braid #-}
 
-ebraid :: Index (a + b) (b + a)
-ebraid = arr eswap
-{-# INLINE ebraid #-}
+-- | Swap components of a direct sum.
+--
+sbraid :: Dim (a + b) (b + a)
+sbraid = arr eswap
+{-# INLINE sbraid #-}
 
-first :: Index b c -> Index (b , d) (c , d)
+-- | Lift a transform into a transform on tensor products.
+--
+first :: Dim b c -> Dim (b , d) (c , d)
 first (Tran caba) = Tran $ \cda -> cda . B.first (caba id)
 
-second :: Index b c -> Index (d , b) (d , c)
+-- | Lift a transform into a transform on tensor products.
+--
+second :: Dim b c -> Dim (d , b) (d , c)
 second (Tran caba) = Tran $ \cda -> cda . B.second (caba id)
 
-left :: Index b c -> Index (b + d) (c + d)
+-- | Lift a transform into a transform on direct sums.
+--
+left :: Dim b c -> Dim (b + d) (c + d)
 left (Tran caba) = Tran $ \cda -> cda . B.first (caba id)
 
-right :: Index b c -> Index (d + b) (d + c)
+-- | Lift a transform into a transform on direct sums.
+--
+right :: Dim b c -> Dim (d + b) (d + c)
 right (Tran caba) = Tran $ \cda -> cda . B.second (caba id)
 
 infixr 3 ***
 
-(***) :: Index a1 b1 -> Index a2 b2 -> Index (a1 , a2) (b1 , b2)
+-- | Create a transform on a tensor product of semimodules.
+--
+(***) :: Dim a1 b1 -> Dim a2 b2 -> Dim (a1 , a2) (b1 , b2)
 x *** y = first x >>> arr swap >>> first y >>> arr swap
 {-# INLINE (***) #-}
 
 infixr 2 +++
 
-(+++) :: Index a1 b1 -> Index a2 b2 -> Index (a1 + a2) (b1 + b2)
+-- | Create a transform on a direct sum of semimodules.
+--
+(+++) :: Dim a1 b1 -> Dim a2 b2 -> Dim (a1 + a2) (b1 + b2)
 x +++ y = left x >>> arr eswap >>> left y >>> arr eswap
 {-# INLINE (+++) #-}
 
 infixr 3 &&&
 
-(&&&) :: Index a b1 -> Index a b2 -> Index a (b1 , b2)
+(&&&) :: Dim a b1 -> Dim a b2 -> Dim a (b1 , b2)
 x &&& y = dimap fork id $ x *** y
 {-# INLINE (&&&) #-}
 
 infixr 2 |||
 
-(|||) :: Index a1 b -> Index a2 b -> Index (a1 + a2) b
+(|||) :: Dim a1 b -> Dim a2 b -> Dim (a1 + a2) b
 x ||| y = dimap id join $ x +++ y
 {-# INLINE (|||) #-}
 
 infixr 0 $$$
 
-($$$) :: Index a (b -> c) -> Index a b -> Index a c
+($$$) :: Dim a (b -> c) -> Dim a b -> Dim a c
 ($$$) f x = dimap fork apply (f *** x)
 {-# INLINE ($$$) #-}
 
-adivide :: (a -> (a1 , a2)) -> Index a1 b -> Index a2 b -> Index a b
+-- |
+--
+-- @ 'adivide' 'fork' = 'C.id' @ 
+--
+adivide :: (a -> (a1 , a2)) -> Dim a1 b -> Dim a2 b -> Dim a b
 adivide f x y = dimap f fst $ x *** y
 {-# INLINE adivide #-}
 
-adivide' :: Index a b -> Index a b -> Index a b
-adivide' = adivide fork
+adivide' :: Dim a1 b -> Dim a2 b -> Dim (a1 , a2) b
+adivide' = adivide id
 {-# INLINE adivide' #-}
 
-adivided :: Index a1 b -> Index a2 b -> Index (a1 , a2) b
-adivided = adivide id
-{-# INLINE adivided #-}
-
-aselect :: ((b1 + b2) -> b) -> Index a b1 -> Index a b2 -> Index a b
+-- |
+--
+-- @ 'aselect' 'join' = 'C.id' @ 
+--
+aselect :: ((b1 + b2) -> b) -> Dim a b1 -> Dim a b2 -> Dim a b
 aselect f x y = dimap Left f $ x +++ y
 {-# INLINE aselect #-}
 
-aselect' :: Index a b -> Index a b -> Index a b
-aselect' = aselect join
+aselect' :: Dim a b1 -> Dim a b2 -> Dim a (b1 + b2)
+aselect' = aselect id
 {-# INLINE aselect' #-}
-
-aselected :: Index a b1 -> Index a b2 -> Index a (b1 + b2)
-aselected = aselect id
-{-# INLINE aselected #-}
-
-
 

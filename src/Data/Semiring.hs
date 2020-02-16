@@ -11,23 +11,35 @@
 {-# LANGUAGE MonoLocalBinds             #-}
 
 module Data.Semiring (
+  -- * Types
     type (-)
-  , zero, one, two, (+), (*), (-), (^)
-  , sum, sum1, sumWith, sumWith1
-  , product, product1, productWith, productWith1
-  , cross, cross1
-  , eval, evalWith, eval1, evalWith1
-  , negate, abs, signum
+  -- * Presemirings
   , type PresemiringLaw, Presemiring
+  , (+), (*)
+  , sum1, sumWith1
+  , product1, productWith1
+  , xmult1
+  , eval1, evalWith1
+  -- * Semirings
   , type SemiringLaw, Semiring
+  , zero, one, two
+  , (^)
+  , sum, sumWith
+  , product, productWith
+  , xmult   
+  , eval, evalWith
+  -- * Rings
   , type RingLaw, Ring
+  , (-)
+  , negate, abs, signum
+  -- * Re-exports
+  , mreplicate
   , Additive(..)
   , Multiplicative(..)
   , Magma(..)
   , Quasigroup
   , Loop
   , Group(..)
-  , mreplicate
 ) where
 
 import safe Control.Applicative
@@ -68,7 +80,7 @@ import safe qualified Data.Set as Set
 -- /Distributivity/
 --
 -- @
--- (a '+' b) '*' c '==' (a '*' c) '+' (b '*' c)
+-- (a '+' b) '*' c = (a '*' c) '+' (b '*' c)
 -- @
 --
 -- Note that addition and multiplication needn't be commutative.
@@ -78,6 +90,71 @@ import safe qualified Data.Set as Set
 type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
 
 class PresemiringLaw a => Presemiring a
+
+-- | Evaluate a non-empty presemiring sum.
+--
+sum1 :: Presemiring a => Foldable1 f => f a -> a
+sum1 = sumWith1 id
+
+-- | Evaluate a non-empty presemiring sum using a given presemiring.
+-- 
+-- >>> evalWith1 Max $ (1 :| [2..5 :: Int]) :| [1 :| [2..5 :: Int]]
+-- | Fold over a non-empty collection using the additive operation of an arbitrary semiring.
+--
+-- >>> sumWith1 First $ (1 :| [2..5 :: Int]) * (1 :| [2..5 :: Int])
+-- First {getFirst = 1}
+-- >>> sumWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Nothing}
+-- >>> sumWith1 Just $ 1 :| [2..5 :: Int]
+-- Just 15
+--
+sumWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+sumWith1 f = unAdditive . foldMap1 (Additive . f)
+{-# INLINE sumWith1 #-}
+
+-- | Evaluate a non-empty presemiring product.
+--
+product1 :: Presemiring a => Foldable1 f => f a -> a
+product1 = productWith1 id
+
+-- | Evaluate a non-empty presemiring product using a given presemiring.
+-- 
+-- As the collection is non-empty this does not require a distinct multiplicative unit:
+--
+-- >>> productWith1 Just $ 1 :| [2..5 :: Int]
+-- Just 120
+-- >>> productWith1 First $ 1 :| [2..(5 :: Int)]
+-- First {getFirst = 15}
+-- >>> productWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Just 11}
+--
+productWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
+{-# INLINE productWith1 #-}
+
+-- | Cross-multiply two non-empty collections.
+--
+-- >>> xmult1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
+-- Right 4
+--
+xmult1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
+xmult1 a b = sum1 $ liftF2 (*) a b
+{-# INLINE xmult1 #-}
+
+-- | Evaluate a presemiring expression.
+-- 
+eval1 :: Presemiring a => Functor f => Foldable1 f => Foldable1 g => f (g a) -> a
+eval1 = sum1 . fmap product1
+
+-- | Evaluate a presemiring expression using a given presemiring.
+-- 
+-- >>>  evalWith1 (Max . Down) $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = Down 9}
+-- >>>  evalWith1 Max $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
+-- Max {getMax = 15}
+-- 
+evalWith1 :: Presemiring r => Functor f => Functor g => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
+evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
 
 -------------------------------------------------------------------------------
 -- Semiring
@@ -94,26 +171,33 @@ type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
 -- /Neutrality/
 --
 -- @
--- 'zero' '+' r '==' r
--- 'one' '*' r '==' r
+-- 'zero' '+' r = r
+-- 'one' '*' r = r
 -- @
 --
 -- /Absorbtion/
 --
 -- @
--- 'zero' '*' a '==' 'zero'
+-- 'zero' '*' a = 'zero'
 -- @
 --
 class (Presemiring a, SemiringLaw a) => Semiring a
 
-two :: (Additive-Semigroup) a => (Multiplicative-Monoid) a => a
+-- |
+--
+-- @
+-- 'two' = 'one' '+' 'one'
+-- @
+--
+two :: Semiring a => a
 two = one + one
 {-# INLINE two #-}
 
-
 infixr 8 ^
 
--- @ 'one' == a '^' 0 @
+-- | Evaluate a natural-numbered power of a semiring element.
+--
+-- @ 'one' = a '^' 0 @
 --
 -- >>> 8 ^ 0 :: Int
 -- 1
@@ -121,48 +205,33 @@ infixr 8 ^
 (^) :: Semiring a => a -> Natural -> a
 a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
 
+-- | Evaluate a semiring sum.
+-- 
 -- >>> sum [1..5 :: Int]
 -- 15
+--
 sum :: (Additive-Monoid) a => Presemiring a => Foldable f => f a -> a
 sum = sumWith id
 
-sum1 :: Presemiring a => Foldable1 f => f a -> a
-sum1 = sumWith1 id
-
+-- | Evaluate a semiring sum using a given semiring.
+-- 
 sumWith :: (Additive-Monoid) a => Presemiring a => Foldable t => (b -> a) -> t b -> a
 sumWith f = foldr' ((+) . f) zero
 {-# INLINE sumWith #-}
 
--- >>> evalWith1 Max $ (1 :| [2..5 :: Int]) :| [1 :| [2..5 :: Int]]
--- | Fold over a non-empty collection using the additive operation of an arbitrary semiring.
+-- | Evaluate a semiring product.
 --
--- >>> sumWith1 First $ (1 :| [2..5 :: Int]) * (1 :| [2..5 :: Int])
--- First {getFirst = 1}
--- >>> sumWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
--- First {getFirst = Nothing}
--- >>> sumWith1 Just $ 1 :| [2..5 :: Int]
--- Just 15
---
-sumWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
-sumWith1 f = unAdditive . foldMap1 (Additive . f)
-{-# INLINE sumWith1 #-}
-
 -- >>> product [1..5 :: Int]
 -- 120
+--
 product :: (Multiplicative-Monoid) a => Presemiring a => Foldable f => f a -> a
 product = productWith id
 
+-- | Evaluate a semiring product using a given semiring.
 --
--- | The product of at a list of semiring elements (of length at least one)
-product1 :: Presemiring a => Foldable1 f => f a -> a
-product1 = productWith1 id
-
--- | Fold over a collection using the multiplicative operation of an arbitrary semiring.
--- 
 -- @
--- 'product' f '==' 'Data.foldr'' ((*) . f) 'one'
+-- 'product' f = 'Data.foldr'' (('*') . f) 'one'
 -- @
---
 --
 -- >>> productWith Just [1..5 :: Int]
 -- Just 120
@@ -171,43 +240,18 @@ productWith :: (Multiplicative-Monoid) a => Presemiring a => Foldable t => (b ->
 productWith f = foldr' ((*) . f) one
 {-# INLINE productWith #-}
 
-
--- | Fold over a non-empty collection using the multiplicative operation of a semiring.
---
--- As the collection is non-empty this does not require a distinct multiplicative unit:
---
--- >>> productWith1 Just $ 1 :| [2..5 :: Int]
--- Just 120
--- >>> productWith1 First $ 1 :| [2..(5 :: Int)]
--- First {getFirst = 15}
--- >>> productWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
--- First {getFirst = Just 11}
---
-productWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
-productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
-{-# INLINE productWith1 #-}
-
 -- | Cross-multiply two collections.
 --
--- >>> cross (V3 1 2 3) (V3 1 2 3)
+-- >>> xmult (V3 1 2 3) (V3 1 2 3)
 -- 14
--- >>> cross [1,2,3 :: Int] [1,2,3]
+-- >>> xmult [1,2,3 :: Int] [1,2,3]
 -- 36
--- >>> cross [1,2,3 :: Int] []
+-- >>> xmult [1,2,3 :: Int] []
 -- 0
 --
-cross :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
-cross a b = sum $ liftA2 (*) a b
-{-# INLINE cross #-}
-
--- | Cross-multiply two non-empty collections.
---
--- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
--- Right 4
---
-cross1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
-cross1 a b = sum1 $ liftF2 (*) a b
-{-# INLINE cross1 #-}
+xmult :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
+xmult a b = sum $ liftA2 (*) a b
+{-# INLINE xmult #-}
 
 -- | Evaluate a semiring expression.
 -- 
@@ -221,21 +265,13 @@ cross1 a b = sum1 $ liftF2 (*) a b
 eval :: Semiring a => Functor f => Foldable f => Foldable g => f (g a) -> a
 eval = sum . fmap product
 
+-- | Evaluate a semiring expression using a given semiring.
+-- 
 -- >>> evalWith Max [[1..4 :: Int], [0..2 :: Int]]
 -- Max {getMax = 24}
+--
 evalWith :: Semiring r => Functor f => Functor g => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
 evalWith f = sum . fmap product . (fmap . fmap) f
-
-eval1 :: Presemiring a => Functor f => Foldable1 f => Foldable1 g => f (g a) -> a
-eval1 = sum1 . fmap product1
-
--- >>>  evalWith1 (Max . Down) $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
--- Max {getMax = Down 9}
--- >>>  evalWith1 Max $ (1 :| [2..5 :: Int]) :| [-5 :| [2..5 :: Int]]
--- Max {getMax = 15}
--- 
-evalWith1 :: Presemiring r => Functor f => Functor g => Foldable1 f => Foldable1 g => (a -> r) -> f (g a) -> r
-evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
 
 -------------------------------------------------------------------------------
 -- Ring
@@ -249,9 +285,9 @@ type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 --
 -- The basic properties of a ring follow immediately from the axioms:
 -- 
--- @ r '*' 'zero' '==' 'zero' '==' 'zero' '*' r @
+-- @ r '*' 'zero' = 'zero' = 'zero' '*' r @
 --
--- @ 'negate' 'one' '*' r '==' 'negate' r @
+-- @ 'negate' 'one' '*' r = 'negate' r @
 --
 -- Furthermore, the binomial formula holds for any commuting pair of elements (that is, any /a/ and /b/ such that /a * b = b * a/).
 --
@@ -270,177 +306,12 @@ type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 --
 class (Semiring a, RingLaw a) => Ring a where
 
-negate :: (Additive-Group) a => a -> a
-negate a = zero - a
-{-# INLINE negate #-}
-
--- | Absolute value of an element.
---
--- @ 'abs' r '==' 'mul' r ('signum' r) @
---
--- https://en.wikipedia.org/wiki/Linearly_ordered_group
-abs :: (Additive-Group) a => Ord a => a -> a
-abs x = bool (negate x) x $ zero <= x
-{-# INLINE abs #-}
-
 -- satisfies trichotomy law:
 -- Exactly one of the following is true: a is positive, -a is positive, or a = 0.
 -- This property follows from the fact that ordered rings are abelian, linearly ordered groups with respect to addition.
-signum :: RingLaw a => Ord a => a -> a
+signum :: Ring a => Ord a => a -> a
 signum x = bool (negate one) one $ zero <= x
 {-# INLINE signum #-}
-
-{-
--- | Default implementation of 'fromBoolean' given a multiplicative unit.
---
-fromBooleanDef :: Unital a => a -> Bool -> a
-fromBooleanDef _ False = mempty
-fromBooleanDef o True = o
-{-# INLINE fromBooleanDef #-}
-
--- | Multiplicative unit.
---
--- Note that 'one' needn't be distinct from 'mempty' for a semiring to be valid.
---
-one :: Unital a => a
-one = fromBoolean True
-{-# INLINE one #-}
-
-
-infixr 8 ^
-
-(^) :: Unital a => a -> Natural -> a
-(^) = flip sinnum'
-{-# INLINE (^) #-}
-
--- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
---
--- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
---
-sinnum :: Monoid a => Natural -> a -> a
-sinnum n a
-    | n == 0 = mempty
-    | otherwise = f a n
-    where
-        f x y 
-            | even y = f (x <> x) (y `quot` 2)
-            | y == 1 = x
-            | otherwise = g (x <> x) ((y N.- 1) `quot` 2) x
-        g x y z 
-            | even y = g (x <> x) (y `quot` 2) z
-            | y == 1 = x <> z
-            | otherwise = g (x <> x) ((y N.- 1) `quot` 2) (x <> z)
-{-# INLINE sinnum #-}
-
-sinnum' :: Unital a => Natural -> a -> a
-sinnum' n a = getProd $ sinnum n (Prod a)
-{-# INLINE sinnum' #-}
-
-powers :: Unital a => Natural -> a -> a
-powers n a = foldr' (<>) one . flip unfoldr n $ \m -> 
-  if m == 0 then Nothing else Just (a^m,m N.- 1)
-{-# INLINE powers #-}
-
--------------------------------------------------------------------------------
--- Pre-semirings
--------------------------------------------------------------------------------
-
-instance Semigroup a => Semiring (Either e a) where
-  (*) = liftA2 (<>)
-  {-# INLINE (*) #-}
-
-
-instance Semiring Ordering where
-  LT * LT = LT
-  LT * GT = LT
-  _  * EQ = EQ
-  EQ * _  = EQ
-  GT * x  = x
-
-  fromBoolean = fromBooleanDef GT
-
-
-
-  fromBoolean = const . fromBoolean
-
-instance Unital a => Semiring (Op a b) where
-  Op f * Op g = Op $ \x -> f x * g x
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ Op (const one)
-
-instance (Unital a, Unital b) => Semiring (a, b) where
-  (a, b) * (c, d) = (a*c, b*d)
-  {-# INLINE (*) #-}
-
-  fromBoolean = liftA2 (,) fromBoolean fromBoolean
-
-instance (Unital a, Unital b, Unital c) => Semiring (a, b, c) where
-  (a, b, c) * (d, e, f) = (a*d, b*e, c*f)
-  {-# INLINE (*) #-}
-
-  fromBoolean = liftA3 (,,) fromBoolean fromBoolean fromBoolean
-
-
-
-
-{-
----------------------------------------------------------------------
---  Instances (contravariant)
----------------------------------------------------------------------
-
--- Note that due to the underlying 'Monoid' instance this instance
--- has 'All' semiring semantics rather than 'Any'.
-instance Semiring (Predicate a) where
-  Predicate f * Predicate g = Predicate $ \x -> f x || g x
-  {-# INLINE (*) #-}
-
-  --Note that the truth values are flipped here to create a
-  --valid semiring homomorphism. Users should precompose with 'not'
-  --where necessary. 
-  fromBoolean False = Predicate $ const True
-  fromBoolean True = Predicate $ const False
-
-
--- Note that due to the underlying 'Monoid' instance this instance
--- has 'All' semiring semantics rather than 'Any'.
-instance Semiring (Equivalence a) where
-  Equivalence f * Equivalence g = Equivalence $ \x y -> f x y || g x y
-  {-# INLINE (*) #-}
-
-  --Note that the truth values are flipped here to create a
-  --valid semiring homomorphism. Users should precompose with 'not'
-  --where necessary. 
-  fromBoolean False = Equivalence $ \_ _ -> True
-  fromBoolean True = Equivalence $ \_ _ -> False
--}
-
----------------------------------------------------------------------
---  Instances (containers)
----------------------------------------------------------------------
-
-instance Ord a => Semiring (Set.Set a) where
-  (*) = Set.intersection
-
-instance Monoid a => Semiring (Seq.Seq a) where
-  (*) = liftA2 (<>)
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ Seq.singleton mempty
-
-instance (Ord k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
-  xs * ys = foldMap (flip Map.map xs . (<>)) ys
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ Map.singleton mempty mempty
-
-instance Monoid a => Semiring (IntMap.IntMap a) where
-  xs * ys = foldMap (flip IntMap.map xs . (<>)) ys
-  {-# INLINE (*) #-}
-
-  fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
-
--}
 
 ---------------------------------------------------------------------
 --  Instances

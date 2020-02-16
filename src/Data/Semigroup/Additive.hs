@@ -20,30 +20,35 @@ import safe Data.Either
 import safe Data.Distributive
 import safe Data.Functor.Rep
 import safe Data.Fixed
-import safe Data.Foldable hiding (sum)
 import safe Data.Group
 import safe Data.Int
-import safe Data.List
 import safe Data.List.NonEmpty
 import safe Data.Ord
 import safe Data.Semigroup
-import safe Data.Semigroup.Foldable
 import safe Data.Semigroup.Multiplicative
-import safe Data.Tuple
 import safe Data.Word
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Generics (Generic)
 import safe GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import safe Numeric.Natural
 
-import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+import safe Prelude
+ ( Eq(..), Ord(..), Show, Applicative(..), Functor(..), Monoid(..), Semigroup(..)
+ , (.), ($), (<$>), Integer, Float, Double)
 import safe qualified Prelude as P
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
+import safe qualified Data.Map as Map
+import safe qualified Data.Set as Set
+import safe qualified Data.IntMap as IntMap
+import safe qualified Data.IntSet as IntSet
 
+
+-- | A commutative 'Semigroup' under '+'.
+newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
+
+zero :: (Additive-Monoid) a => a
+zero = unAdditive mempty
+{-# INLINE zero #-}
 
 infixl 6 +
 
@@ -59,12 +64,23 @@ infixl 6 -
 a - b = unAdditive (Additive a << Additive b)
 {-# INLINE (-) #-}
 
-zero :: (Additive-Monoid) a => a
-zero = unAdditive mempty
-{-# INLINE zero #-}
+negate :: (Additive-Group) a => a -> a
+negate a = zero - a
+{-# INLINE negate #-}
 
--- | A commutative 'Semigroup' under '+'.
-newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
+-- | Absolute value of an element.
+--
+-- @ 'abs' r = 'mul' r ('signum' r) @
+--
+-- https://en.wikipedia.org/wiki/Linearly_ordered_group
+abs :: (Additive-Group) a => Ord a => a -> a
+abs x = bool (negate x) x $ zero <= x
+{-# INLINE abs #-}
+
+-------------------------------------------------------------------------------
+-- Instances
+-------------------------------------------------------------------------------
+
 
 instance Applicative Additive where
   pure = Additive
@@ -81,7 +97,6 @@ instance Representable Additive where
 
   index (Additive x) () = x
   {-# INLINE index #-}
-
 
 
 
