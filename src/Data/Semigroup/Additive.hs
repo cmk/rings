@@ -21,7 +21,7 @@ import safe Data.Either
 import safe Data.Distributive
 import safe Data.Functor.Rep
 import safe Data.Fixed
-import safe Data.Group
+import safe Data.Group hiding ((\\))
 import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Ord
@@ -47,10 +47,15 @@ infixr 1 -
 -- | Hyphenation operator.
 type (g - f) a = f (g a)
 
+-------------------------------------------------------------------------------
+-- Additive
+-------------------------------------------------------------------------------
 
 -- | A commutative 'Semigroup' under '+'.
 newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
+-- | The additive unit of a semiring.
+--
 zero :: (Additive-Monoid) a => a
 zero = unAdditive mempty
 {-# INLINE zero #-}
@@ -63,6 +68,8 @@ infixl 6 +
 a + b = unAdditive (Additive a <> Additive b)
 {-# INLINE (+) #-}
 
+-- | Subtract two elements.
+--
 subtract :: (Additive-Group) a => a -> a -> a
 subtract a b = unAdditive (Additive b << Additive a)
 {-# INLINE subtract #-}
@@ -88,47 +95,25 @@ instance Representable Additive where
 -------------------------------------------------------------------------------
 
 
--- | A (potentially non-commutative) 'Semigroup' under '+'.
+-- | A (potentially non-commutative) 'Semigroup' under '*'.
 newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
+-- | The multiplicative unit of a semiring.
+--
 one :: (Multiplicative-Monoid) a => a
 one = unMultiplicative mempty
 {-# INLINE one #-}
 
 infixl 7 *, \\, /
 
+-- | Multiply two elements.
+--
 -- >>> Dual [2] * Dual [3] :: Dual [Int]
 -- Dual {getDual = [5]}
+--
 (*) :: (Multiplicative-Semigroup) a => a -> a -> a
 a * b = unMultiplicative (Multiplicative a <> Multiplicative b)
 {-# INLINE (*) #-}
-
-(/) :: (Multiplicative-Group) a => a -> a -> a
-a / b = unMultiplicative (Multiplicative a << Multiplicative b)
-{-# INLINE (/) #-}
-
--- | Left division by a multiplicative group element.
---
--- When '*' is commutative we must have:
---
--- @ x '\\' y = y '/' x @
---
-(\\) :: (Multiplicative-Group) a => a -> a -> a
-(\\) x y = recip x * y
-
-infixr 8 ^^
-
--- | Integral power of a multiplicative group element.
---
--- @ 'one' '==' a '^^' 0 @
---
--- >>> 8 ^^ 0 :: Double
--- 1.0
--- >>> 8 ^^ 0 :: Pico
--- 1.000000000000
---
-(^^) :: (Multiplicative-Group) a => a -> Integer -> a
-a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
 
 -- | Reciprocal of a multiplicative group element.
 --
@@ -147,6 +132,21 @@ a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
 recip :: (Multiplicative-Group) a => a -> a 
 recip a = one / a
 {-# INLINE recip #-}
+
+-- | Right division by a multiplicative group element.
+--
+(/) :: (Multiplicative-Group) a => a -> a -> a
+a / b = unMultiplicative (Multiplicative a << Multiplicative b)
+{-# INLINE (/) #-}
+
+-- | Left division by a multiplicative group element.
+--
+-- When '*' is commutative we must have:
+--
+-- @ x '\\' y = y '/' x @
+--
+(\\) :: (Multiplicative-Group) a => a -> a -> a
+(\\) x y = recip x * y
 
 instance Applicative Multiplicative where
   pure = Multiplicative

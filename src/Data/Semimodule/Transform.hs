@@ -43,11 +43,8 @@ module Data.Semimodule.Transform (
   , (+++)
   , (&&&)
   , (|||)
-  , ($$$)
   , adivide
-  , adivide'
   , aselect
-  , aselect'
 ) where
 
 import safe Control.Category (Category, (>>>))
@@ -237,21 +234,19 @@ x +++ y = left x >>> arr eswap >>> left y >>> arr eswap
 
 infixr 3 &&&
 
+-- | Create a transform on a tensor product of semimodules.
+--
 (&&&) :: Dim a b1 -> Dim a b2 -> Dim a (b1 , b2)
 x &&& y = dimap fork id $ x *** y
 {-# INLINE (&&&) #-}
 
 infixr 2 |||
 
+-- | Create a transform on a direct sum of semimodules.
+--
 (|||) :: Dim a1 b -> Dim a2 b -> Dim (a1 + a2) b
 x ||| y = dimap id join $ x +++ y
 {-# INLINE (|||) #-}
-
-infixr 0 $$$
-
-($$$) :: Dim a (b -> c) -> Dim a b -> Dim a c
-($$$) f x = dimap fork apply (f *** x)
-{-# INLINE ($$$) #-}
 
 -- |
 --
@@ -261,10 +256,6 @@ adivide :: (a -> (a1 , a2)) -> Dim a1 b -> Dim a2 b -> Dim a b
 adivide f x y = dimap f fst $ x *** y
 {-# INLINE adivide #-}
 
-adivide' :: Dim a1 b -> Dim a2 b -> Dim (a1 , a2) b
-adivide' = adivide id
-{-# INLINE adivide' #-}
-
 -- |
 --
 -- @ 'aselect' 'join' = 'C.id' @ 
@@ -272,8 +263,3 @@ adivide' = adivide id
 aselect :: ((b1 + b2) -> b) -> Dim a b1 -> Dim a b2 -> Dim a b
 aselect f x y = dimap Left f $ x +++ y
 {-# INLINE aselect #-}
-
-aselect' :: Dim a b1 -> Dim a b2 -> Dim a (b1 + b2)
-aselect' = aselect id
-{-# INLINE aselect' #-}
-

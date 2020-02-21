@@ -22,19 +22,19 @@ module Data.Semimodule (
   -- * Left modules
   , type LeftModule
   , LeftSemimodule(..)
-  , lscaleDef
-  , negateDef
-  , lerp
   , (*.)
   , (/.)
   , (\.)
+  , lerp
+  , lscaleDef
+  , negateDef
   -- * Right modules
   , type RightModule
   , RightSemimodule(..)
-  , rscaleDef
   , (.*)
   , (./)
   , (.\)
+  , rscaleDef
   -- * Bimodules
   , type Bimodule
   , Bisemimodule(..)
@@ -49,7 +49,6 @@ import safe Numeric.Natural
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
 
 import safe Prelude (fromInteger)
-
 
 type Free f = (Representable f, Eq (Rep f))
 
@@ -92,15 +91,23 @@ class (Semiring l, (Additive-Monoid) a) => LeftSemimodule l a where
   --
   lscale :: l -> a -> a
 
--- | Default definition of 'lscale' for a free module.
---
-lscaleDef :: Semiring a => Functor f => a -> f a -> f a
-lscaleDef a f = (a *) <$> f
 
--- | Default definition of '<<' for a commutative group.
+infixr 7 *., \., /. 
+
+-- | Left-multiply a module element by a scalar.
 --
-negateDef :: LeftModule Integer a => a -> a
-negateDef a = (-1 :: Integer) *. a
+(*.) :: LeftSemimodule l a => l -> a -> a
+(*.) = lscale
+
+-- | Right-divide a vector by a scalar (on the left).
+--
+(/.) :: Semifield a => Functor f => a -> f a -> f a
+a /. f = (/ a) <$> f
+
+-- | Left-divide a vector by a scalar.
+--
+(\.) :: Semifield a => Functor f => a -> f a -> f a
+a \. f = (a \\)  <$> f
 
 -- | Linearly interpolate between two vectors.
 --
@@ -112,19 +119,16 @@ negateDef a = (-1 :: Integer) *. a
 --
 lerp :: LeftModule r a => r -> a -> a -> a
 lerp r f g = r *. f + (one - r) *. g
-{-# INLINE lerp #-}
 
-infixr 7 *., \., /. 
+-- | Default definition of 'lscale' for a free module.
+--
+lscaleDef :: Semiring a => Functor f => a -> f a -> f a
+lscaleDef a f = (a *) <$> f
 
-(*.) :: LeftSemimodule l a => l -> a -> a
-(*.) = lscale
-
-(/.) :: Semifield a => Functor f => a -> f a -> f a
-a /. f = (a /) <$> f
-
-(\.) :: Semifield a => Functor f => a -> f a -> f a
-a \. f = (a \\) <$> f
-
+-- | Default definition of '<<' for a commutative group.
+--
+negateDef :: LeftModule Integer a => a -> a
+negateDef a = (-1 :: Integer) *. a
 
 -------------------------------------------------------------------------------
 -- Right modules
@@ -144,20 +148,27 @@ class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where
   --
   rscale :: r -> a -> a
 
+infixl 7 .*, .\, ./
+
+-- | Right-multiply a module element by a scalar.
+--
+(.*) :: RightSemimodule r a => a -> r -> a
+(.*) = flip rscale
+
+-- | Right-divide a vector by a scalar.
+--
+(./) :: Semifield a => Functor f => f a -> a -> f a
+(./) = flip (/.)
+
+-- | Left-divide a vector by a scalar (on the right).
+--
+(.\) :: Semifield a => Functor f => f a -> a -> f a
+(.\) = flip (\.)
+
 -- | Default definition of 'rscale' for a free module.
 --
 rscaleDef :: Semiring a => Functor f => a -> f a -> f a
 rscaleDef a f = (* a) <$> f
-
-infixl 7 .*, .\, ./ 
-(.*) :: RightSemimodule r a => a -> r -> a
-(.*) = flip rscale
-
-(./) :: Semifield a => Functor f => f a -> a -> f a
-(./) = flip (/.)
-
-(.\) :: Semifield a => Functor f => f a -> a -> f a
-(.\) = flip (\.)
 
 -------------------------------------------------------------------------------
 -- Bimodules

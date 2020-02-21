@@ -72,11 +72,11 @@ morphism_presemiring f x y z =
 --
 -- /R/ must right-distribute multiplication.
 --
--- When /R/ is a functor and the semiring structure is derived from 'Alternative', 
+-- When /R/ is a functor and the semiring structure is derived from 'Control.Applicative.Alternative', 
 -- this translates to: 
 --
 -- @
--- (a '<|>' b) '*>' c = (a '*>' c) '<|>' (b '*>' c)
+-- (a 'Control.Applicative.<|>' b) '*>' c = (a '*>' c) 'Control.Applicative.<|>' (b '*>' c)
 -- @  
 --
 -- See < https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus >.
@@ -90,7 +90,7 @@ distributive_on (~~) = Prop.distributive_on (~~) (+) (*)
 --
 -- /R/ must right-distribute multiplication over finite (non-empty) sums.
 --
--- For types with exact arithmetic this follows from 'distributive' and the universality of 'fold1'.
+-- For types with exact arithmetic this follows from 'distributive_on' and the universality of folds.
 --
 distributive_finite1_on :: Presemiring r => Foldable1 f => Rel r b -> f r -> r -> b
 distributive_finite1_on (~~) as b = (sum1 as * b) ~~ (sumWith1 (* b) as)
@@ -120,13 +120,13 @@ morphism_semiring f x y z =
 -- A /R/ is semiring then its addititive one must be right-annihilative, i.e.:
 --
 -- @
--- 'zero' '*' a ~~ 'zero'
+-- 'zero' '*' a = 'zero'
 -- @
 --
--- For 'Alternative' instances this property translates to:
+-- For 'Control.Applicative.Alternative' instances this property translates to:
 --
 -- @
--- 'empty' '*>' a ~~ 'empty'
+-- 'Control.Applicative.empty' '*>' a = 'Control.Applicative.empty'
 -- @
 --
 -- This is a required property.
@@ -138,7 +138,7 @@ annihilative_multiplication_on (~~) r = Prop.annihilative_on (~~) (*) zero r
 --
 -- /R/ must right-distribute multiplication between finite sums.
 --
--- For types with exact arithmetic this follows from 'distributive' & 'neutral_multiplication'.
+-- For types with exact arithmetic this follows from 'distributive_on' & 'Data.Semigroup.neutral_multiplication_on'.
 --
 distributive_finite_on :: Semiring r => Foldable f => Rel r b -> f r -> r -> b
 distributive_finite_on (~~) as b = (sum as * b) ~~ (sumWith (* b) as)

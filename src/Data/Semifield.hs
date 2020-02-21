@@ -13,11 +13,12 @@ module Data.Semifield (
   -- * Semifields
     type SemifieldLaw, Semifield
   , anan, pinf
-  , (/), (\\), (^^)
+  , (/), (\\)
   , recip
   -- * Fields
   , type FieldLaw, Field, Real
   , ninf
+  , (^^)
 ) where
 
 import safe Data.Complex
@@ -28,7 +29,7 @@ import safe GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
 import safe Numeric.Natural
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 
-import Prelude (Monoid(..) , Float, Double)
+import Prelude (Monoid(..), Integer, Float, Double, ($))
 
 -------------------------------------------------------------------------------
 -- Semifields
@@ -49,7 +50,6 @@ type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
 -- * < https://en.wikipedia.org/wiki/Division_ring division ring >
 -- 
 class (Semiring a, SemifieldLaw a) => Semifield a
-
 
 -- | The /NaN/ value of the semifield.
 --
@@ -88,6 +88,20 @@ class Field a => Real a
 ninf :: Field a => a
 ninf = negate one / zero
 {-# INLINE ninf #-}
+
+infixr 8 ^^
+
+-- | Integral power of a multiplicative group element.
+--
+-- @ 'one' '==' a '^^' 0 @
+--
+-- >>> 8 ^^ 0 :: Double
+-- 1.0
+-- >>> 8 ^^ 0 :: Pico
+-- 1.000000000000
+--
+(^^) :: (Multiplicative-Group) a => a -> Integer -> a
+a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
 
 -------------------------------------------------------------------------------
 -- Instances

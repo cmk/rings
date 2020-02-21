@@ -16,6 +16,7 @@ module Data.Semiring (
   -- * Presemirings
   , type PresemiringLaw, Presemiring
   , (+), (*)
+  -- * Presemiring folds
   , sum1, sumWith1
   , product1, productWith1
   , xmult1
@@ -24,6 +25,7 @@ module Data.Semiring (
   , type SemiringLaw, Semiring
   , zero, one, two
   , (^)
+  -- * Semiring folds
   , sum, sumWith
   , product, productWith
   , xmult   
@@ -31,7 +33,7 @@ module Data.Semiring (
   -- * Rings
   , type RingLaw, Ring
   , (-)
-  , negate, abs, signum
+  , subtract, negate, abs, signum
   -- * Re-exports
   , mreplicate
   , Additive(..)
@@ -70,6 +72,8 @@ import safe qualified Data.Set as Set
 -- Presemiring
 -------------------------------------------------------------------------------
 
+type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
+
 -- | Right pre-semirings. and (non-unital and unital) right semirings.
 -- 
 -- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
@@ -86,11 +90,12 @@ import safe qualified Data.Set as Set
 --
 -- See the properties module for a detailed specification of the laws.
 --
-type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
-
 class PresemiringLaw a => Presemiring a
 
 
+-------------------------------------------------------------------------------
+-- Presemiring folds
+-------------------------------------------------------------------------------
 
 -- | Evaluate a non-empty presemiring sum.
 --
@@ -206,6 +211,10 @@ infixr 8 ^
 (^) :: Semiring a => a -> Natural -> a
 a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
 
+-------------------------------------------------------------------------------
+-- Semiring folds
+-------------------------------------------------------------------------------
+
 -- | Evaluate a semiring sum.
 -- 
 -- >>> sum [1..5 :: Int]
@@ -309,26 +318,41 @@ class (Semiring a, RingLaw a) => Ring a where
 
 infixl 6 -
 
+-- | Subtract two elements.
+--
+-- @
+-- a '-' b = 'subtract' b a
+-- @
+--
 (-) :: (Additive-Group) a => a -> a -> a
 a - b = unAdditive (Additive a << Additive b)
 {-# INLINE (-) #-}
 
+-- | Reverse the sign of an element.
+--
 negate :: (Additive-Group) a => a -> a
 negate a = zero - a
 {-# INLINE negate #-}
 
 -- | Absolute value of an element.
 --
--- @ 'abs' r = 'mul' r ('signum' r) @
+-- @ 'abs' r = r '*' ('signum' r) @
 --
--- https://en.wikipedia.org/wiki/Linearly_ordered_group
 abs :: (Additive-Group) a => Ord a => a -> a
 abs x = bool (negate x) x $ zero <= x
 {-# INLINE abs #-}
 
--- satisfies trichotomy law:
--- Exactly one of the following is true: a is positive, -a is positive, or a = 0.
--- This property follows from the fact that ordered rings are abelian, linearly ordered groups with respect to addition.
+-- | Extract the sign of an element.
+--
+-- 'signum' satisfies a trichotomy law:
+--
+-- @ 'signum' r = 'negate' r || 'zero' || r @
+-- 
+-- This follows from the fact that ordered rings are abelian, linearly 
+-- ordered groups with respect to addition.
+--
+-- See < https://en.wikipedia.org/wiki/Linearly_ordered_group >.
+--
 signum :: Ring a => Ord a => a -> a
 signum x = bool (negate one) one $ zero <= x
 {-# INLINE signum #-}
