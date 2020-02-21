@@ -55,7 +55,6 @@ import safe Data.List.NonEmpty
 import safe Data.Maybe
 import safe Data.Semigroup.Additive as A
 import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Semigroup.Multiplicative as M
 import safe Data.Word
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Real hiding (Fractional(..), (^^), (^))
@@ -90,6 +89,8 @@ import safe qualified Data.Set as Set
 type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
 
 class PresemiringLaw a => Presemiring a
+
+
 
 -- | Evaluate a non-empty presemiring sum.
 --
@@ -298,13 +299,32 @@ type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
 --
 -- If the ring is < https://en.wikipedia.org/wiki/Ordered_ring ordered > (i.e. has an 'Ord' instance), then the following additional properties must hold:
 --
--- @ a '<=' b '==>' a '+' c '<=' b '+' c @
+-- @ a '<=' b ⇒ a '+' c '<=' b '+' c @
 --
--- @ 'zero' '<=' a '&&' 'zero' '<=' b '==>' 'zero' '<=' a '*' b @
+-- @ 'zero' '<=' a '&&' 'zero' '<=' b ⇒ 'zero' '<=' a '*' b @
 --
 -- See the properties module for a detailed specification of the laws.
 --
 class (Semiring a, RingLaw a) => Ring a where
+
+infixl 6 -
+
+(-) :: (Additive-Group) a => a -> a -> a
+a - b = unAdditive (Additive a << Additive b)
+{-# INLINE (-) #-}
+
+negate :: (Additive-Group) a => a -> a
+negate a = zero - a
+{-# INLINE negate #-}
+
+-- | Absolute value of an element.
+--
+-- @ 'abs' r = 'mul' r ('signum' r) @
+--
+-- https://en.wikipedia.org/wiki/Linearly_ordered_group
+abs :: (Additive-Group) a => Ord a => a -> a
+abs x = bool (negate x) x $ zero <= x
+{-# INLINE abs #-}
 
 -- satisfies trichotomy law:
 -- Exactly one of the following is true: a is positive, -a is positive, or a = 0.

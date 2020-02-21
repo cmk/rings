@@ -23,7 +23,7 @@ module Data.Semifield (
 import safe Data.Complex
 import safe Data.Fixed
 import safe Data.Semiring
-import safe Data.Semigroup.Multiplicative 
+import safe Data.Semigroup.Additive 
 import safe GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
 import safe Numeric.Natural
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
@@ -36,19 +36,20 @@ import Prelude (Monoid(..) , Float, Double)
 
 type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
 
--- | A semifield, near-field, division ring, or associative division algebra.
+-- | A semifield, near-field, or division ring.
 --
 -- Instances needn't have commutative multiplication or additive inverses,
--- however addition and multiplication must be associative as usual.
+-- however addition must be commutative, and addition and multiplication must 
+-- be associative as usual.
 --
 -- See also the wikipedia definitions of:
 --
 -- * < https://en.wikipedia.org/wiki/Semifield semifield >
 -- * < https://en.wikipedia.org/wiki/Near-field_(mathematics) near-field >
 -- * < https://en.wikipedia.org/wiki/Division_ring division ring >
--- * < https://en.wikipedia.org/wiki/Division_algebra division algebra >.
 -- 
 class (Semiring a, SemifieldLaw a) => Semifield a
+
 
 -- | The /NaN/ value of the semifield.
 --

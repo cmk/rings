@@ -27,7 +27,6 @@ module Data.Semigroup.Property (
 
 import safe Test.Logic (Rel)
 import safe Data.Semigroup.Additive
-import safe Data.Semigroup.Multiplicative
 import safe qualified Test.Function  as Prop
 import safe qualified Test.Operation as Prop hiding (distributive_on)
 

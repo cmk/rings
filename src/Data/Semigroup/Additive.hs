@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module Data.Semigroup.Additive where
 
@@ -25,7 +26,6 @@ import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Ord
 import safe Data.Semigroup
-import safe Data.Semigroup.Multiplicative
 import safe Data.Word
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Generics (Generic)
@@ -34,13 +34,18 @@ import safe Numeric.Natural
 
 import safe Prelude
  ( Eq(..), Ord(..), Show, Applicative(..), Functor(..), Monoid(..), Semigroup(..)
- , (.), ($), (<$>), Integer, Float, Double)
+ , (.), ($), (<$>), flip, Integer, Float, Double)
 import safe qualified Prelude as P
 
 import safe qualified Data.Map as Map
 import safe qualified Data.Set as Set
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
+
+infixr 1 -
+
+-- | Hyphenation operator.
+type (g - f) a = f (g a)
 
 
 -- | A commutative 'Semigroup' under '+'.
@@ -58,29 +63,9 @@ infixl 6 +
 a + b = unAdditive (Additive a <> Additive b)
 {-# INLINE (+) #-}
 
-infixl 6 -
-
-(-) :: (Additive-Group) a => a -> a -> a
-a - b = unAdditive (Additive a << Additive b)
-{-# INLINE (-) #-}
-
-negate :: (Additive-Group) a => a -> a
-negate a = zero - a
-{-# INLINE negate #-}
-
--- | Absolute value of an element.
---
--- @ 'abs' r = 'mul' r ('signum' r) @
---
--- https://en.wikipedia.org/wiki/Linearly_ordered_group
-abs :: (Additive-Group) a => Ord a => a -> a
-abs x = bool (negate x) x $ zero <= x
-{-# INLINE abs #-}
-
--------------------------------------------------------------------------------
--- Instances
--------------------------------------------------------------------------------
-
+subtract :: (Additive-Group) a => a -> a -> a
+subtract a b = unAdditive (Additive b << Additive a)
+{-# INLINE subtract #-}
 
 instance Applicative Additive where
   pure = Additive
@@ -98,76 +83,91 @@ instance Representable Additive where
   index (Additive x) () = x
   {-# INLINE index #-}
 
+-------------------------------------------------------------------------------
+-- Multiplicative
+-------------------------------------------------------------------------------
 
 
-{-
-newtype Ordered a = Ordered { unOrdered :: a } deriving (Eq, Generic, Ord, Show, Functor)
+-- | A (potentially non-commutative) 'Semigroup' under '+'.
+newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
-instance Applicative Ordered where
-  pure = Ordered
-  Ordered f <*> Ordered a = Ordered (f a)
+one :: (Multiplicative-Monoid) a => a
+one = unMultiplicative mempty
+{-# INLINE one #-}
 
-instance Distributive Ordered where
+infixl 7 *, \\, /
+
+-- >>> Dual [2] * Dual [3] :: Dual [Int]
+-- Dual {getDual = [5]}
+(*) :: (Multiplicative-Semigroup) a => a -> a -> a
+a * b = unMultiplicative (Multiplicative a <> Multiplicative b)
+{-# INLINE (*) #-}
+
+(/) :: (Multiplicative-Group) a => a -> a -> a
+a / b = unMultiplicative (Multiplicative a << Multiplicative b)
+{-# INLINE (/) #-}
+
+-- | Left division by a multiplicative group element.
+--
+-- When '*' is commutative we must have:
+--
+-- @ x '\\' y = y '/' x @
+--
+(\\) :: (Multiplicative-Group) a => a -> a -> a
+(\\) x y = recip x * y
+
+infixr 8 ^^
+
+-- | Integral power of a multiplicative group element.
+--
+-- @ 'one' '==' a '^^' 0 @
+--
+-- >>> 8 ^^ 0 :: Double
+-- 1.0
+-- >>> 8 ^^ 0 :: Pico
+-- 1.000000000000
+--
+(^^) :: (Multiplicative-Group) a => a -> Integer -> a
+a ^^ n = unMultiplicative $ greplicate n (Multiplicative a)
+
+-- | Reciprocal of a multiplicative group element.
+--
+-- @ 
+-- x '/' y = x '*' 'recip' y
+-- x '\\' y = 'recip' x '*' y
+-- @
+--
+-- >>> recip (3 :+ 4) :: Complex Rational
+-- 3 % 25 :+ (-4) % 25
+-- >>> recip (3 :+ 4) :: Complex Double
+-- 0.12 :+ (-0.16)
+-- >>> recip (3 :+ 4) :: Complex Pico
+-- 0.120000000000 :+ -0.160000000000
+-- 
+recip :: (Multiplicative-Group) a => a -> a 
+recip a = one / a
+{-# INLINE recip #-}
+
+instance Applicative Multiplicative where
+  pure = Multiplicative
+  Multiplicative f <*> Multiplicative a = Multiplicative (f a)
+
+instance Distributive Multiplicative where
   distribute = distributeRep
   {-# INLINE distribute #-}
 
-instance Representable Ordered where
-  type Rep Ordered = ()
-  tabulate f = Ordered (f ())
+instance Representable Multiplicative where
+  type Rep Multiplicative = ()
+  tabulate f = Multiplicative (f ())
   {-# INLINE tabulate #-}
 
-  index (Ordered x) () = x
+  index (Multiplicative x) () = x
   {-# INLINE index #-}
 
-newtype Plus a = Plus { unPlus :: a } deriving (Eq, Generic, Ord, Show, Functor)
-
-instance Applicative Plus where
-  pure = Plus
-  Plus f <*> Plus a = Plus (f a)
-
-instance Distributive Plus where
-  distribute = distributeRep
-  {-# INLINE distribute #-}
-
-instance Representable Plus where
-  type Rep Plus = ()
-  tabulate f = Plus (f ())
-  {-# INLINE tabulate #-}
-
-  index (Plus x) () = x
-  {-# INLINE index #-}
-
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (Plus a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
-
-instance (Additive-Monoid) a => Monoid (Multiplicative (Plus a)) where
-  mempty = Multiplicative $ pure zero
-
--}
-{-
-instance (Multiplicative-Semigroup) (Plus a) => Semigroup (Multiplicative ((Min-Plus) a)) where
-  (<>) = liftA2 (<>)
-
-instance (Multiplicative-Monoid) (Plus a) => Monoid (Multiplicative ((Min-Plus) a)) where
-  mempty = pure mempty
--}
-{-
-instance Semigroup (Min a) => Semigroup ((Min-Plus) a) where
-  (<>) = liftA2 (<>)
-
-instance Monoid (Min a) => Monoid ((Min-Plus) a) where
-  mempty = pure mempty
-
-instance Semigroup (Max a) => Semigroup ((Max-Plus) a) where
-  (<>) = liftA2 (<>)
-
-instance Monoid (Max a) => Monoid ((Max-Plus) a) where
-  mempty = pure mempty
--}
 
 
 ---------------------------------------------------------------------
--- Num-based
+-- Additive semigroup instances
 ---------------------------------------------------------------------
 
 #define deriveAdditiveSemigroup(ty)             \
@@ -338,9 +338,7 @@ deriveAdditiveGroup(CFloat)
 deriveAdditiveGroup(Double)
 deriveAdditiveGroup(CDouble)
 
----------------------------------------------------------------------
--- Complex
----------------------------------------------------------------------
+
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Complex a)) where
   Additive (a :+ b) <> Additive (c :+ d) = Additive $ (a + b) :+ (c + d)
@@ -350,7 +348,7 @@ instance (Additive-Monoid) a => Monoid (Additive (Complex a)) where
   mempty = Additive $ zero :+ zero
 
 instance (Additive-Group) a => Magma (Additive (Complex a)) where
-  Additive (a :+ b) << Additive (c :+ d) = Additive $ (a - c) :+ (b - d)
+  Additive (a :+ b) << Additive (c :+ d) = Additive $ (subtract c a) :+ (subtract d b)
   {-# INLINE (<<) #-}
 
 instance (Additive-Group) a => Quasigroup (Additive (Complex a))
@@ -362,7 +360,7 @@ instance (Additive-Group) a => Group (Additive (Complex a))
 
 -- type Rng a = ((Additive-Group) a, (Multiplicative-Semigroup) a)
 instance ((Additive-Group) a, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) <> Multiplicative (c :+ d) = Multiplicative $ (a * c - b * d) :+ (a * d + b * c)
+  Multiplicative (a :+ b) <> Multiplicative (c :+ d) = Multiplicative $ (subtract (b * d) (a * c)) :+ (a * d + b * c)
   {-# INLINE (<>) #-}
 
 -- type Ring a = ((Additive-Group) a, (Multiplicative-Monoid) a)
@@ -370,7 +368,7 @@ instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Monoid (Multiplicati
   mempty = Multiplicative $ one :+ zero
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Magma (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) << Multiplicative (c :+ d) = Multiplicative $ ((a * c + b * d) / (c * c + d * d)) :+ ((b * c - a * d) / (c * c + d * d))
+  Multiplicative (a :+ b) << Multiplicative (c :+ d) = Multiplicative $ ((a * c + b * d) / (c * c + d * d)) :+ ((subtract (a * d) (b * c)) / (c * c + d * d))
   {-# INLINE (<<) #-}
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Quasigroup (Multiplicative (Complex a))
@@ -380,9 +378,7 @@ instance ((Additive-Group) a, (Multiplicative-Group) a) => Loop (Multiplicative 
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Group (Multiplicative (Complex a))
 
----------------------------------------------------------------------
--- Ratio
----------------------------------------------------------------------
+
 
 instance ((Additive-Semigroup) a, (Multiplicative-Semigroup) a) => Semigroup (Additive (Ratio a)) where
   Additive (a :% b) <> Additive (c :% d) = Additive $ (a * d + c * b) :% (b  *  d)
@@ -392,7 +388,7 @@ instance ((Additive-Monoid) a, (Multiplicative-Monoid) a) => Monoid (Additive (R
   mempty = Additive $ zero :% one
 
 instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Magma (Additive (Ratio a)) where
-  Additive (a :% b) << Additive (c :% d) = Additive $ (a * d - c * b) :% (b  *  d)
+  Additive (a :% b) << Additive (c :% d) = Additive $ (subtract (c * b) (a * d)) :% (b  *  d)
   {-# INLINE (<<) #-}
 
 instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Quasigroup (Additive (Ratio a))
@@ -433,9 +429,7 @@ instance (Additive-Semigroup) a => Semigroup (Multiplicative (NonEmpty a)) where
   (<>) = liftA2 (+) 
   {-# INLINE (<>) #-}
 
----------------------------------------------------------------------
--- Idempotent and selective instances
----------------------------------------------------------------------
+
 
 -- MinPlus Predioid
 -- >>> Min 1  *  Min 2 :: Min Int
@@ -454,39 +448,7 @@ instance (Additive-Monoid) a => Monoid (Additive (Down a)) where
   --Additive (Down a) <> Additive (Down b)
   mempty = pure . pure $ zero
 
-{-
-instance (Additive-Semigroup) a => Semigroup (Additive (Dual a)) where
-  (<>) = liftA2 . liftA2 $ flip (+)
 
-instance (Additive-Monoid) a => Monoid (Additive (Dual a)) where
-  mempty = pure . pure $ zero
-
-instance Semigroup (First a) => Semigroup (Additive (First a)) where
-  (<>) = liftA2 (<>)
-
--- FirstPlus Predioid
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (First a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
-
-instance Semigroup (Last a) => Semigroup (Additive (Last a)) where
-  (<>) = liftA2 (<>)
-
--- LastPlus Predioid
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (Last a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
-
-
-
--- >>> Min 1 + Min 2 :: Min Int
--- Min {getMin = 1}
-instance Semigroup (Min a) => Semigroup (Additive (Min a)) where
-  (<>) = liftA2 (<>)
-
-instance Semigroup (Max a) => Semigroup (Additive (Max a)) where
-  (<>) = liftA2 (<>)
-
-
--}
 
 instance Semigroup (Additive ()) where
   _ <> _ = pure ()
@@ -568,3 +530,268 @@ instance Ord a => Monoid (Additive (Set.Set a)) where
 
 instance (Ord k, (Additive-Semigroup) a) => Monoid (Additive (Map.Map k a)) where
   mempty = Additive Map.empty
+
+
+
+
+---------------------------------------------------------------------
+-- Multiplicative Semigroup Instances
+---------------------------------------------------------------------
+
+#define deriveMultiplicativeSemigroup(ty)       \
+instance Semigroup (Multiplicative ty) where {  \
+   a <> b = (P.*) <$> a <*> b                   \
+;  {-# INLINE (<>) #-}                          \
+}
+
+deriveMultiplicativeSemigroup(Int)
+deriveMultiplicativeSemigroup(Int8)
+deriveMultiplicativeSemigroup(Int16)
+deriveMultiplicativeSemigroup(Int32)
+deriveMultiplicativeSemigroup(Int64)
+deriveMultiplicativeSemigroup(Integer)
+
+deriveMultiplicativeSemigroup(Word)
+deriveMultiplicativeSemigroup(Word8)
+deriveMultiplicativeSemigroup(Word16)
+deriveMultiplicativeSemigroup(Word32)
+deriveMultiplicativeSemigroup(Word64)
+deriveMultiplicativeSemigroup(Natural)
+
+deriveMultiplicativeSemigroup(Uni)
+deriveMultiplicativeSemigroup(Deci)
+deriveMultiplicativeSemigroup(Centi)
+deriveMultiplicativeSemigroup(Milli)
+deriveMultiplicativeSemigroup(Micro)
+deriveMultiplicativeSemigroup(Nano)
+deriveMultiplicativeSemigroup(Pico)
+
+deriveMultiplicativeSemigroup(Float)
+deriveMultiplicativeSemigroup(CFloat)
+deriveMultiplicativeSemigroup(Double)
+deriveMultiplicativeSemigroup(CDouble)
+
+#define deriveMultiplicativeMonoid(ty)          \
+instance Monoid (Multiplicative ty) where {     \
+   mempty = pure 1                              \
+;  {-# INLINE mempty #-}                        \
+}
+
+deriveMultiplicativeMonoid(Int)
+deriveMultiplicativeMonoid(Int8)
+deriveMultiplicativeMonoid(Int16)
+deriveMultiplicativeMonoid(Int32)
+deriveMultiplicativeMonoid(Int64)
+deriveMultiplicativeMonoid(Integer)
+
+deriveMultiplicativeMonoid(Word)
+deriveMultiplicativeMonoid(Word8)
+deriveMultiplicativeMonoid(Word16)
+deriveMultiplicativeMonoid(Word32)
+deriveMultiplicativeMonoid(Word64)
+deriveMultiplicativeMonoid(Natural)
+
+deriveMultiplicativeMonoid(Uni)
+deriveMultiplicativeMonoid(Deci)
+deriveMultiplicativeMonoid(Centi)
+deriveMultiplicativeMonoid(Milli)
+deriveMultiplicativeMonoid(Micro)
+deriveMultiplicativeMonoid(Nano)
+deriveMultiplicativeMonoid(Pico)
+
+deriveMultiplicativeMonoid(Float)
+deriveMultiplicativeMonoid(CFloat)
+deriveMultiplicativeMonoid(Double)
+deriveMultiplicativeMonoid(CDouble)
+
+#define deriveMultiplicativeMagma(ty)                 \
+instance Magma (Multiplicative ty) where {            \
+   a << b = (P./) <$> a <*> b                         \
+;  {-# INLINE (<<) #-}                                \
+}
+
+deriveMultiplicativeMagma(Uni)
+deriveMultiplicativeMagma(Deci)
+deriveMultiplicativeMagma(Centi)
+deriveMultiplicativeMagma(Milli)
+deriveMultiplicativeMagma(Micro)
+deriveMultiplicativeMagma(Nano)
+deriveMultiplicativeMagma(Pico)
+
+deriveMultiplicativeMagma(Float)
+deriveMultiplicativeMagma(CFloat)
+deriveMultiplicativeMagma(Double)
+deriveMultiplicativeMagma(CDouble)
+
+#define deriveMultiplicativeQuasigroup(ty)            \
+instance Quasigroup (Multiplicative ty) where {       \
+}
+
+deriveMultiplicativeQuasigroup(Uni)
+deriveMultiplicativeQuasigroup(Deci)
+deriveMultiplicativeQuasigroup(Centi)
+deriveMultiplicativeQuasigroup(Milli)
+deriveMultiplicativeQuasigroup(Micro)
+deriveMultiplicativeQuasigroup(Nano)
+deriveMultiplicativeQuasigroup(Pico)
+
+deriveMultiplicativeQuasigroup(Float)
+deriveMultiplicativeQuasigroup(CFloat)
+deriveMultiplicativeQuasigroup(Double)
+deriveMultiplicativeQuasigroup(CDouble)
+
+#define deriveMultiplicativeLoop(ty)                  \
+instance Loop (Multiplicative ty) where {             \
+   lreplicate n = mreplicate n . inv                  \
+}
+
+deriveMultiplicativeLoop(Uni)
+deriveMultiplicativeLoop(Deci)
+deriveMultiplicativeLoop(Centi)
+deriveMultiplicativeLoop(Milli)
+deriveMultiplicativeLoop(Micro)
+deriveMultiplicativeLoop(Nano)
+deriveMultiplicativeLoop(Pico)
+
+deriveMultiplicativeLoop(Float)
+deriveMultiplicativeLoop(CFloat)
+deriveMultiplicativeLoop(Double)
+deriveMultiplicativeLoop(CDouble)
+
+#define deriveMultiplicativeGroup(ty)           \
+instance Group (Multiplicative ty) where {      \
+   greplicate n (Multiplicative a) = Multiplicative $ a P.^^ P.fromInteger n \
+;  {-# INLINE greplicate #-}                    \
+}
+
+deriveMultiplicativeGroup(Uni)
+deriveMultiplicativeGroup(Deci)
+deriveMultiplicativeGroup(Centi)
+deriveMultiplicativeGroup(Milli)
+deriveMultiplicativeGroup(Micro)
+deriveMultiplicativeGroup(Nano)
+deriveMultiplicativeGroup(Pico)
+
+deriveMultiplicativeGroup(Float)
+deriveMultiplicativeGroup(CFloat)
+deriveMultiplicativeGroup(Double)
+deriveMultiplicativeGroup(CDouble)
+
+
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Ratio a)) where
+  Multiplicative (a :% b) <> Multiplicative (c :% d) = Multiplicative $ (a * c) :% (b * d)
+  {-# INLINE (<>) #-}
+
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Ratio a)) where
+  mempty = Multiplicative $ unMultiplicative mempty :% unMultiplicative mempty
+
+instance (Multiplicative-Monoid) a => Magma (Multiplicative (Ratio a)) where
+  Multiplicative (a :% b) << Multiplicative (c :% d) = Multiplicative $ (a * d) :% (b * c)
+  {-# INLINE (<<) #-}
+
+instance (Multiplicative-Monoid) a => Quasigroup (Multiplicative (Ratio a))
+
+instance (Multiplicative-Monoid) a => Loop (Multiplicative (Ratio a)) where
+  lreplicate n = mreplicate n . inv
+
+instance (Multiplicative-Monoid) a => Group (Multiplicative (Ratio a))
+
+
+---------------------------------------------------------------------
+-- Misc
+---------------------------------------------------------------------
+
+--instance ((Multiplicative-Semigroup) a, Maximal a) => Monoid (Multiplicative a) where
+--  mempty = Multiplicative maximal
+
+instance Semigroup (Multiplicative ()) where
+  _ <> _ = pure ()
+  {-# INLINE (<>) #-}
+
+instance Monoid (Multiplicative ()) where
+  mempty = pure ()
+  {-# INLINE mempty #-}
+
+instance  Magma (Multiplicative ()) where
+  _ << _ = pure ()
+  {-# INLINE (<<) #-}
+
+instance Quasigroup (Multiplicative ())
+
+instance Loop (Multiplicative ())
+
+instance Group (Multiplicative ())
+
+instance Semigroup (Multiplicative Bool) where
+  a <> b = (P.&&) <$> a <*> b
+  {-# INLINE (<>) #-}
+
+instance Monoid (Multiplicative Bool) where
+  mempty = pure True
+  {-# INLINE mempty #-}
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Dual a)) where
+  (<>) = liftA2 . liftA2 $ flip (*)
+
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Dual a)) where
+  mempty = pure . pure $ one
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Down a)) where
+  --Additive (Down a) <> Additive (Down b)
+  (<>) = liftA2 . liftA2 $ (*) 
+
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Down a)) where
+  mempty = pure . pure $ one
+
+-- MaxTimes Predioid
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Max a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (*) a b
+
+-- MaxTimes Dioid
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Max a)) where
+  mempty = Multiplicative $ pure one
+
+instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (a, b)) where
+  Multiplicative (x1, y1) <> Multiplicative (x2, y2) = Multiplicative (x1 * x2, y1 * y2)
+
+instance (Multiplicative-Semigroup) b => Semigroup (Multiplicative (a -> b)) where
+  (<>) = liftA2 . liftA2 $ (*)
+  {-# INLINE (<>) #-}
+
+instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
+  mempty = pure . pure $ one
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Maybe a)) where
+  Multiplicative Nothing  <> _             = Multiplicative Nothing
+  Multiplicative (Just{}) <> Multiplicative Nothing   = Multiplicative Nothing
+  Multiplicative (Just x) <> Multiplicative (Just y) = Multiplicative . Just $ x * y
+  -- Mul a <> Mul b = Mul $ liftA2 (*) a b
+
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Maybe a)) where
+  mempty = Multiplicative $ pure one
+
+instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (Either a b)) where
+  Multiplicative (Right x) <> Multiplicative (Right y) = Multiplicative . Right $ x * y
+  Multiplicative (Right{}) <> y     = y
+  Multiplicative (Left x) <> Multiplicative (Left y)  = Multiplicative . Left $ x * y
+  Multiplicative (x@Left{}) <> _     = Multiplicative x
+
+instance Ord a => Semigroup (Multiplicative (Set.Set a)) where
+  (<>) = liftA2 Set.intersection 
+
+instance (Ord k, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Map.Map k a)) where
+  (<>) = liftA2 (Map.intersectionWith (*))
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (IntMap.IntMap a)) where
+  (<>) = liftA2 (IntMap.intersectionWith (*))
+
+instance Semigroup (Multiplicative IntSet.IntSet) where
+  (<>) = liftA2 IntSet.intersection 
+
+instance (Ord k, (Multiplicative-Monoid) k, (Multiplicative-Monoid) a) => Monoid (Multiplicative (Map.Map k a)) where
+  mempty = Multiplicative $ Map.singleton one one
+
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (IntMap.IntMap a)) where
+  mempty = Multiplicative $ IntMap.singleton 0 one

@@ -240,14 +240,18 @@ elt :: Basis b f => b -> f a -> a
 elt = flip index
 {-# INLINE elt #-}
 
-lensRep :: Basis b f => b -> forall g. Functor g => (a -> g a) -> f a -> (g**f) a 
-lensRep i f s = Compose $ setter s <$> f (getter s)
+-- | Create a lens from a representable functor.
+--
+lensRep :: Basis b f => b -> forall g. Functor g => (a -> g a) -> f a -> g (f a) 
+lensRep i f s = setter s <$> f (getter s)
   where getter = flip index i
         setter s' b = tabulate $ \j -> bool (index s' j) b (i == j)
 {-# INLINE lensRep #-}
 
-grateRep :: Basis b f => forall g. Functor g => (b -> g a1 -> a2) -> (g**f) a1 -> f a2
-grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) $ getCompose s)
+-- | Create an indexed grate from a representable functor.
+--
+grateRep :: Basis b f => forall g. Functor g => (b -> g a1 -> a2) -> g (f a1) -> f a2
+grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
 {-# INLINE grateRep #-}
 
 -------------------------------------------------------------------------------
