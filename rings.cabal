@@ -1,7 +1,7 @@
 name:                rings
 version:             0.1.1.1
 synopsis:            Ring-like objects.
-description:         Semirings, rings, division rings, and modules.
+description:         Semirings, rings, division rings, algebras, and modules.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -14,19 +14,15 @@ tested-with:         GHC == 8.6.3
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
-flag development
-    description:
-        Enable `-Werror`
-    default: False
-    manual: True
 
 library
   hs-source-dirs:   src
   default-language: Haskell2010
-  ghc-options:      -Wall
+  ghc-options:     -Wall
 
   exposed-modules:
-      Data.Semiring
+      Data.Algebra
+    , Data.Semiring
     , Data.Semiring.Property
     , Data.Semifield
     , Data.Semigroup.Additive
@@ -53,5 +49,4 @@ library
     , containers     >= 0.4.0 && < 1.0
     , distributive   >= 0.3   && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
-    , profunctors    >= 5.0   && < 6.0
     , magmas         >= 0.0.1 && < 1.0

@@ -21,13 +21,17 @@ module Data.Semimodule.Free (
   , type Basis3
   -- * Vector arithmetic
   , (.*)
+  , (!*)
   , (.#)
+  , (!#)
   , (*.)
+  , (*!)
   , (#.)
-  , dot
+  , (#!)
+  , dual
+  , inner
   , lerp
   , quadrance
-  , qd
   , cross
   , triple
   -- * Vector accessors and constructors
@@ -38,6 +42,7 @@ module Data.Semimodule.Free (
   , grateRep
   -- * Matrix arithmetic
   , (.#.)
+  , (!#!)
   , trace
   , transpose
   , inv1
@@ -58,9 +63,10 @@ module Data.Semimodule.Free (
   , col
   , cols
   , diag
+  , codiag
   , outer
+  , scalar
   , identity
-  , diagonal
   -- * Vector types
   , V1(..)
   , unV1
@@ -107,7 +113,7 @@ import safe Data.Bool
 import safe Data.Distributive
 import safe Data.Functor.Classes
 import safe Data.Functor.Compose
-import safe Data.Functor.Rep
+import safe Data.Functor.Rep hiding (Co)
 import safe Data.Semifield
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
@@ -117,67 +123,12 @@ import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Prelude (fromInteger)
 
+
 -------------------------------------------------------------------------------
 -- Vector Arithmetic
 -------------------------------------------------------------------------------
 
-
-infix 7 #., .#
-
--- | Multiply a matrix on the left by a row vector.
---
--- >>> V2 1 2 #. m23 3 4 5 6 7 8
--- V3 15 18 21
---
--- >>> (V2 1 2 #. m23 3 4 5 6 7 8) #. m32 1 0 0 0 0 0
--- V2 15 0
---
-(#.) :: Semiring a => Foldable f => Basis2 b c f g => f a -> (f**g) a -> g a
-x #. y = tabulate (\j -> x `dot` col j y)
-{-# INLINE (#.) #-}
-
--- | Multiply a matrix on the right by a column vector.
---
--- @ ('.#') = 'app' . 'tran' @
---
--- >>> app (tran $ m23 1 2 3 4 5 6) (V3 7 8 9) :: V2 Int
--- V2 50 122
--- >>> m23 1 2 3 4 5 6 .# V3 7 8 9 :: V2 Int
--- V2 50 122
--- >>> m22 1 0 0 0 .# (m23 1 2 3 4 5 6 .# V3 7 8 9)
--- V2 50 0
---
-(.#) :: Semiring a => Foldable g => Basis2 b c f g => (f**g) a -> g a -> f a
-x .# y = tabulate (\i -> row i x `dot` y)
-{-# INLINE (.#) #-}
-
-
-infix 6 `dot`
-
--- | Dot product.
---
--- This is a variant of 'Data.Semiring.xmult' restricted to free functors.
---
--- >>> V3 1 2 3 `dot` V3 1 2 3
--- 14
--- 
-dot :: Semiring a => Foldable f => Basis b f => f a -> f a -> a
-dot x y = sum $ liftR2 (*) x y
-{-# INLINE dot #-}
-
--- | Squared /l2/ norm of a vector.
---
-quadrance :: Semiring a => Foldable f => Basis b f => f a -> a
-quadrance x = x `dot` x
-{-# INLINE quadrance #-}
-
--- | Squared /l2/ norm of the difference between two vectors.
---
-qd :: FreeModule a f => Foldable f => f a -> f a -> a
-qd x y = quadrance $ x - y
-{-# INLINE qd #-}
-
--- | Cross product
+-- | Cross product.
 --
 -- @ 
 -- a `'cross'` a = 'zero'
@@ -206,7 +157,7 @@ cross (V3 a b c) (V3 d e f) = V3 (b*f-c*e) (c*d-a*f) (a*e-b*d)
 -- 1.0
 --
 triple :: Ring a => V3 a -> V3 a -> V3 a -> a
-triple x y z = dot x (cross y z)
+triple x y z = inner x (cross y z)
 {-# INLINE triple #-}
 
 -------------------------------------------------------------------------------
@@ -257,29 +208,6 @@ grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
 -------------------------------------------------------------------------------
 -- Matrix Arithmetic
 -------------------------------------------------------------------------------
-
-infixr 7 .#.
-
--- | Multiply two matrices.
---
--- >>> m22 1 2 3 4 .#. m22 1 2 3 4 :: M22 Int
--- Compose (V2 (V2 7 10) (V2 15 22))
--- 
--- >>> m23 1 2 3 4 5 6 .#. m32 1 2 3 4 4 5 :: M22 Int
--- Compose (V2 (V2 19 25) (V2 43 58))
---
-(.#.) :: Semiring a => Foldable g => Basis3 b c d f g h => (f**g) a -> (g**h) a -> (f**h) a
-(.#.) x y = tabulate (\(i,j) -> row i x `dot` col j y)
-{-# INLINE (.#.) #-}
-
--- | Compute the trace of a matrix.
---
--- >>> trace $ m22 1.0 2.0 3.0 4.0
--- 5.0
---
-trace :: Semiring a => Foldable f => Basis b f => (f**f) a -> a
-trace = sum . diagonal
-{-# INLINE trace #-}
 
 -- | 1x1 matrix inverse over a field.
 --
@@ -535,13 +463,6 @@ inv4 x = lscaleDef (recip det) $ x' where
 -- Matrix constructors and accessors
 -------------------------------------------------------------------------------
 
--- | Lift a matrix into a linear transformation
---
--- @ ('.#') = 'app' . 'tran' @
---
-tran :: Semiring a => Basis2 b c f g => Foldable g => (f**g) a -> Tran a b c
-tran m = Tran $ \f -> index $ m .# (tabulate f)
-
 -- | Retrieve an element of a matrix.
 --
 -- >>> elt2 E21 E21 $ m22 1 2 3 4
@@ -550,59 +471,6 @@ tran m = Tran $ \f -> index $ m .# (tabulate f)
 elt2 :: Basis2 b c f g => b -> c -> (f**g) a -> a
 elt2 i j = elt i . col j
 {-# INLINE elt2 #-}
-
--- | Retrieve a row of a matrix.
---
--- >>> row E22 $ m23 1 2 3 4 5 6
--- V3 4 5 6
---
-row :: Basis b f => b -> (f**g) a -> g a
-row i = elt i . getCompose
-{-# INLINE row #-}
-
--- | Retrieve a column of a matrix.
---
--- >>> elt E22 . col E31 $ m23 1 2 3 4 5 6
--- 4
---
-col :: Basis2 b c f g => c -> (f**g) a -> f a
-col j = elt j . distribute . getCompose
-{-# INLINE col #-}
-
--- | Obtain a diagonal matrix from a vector.
---
--- >>> diag $ V2 2 3
--- Compose (V2 (V2 2 0) (V2 0 3))
---
-diag :: Semiring a => Basis b f => f a -> (f**f) a
-diag f = Compose $ flip imapRep f $ \i x -> flip imapRep f (\j _ -> bool zero x $ i == j)
-{-# INLINE diag #-}
-
--- | Outer product of two vectors.
---
--- >>> V2 1 1 `outer` V2 1 1
--- Compose (V2 (V2 1 1) (V2 1 1))
---
-outer :: Semiring a => Basis2 b c f g => f a -> g a -> (f**g) a
-outer x y = Compose $ fmap (\z-> fmap (*z) y) x
-
--- | Identity matrix.
---
--- >>> identity :: M33 Int
--- Compose (V3 (V3 1 0 0) (V3 0 1 0) (V3 0 0 1))
---
-identity :: Semiring a => Basis b f => (f**f) a
-identity = diag $ pureRep one
-{-# INLINE identity #-}
-
--- | Obtain the diagonal of a matrix as a vector.
---
--- >>> diagonal $ m22 1.0 2.0 3.0 4.0
--- V2 1.0 4.0
---
-diagonal :: Representable f => (f**f) a -> f a
-diagonal = flip bindRep id . getCompose
-{-# INLINE diagonal #-}
 
 -- | Construct a 1x1 matrix.
 --
@@ -843,10 +711,10 @@ instance Distributive V1 where
 
 instance Representable V1 where
   type Rep V1 = E1
-  tabulate f = V1 (f E1)
+  tabulate f = V1 (f E11)
   {-# INLINE tabulate #-}
 
-  index (V1 x) E1 = x
+  index (V1 x) E11 = x
   {-# INLINE index #-}
 
 -------------------------------------------------------------------------------

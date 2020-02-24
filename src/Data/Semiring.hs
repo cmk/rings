@@ -99,7 +99,7 @@ class PresemiringLaw a => Presemiring a
 
 -- | Evaluate a non-empty presemiring sum.
 --
-sum1 :: Presemiring a => Foldable1 f => f a -> a
+sum1 :: (Additive-Semigroup) a => Foldable1 f => f a -> a
 sum1 = sumWith1 id
 
 -- | Evaluate a non-empty presemiring sum using a given presemiring.
@@ -114,13 +114,13 @@ sum1 = sumWith1 id
 -- >>> sumWith1 Just $ 1 :| [2..5 :: Int]
 -- Just 15
 --
-sumWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+sumWith1 :: (Additive-Semigroup) a => Foldable1 t => (b -> a) -> t b -> a
 sumWith1 f = unAdditive . foldMap1 (Additive . f)
 {-# INLINE sumWith1 #-}
 
 -- | Evaluate a non-empty presemiring product.
 --
-product1 :: Presemiring a => Foldable1 f => f a -> a
+product1 :: (Multiplicative-Semigroup) a => Foldable1 f => f a -> a
 product1 = productWith1 id
 
 -- | Evaluate a non-empty presemiring product using a given presemiring.
@@ -134,7 +134,7 @@ product1 = productWith1 id
 -- >>> productWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
 -- First {getFirst = Just 11}
 --
-productWith1 :: Foldable1 t => Presemiring a => (b -> a) -> t b -> a
+productWith1 :: (Multiplicative-Semigroup) a => Foldable1 t => (b -> a) -> t b -> a
 productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
 {-# INLINE productWith1 #-}
 
@@ -143,7 +143,7 @@ productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
 -- >>> xmult1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
 -- Right 4
 --
-xmult1 :: Foldable1 f => Apply f => Presemiring a => f a -> f a -> a
+xmult1 :: Presemiring a => Foldable1 f => Apply f => f a -> f a -> a
 xmult1 a b = sum1 $ liftF2 (*) a b
 {-# INLINE xmult1 #-}
 
@@ -220,12 +220,12 @@ a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
 -- >>> sum [1..5 :: Int]
 -- 15
 --
-sum :: (Additive-Monoid) a => Presemiring a => Foldable f => f a -> a
+sum :: (Additive-Monoid) a => Foldable f => f a -> a
 sum = sumWith id
 
 -- | Evaluate a semiring sum using a given semiring.
 -- 
-sumWith :: (Additive-Monoid) a => Presemiring a => Foldable t => (b -> a) -> t b -> a
+sumWith :: (Additive-Monoid) a => Foldable f => (b -> a) -> f b -> a
 sumWith f = foldr' ((+) . f) zero
 {-# INLINE sumWith #-}
 
@@ -234,7 +234,7 @@ sumWith f = foldr' ((+) . f) zero
 -- >>> product [1..5 :: Int]
 -- 120
 --
-product :: (Multiplicative-Monoid) a => Presemiring a => Foldable f => f a -> a
+product :: (Multiplicative-Monoid) a => Foldable f => f a -> a
 product = productWith id
 
 -- | Evaluate a semiring product using a given semiring.
@@ -246,7 +246,7 @@ product = productWith id
 -- >>> productWith Just [1..5 :: Int]
 -- Just 120
 --
-productWith :: (Multiplicative-Monoid) a => Presemiring a => Foldable t => (b -> a) -> t b -> a
+productWith :: (Multiplicative-Monoid) a => Foldable f => (b -> a) -> f b -> a
 productWith f = foldr' ((*) . f) one
 {-# INLINE productWith #-}
 
@@ -259,7 +259,7 @@ productWith f = foldr' ((*) . f) one
 -- >>> xmult [1,2,3 :: Int] []
 -- 0
 --
-xmult :: Foldable f => Applicative f => Presemiring a => (Additive-Monoid) a => f a -> f a -> a
+xmult :: Semiring a => Foldable f => Applicative f => f a -> f a -> a
 xmult a b = sum $ liftA2 (*) a b
 {-# INLINE xmult #-}
 

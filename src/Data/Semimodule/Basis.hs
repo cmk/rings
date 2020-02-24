@@ -7,26 +7,42 @@ module Data.Semimodule.Basis (
   , E2(..), e2, fillE2
   , E3(..), e3, fillE3
   , E4(..), e4, fillE4
-  , E6(..)
 ) where
 
+import safe Data.Algebra
 import safe Data.Functor.Rep
 import safe Data.Semimodule
+import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
-
-
+import safe Control.Monad as M
 
 -------------------------------------------------------------------------------
 -- Standard basis on one real dimension
 -------------------------------------------------------------------------------
 
-data E1 = E1 deriving (Eq, Ord, Show)
+data E1 = E11 deriving (Eq, Ord, Show)
 
 e1 :: a -> E1 -> a
 e1 = const
 
 fillE1 :: Basis E1 f => a -> f a
 fillE1 x = tabulate $ e1 x
+
+-- The squaring function /N(x) = x^2/ on the real number field forms the primordial composition algebra.
+--
+instance Semiring r => Algebra r E1 where
+  append = M.join
+
+instance Semiring r => Unital r E1 where
+  aempty = const
+
+instance Semiring r => Coalgebra r E1 where
+  coappend f E11 E11 = f E11
+
+instance Semiring r => Counital r E1 where
+  coempty f = f E11
+
+instance Semiring r => Bialgebra r E1
 
 -------------------------------------------------------------------------------
 -- Standard basis on two real dimensions
@@ -41,6 +57,22 @@ e2 _ y E22 = y
 fillE2 :: Basis E2 f => a -> a -> f a
 fillE2 x y = tabulate $ e2 x y
 
+instance Semiring r => Algebra r E2 where
+  append = M.join
+
+instance Semiring r => Unital r E2 where
+  aempty = const
+
+instance Semiring r => Coalgebra r E2 where
+  coappend f E21 E21 = f E21
+  coappend f E22 E22 = f E22
+  coappend _ _ _ = zero
+
+instance Semiring r => Counital r E2 where
+  coempty f = f E21 + f E22
+
+instance Semiring r => Bialgebra r E2
+
 -------------------------------------------------------------------------------
 -- Standard basis on three real dimensions 
 -------------------------------------------------------------------------------
@@ -54,6 +86,23 @@ e3 _ _ z E33 = z
 
 fillE3 :: Basis E3 f => a -> a -> a -> f a
 fillE3 x y z = tabulate $ e3 x y z
+
+instance Semiring r => Algebra r E3 where
+  append = M.join
+
+instance Semiring r => Unital r E3 where
+  aempty = const
+
+instance Semiring r => Coalgebra r E3 where
+  coappend f E31 E31 = f E31
+  coappend f E32 E32 = f E32
+  coappend f E33 E33 = f E33
+  coappend _ _ _ = zero
+
+instance Semiring r => Counital r E3 where
+  coempty f = f E31 + f E32 + f E33
+
+instance Semiring r => Bialgebra r E3
 
 -------------------------------------------------------------------------------
 -- Standard basis on four real dimensions
@@ -70,6 +119,25 @@ e4 _ _ _ w E44 = w
 fillE4 :: Basis E4 f => a -> a -> a -> a -> f a
 fillE4 x y z w = tabulate $ e4 x y z w
 
+instance Semiring r => Algebra r E4 where
+  append = M.join
+
+instance Semiring r => Unital r E4 where
+  aempty = const
+
+instance Semiring r => Coalgebra r E4 where
+  coappend f E41 E41 = f E41
+  coappend f E42 E42 = f E42
+  coappend f E43 E43 = f E43
+  coappend f E44 E44 = f E44
+  coappend _ _ _ = zero
+
+instance Semiring r => Counital r E4 where
+  coempty f = f E41 + f E42 + f E43 + f E44
+
+instance Semiring r => Bialgebra r E4
+
+{-
 -------------------------------------------------------------------------------
 -- Standard basis on five real dimensions
 -------------------------------------------------------------------------------
@@ -81,3 +149,4 @@ data E5 = E51 | E52 | E53 | E54 | E55 deriving (Eq, Ord, Show)
 -------------------------------------------------------------------------------
 
 data E6 = E61 | E62 | E63 | E64 | E65 | E66 deriving (Eq, Ord, Show)
+-}

@@ -41,24 +41,27 @@ module Data.Semimodule (
 ) where
 
 import safe Data.Complex
-import safe Data.Semifield
+import safe Data.Fixed
 import safe Data.Functor.Rep
+import safe Data.Int
+import safe Data.Semifield
 import safe Data.Semiring
+import safe Data.Word
+import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Real hiding (Fractional(..))
 import safe Numeric.Natural
+import safe Prelude (fromInteger)
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
 
-import safe Prelude (fromInteger)
+type Free f = (Representable f)
 
-type Free f = (Representable f, Eq (Rep f))
-
-type Basis b f = (Free f, Rep f ~ b)
+type Basis b f = (Free f, Rep f ~ b, Eq b)
 
 type Basis2 b c f g = (Basis b f, Basis c g)
 
 type Basis3 b c d f g h = (Basis b f, Basis c g, Basis d h)
 
-type FreeModule a f = (Free f, Bimodule a a (f a))
+type FreeModule a f = (Free f, (Additive-Group) (f a), Bimodule a a (f a))
 
 type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
 
@@ -184,6 +187,8 @@ type Bimodule l r a = (LeftModule l a, RightModule r a, Bisemimodule l r a)
 --
 class (LeftSemimodule l a, RightSemimodule r a) => Bisemimodule l r a where
 
+  -- | Left and right-multiply by two scalars.
+  --
   discale :: l -> r -> a -> a
   discale l r = lscale l . rscale r
 
@@ -221,7 +226,6 @@ instance Ring a => LeftSemimodule a (Complex a) where
 instance Ring a => LeftSemimodule (Complex a) (Complex a) where 
    lscale = (*)  
 
-{-
 #define deriveLeftSemimodule(ty)                      \
 instance LeftSemimodule ty ty where {                 \
    lscale = (*)                                       \
@@ -250,7 +254,12 @@ deriveLeftSemimodule(Float)
 deriveLeftSemimodule(Double)
 deriveLeftSemimodule(CFloat)
 deriveLeftSemimodule(CDouble)
--}
+deriveLeftSemimodule((Ratio Integer))
+deriveLeftSemimodule((Ratio Natural))
+
+-------------------------------------------------------------------------------
+-- Instances
+-------------------------------------------------------------------------------
 
 instance Semiring r => RightSemimodule r () where 
   rscale _ = const ()
@@ -282,6 +291,37 @@ instance Ring a => RightSemimodule a (Complex a) where
 instance Ring a => RightSemimodule (Complex a) (Complex a) where 
   rscale = (*) 
 
+#define deriveRightSemimodule(ty)                     \
+instance RightSemimodule ty ty where {                \
+   rscale = (*)                                       \
+;  {-# INLINE rscale #-}                              \
+}
+
+deriveRightSemimodule(Bool)
+deriveRightSemimodule(Int)
+deriveRightSemimodule(Int8)
+deriveRightSemimodule(Int16)
+deriveRightSemimodule(Int32)
+deriveRightSemimodule(Int64)
+deriveRightSemimodule(Word)
+deriveRightSemimodule(Word8)
+deriveRightSemimodule(Word16)
+deriveRightSemimodule(Word32)
+deriveRightSemimodule(Word64)
+deriveRightSemimodule(Uni)
+deriveRightSemimodule(Deci)
+deriveRightSemimodule(Centi)
+deriveRightSemimodule(Milli)
+deriveRightSemimodule(Micro)
+deriveRightSemimodule(Nano)
+deriveRightSemimodule(Pico)
+deriveRightSemimodule(Float)
+deriveRightSemimodule(Double)
+deriveRightSemimodule(CFloat)
+deriveRightSemimodule(CDouble)
+deriveRightSemimodule((Ratio Integer))
+deriveRightSemimodule((Ratio Natural))
+
 instance Semiring r => Bisemimodule r r ()
 
 instance Bisemimodule r r a => Bisemimodule r r (e -> a)
@@ -296,3 +336,31 @@ instance Ring a => Bisemimodule a a (Complex a)
 
 instance Ring a => Bisemimodule (Complex a) (Complex a) (Complex a)
 
+
+#define deriveBisemimodule(ty)                     \
+instance Bisemimodule ty ty ty                        \
+
+deriveBisemimodule(Bool)
+deriveBisemimodule(Int)
+deriveBisemimodule(Int8)
+deriveBisemimodule(Int16)
+deriveBisemimodule(Int32)
+deriveBisemimodule(Int64)
+deriveBisemimodule(Word)
+deriveBisemimodule(Word8)
+deriveBisemimodule(Word16)
+deriveBisemimodule(Word32)
+deriveBisemimodule(Word64)
+deriveBisemimodule(Uni)
+deriveBisemimodule(Deci)
+deriveBisemimodule(Centi)
+deriveBisemimodule(Milli)
+deriveBisemimodule(Micro)
+deriveBisemimodule(Nano)
+deriveBisemimodule(Pico)
+deriveBisemimodule(Float)
+deriveBisemimodule(Double)
+deriveBisemimodule(CFloat)
+deriveBisemimodule(CDouble)
+deriveBisemimodule((Ratio Integer))
+deriveBisemimodule((Ratio Natural))

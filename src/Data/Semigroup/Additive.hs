@@ -54,7 +54,7 @@ type (g - f) a = f (g a)
 -- | A commutative 'Semigroup' under '+'.
 newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
--- | The additive unit of a semiring.
+-- | Additive unit of a semiring.
 --
 zero :: (Additive-Monoid) a => a
 zero = unAdditive mempty
@@ -62,8 +62,11 @@ zero = unAdditive mempty
 
 infixl 6 +
 
+-- | Additive semigroup operation on a semiring.
+--
 -- >>> Dual [2] + Dual [3] :: Dual [Int]
 -- Dual {getDual = [3,2]}
+--
 (+) :: (Additive-Semigroup) a => a -> a -> a
 a + b = unAdditive (Additive a <> Additive b)
 {-# INLINE (+) #-}
@@ -98,7 +101,7 @@ instance Representable Additive where
 -- | A (potentially non-commutative) 'Semigroup' under '*'.
 newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
--- | The multiplicative unit of a semiring.
+-- | Multiplicative unit of a semiring.
 --
 one :: (Multiplicative-Monoid) a => a
 one = unMultiplicative mempty
@@ -106,7 +109,7 @@ one = unMultiplicative mempty
 
 infixl 7 *, \\, /
 
--- | Multiply two elements.
+-- | Multiplicative semigroup operation on a semiring.
 --
 -- >>> Dual [2] * Dual [3] :: Dual [Int]
 -- Dual {getDual = [5]}
@@ -401,6 +404,13 @@ instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Group (Additive (Rat
 instance (Additive-Semigroup) b => Semigroup (Additive (a -> b)) where
   (<>) = liftA2 . liftA2 $ (+)
   {-# INLINE (<>) #-}
+
+instance (Additive-Group) b => Magma (Additive (a -> b)) where
+  (<<) = liftA2 . liftA2 $ flip subtract 
+
+instance (Additive-Group) b => Quasigroup (Additive (a -> b)) where
+instance (Additive-Group) b => Loop (Additive (a -> b)) where
+instance (Additive-Group) b => Group (Additive (a -> b)) where
 
 instance (Additive-Monoid) b => Monoid (Additive (a -> b)) where
   mempty = pure . pure $ zero
