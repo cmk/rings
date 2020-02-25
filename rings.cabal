@@ -27,10 +27,11 @@ library
     , Data.Semigroup.Additive
     , Data.Semigroup.Property
     , Data.Semimodule
-    , Data.Semimodule.Free
+    , Data.Semimodule.Operator
     , Data.Semimodule.Algebra
     , Data.Semimodule.Basis
-    , Data.Semimodule.Transform
+    , Data.Semimodule.Dual
+    , Data.Semimodule.Free
 
   default-extensions:
       ScopedTypeVariables

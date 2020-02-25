@@ -78,7 +78,6 @@ import safe Data.Semifield
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
 import safe Data.Semimodule.Basis
-import safe Data.Semimodule.Transform
 import safe Data.Semimodule.Operator
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)

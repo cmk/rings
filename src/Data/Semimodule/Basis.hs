@@ -31,16 +31,16 @@ fillE1 x = tabulate $ e1 x
 -- The squaring function /N(x) = x^2/ on the real number field forms the primordial composition algebra.
 --
 instance Semiring r => Algebra r E1 where
-  append = M.join
+  joined = M.join
 
 instance Semiring r => Unital r E1 where
-  aempty = const
+  unital = const
 
 instance Semiring r => Coalgebra r E1 where
-  coappend f E11 E11 = f E11
+  cojoined f E11 E11 = f E11
 
 instance Semiring r => Counital r E1 where
-  coempty f = f E11
+  coinitial = Tran $ \f _ -> f E11
 
 instance Semiring r => Bialgebra r E1
 
@@ -58,18 +58,18 @@ fillE2 :: Basis E2 f => a -> a -> f a
 fillE2 x y = tabulate $ e2 x y
 
 instance Semiring r => Algebra r E2 where
-  append = M.join
+  joined = M.join
 
 instance Semiring r => Unital r E2 where
-  aempty = const
+  unital = const
 
 instance Semiring r => Coalgebra r E2 where
-  coappend f E21 E21 = f E21
-  coappend f E22 E22 = f E22
-  coappend _ _ _ = zero
+  cojoined f E21 E21 = f E21
+  cojoined f E22 E22 = f E22
+  cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E2 where
-  coempty f = f E21 + f E22
+  coinitial = Tran $ \f _ -> f E21 + f E22
 
 instance Semiring r => Bialgebra r E2
 
@@ -88,19 +88,19 @@ fillE3 :: Basis E3 f => a -> a -> a -> f a
 fillE3 x y z = tabulate $ e3 x y z
 
 instance Semiring r => Algebra r E3 where
-  append = M.join
+  joined = M.join
 
 instance Semiring r => Unital r E3 where
-  aempty = const
+  unital = const
 
 instance Semiring r => Coalgebra r E3 where
-  coappend f E31 E31 = f E31
-  coappend f E32 E32 = f E32
-  coappend f E33 E33 = f E33
-  coappend _ _ _ = zero
+  cojoined f E31 E31 = f E31
+  cojoined f E32 E32 = f E32
+  cojoined f E33 E33 = f E33
+  cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E3 where
-  coempty f = f E31 + f E32 + f E33
+  coinitial = Tran $ \f _ -> f E31 + f E32 + f E33
 
 instance Semiring r => Bialgebra r E3
 
@@ -120,20 +120,20 @@ fillE4 :: Basis E4 f => a -> a -> a -> a -> f a
 fillE4 x y z w = tabulate $ e4 x y z w
 
 instance Semiring r => Algebra r E4 where
-  append = M.join
+  joined = M.join
 
 instance Semiring r => Unital r E4 where
-  aempty = const
+  unital = const
 
 instance Semiring r => Coalgebra r E4 where
-  coappend f E41 E41 = f E41
-  coappend f E42 E42 = f E42
-  coappend f E43 E43 = f E43
-  coappend f E44 E44 = f E44
-  coappend _ _ _ = zero
+  cojoined f E41 E41 = f E41
+  cojoined f E42 E42 = f E42
+  cojoined f E43 E43 = f E43
+  cojoined f E44 E44 = f E44
+  cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E4 where
-  coempty f = f E41 + f E42 + f E43 + f E44
+  coinitial = Tran $ \f _ -> f E41 + f E42 + f E43 + f E44
 
 instance Semiring r => Bialgebra r E4
 

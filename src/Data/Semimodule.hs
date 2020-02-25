@@ -13,7 +13,9 @@
 
 module Data.Semimodule (
   -- * Types
-    type Free
+    type (**) 
+  , type (++) 
+  , type Free
   , type Basis
   , type Basis2
   , type Basis3 
@@ -43,6 +45,8 @@ module Data.Semimodule (
 import safe Data.Complex
 import safe Data.Fixed
 import safe Data.Functor.Rep
+import safe Data.Functor.Compose
+import safe Data.Functor.Product
 import safe Data.Int
 import safe Data.Semifield
 import safe Data.Semiring
@@ -52,6 +56,17 @@ import safe GHC.Real hiding (Fractional(..))
 import safe Numeric.Natural
 import safe Prelude (fromInteger)
 import safe Prelude hiding (Num(..), Fractional(..), sum, product)
+
+infixr 2 **
+infixr 1 ++
+
+-- | A tensor product of semimodule morphisms.
+--
+type (f ** g) = Compose f g
+
+-- | A direct sum of free semimodule elements.
+--
+type (f ++ g) = Product f g
 
 type Free f = (Representable f)
 
