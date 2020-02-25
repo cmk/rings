@@ -14,64 +14,13 @@
 {-# LANGUAGE RankNTypes               #-}
 
 module Data.Semimodule.Free (
-  -- * Types
-    type Free
-  , type Basis
-  , type Basis2
-  , type Basis3
-  -- * Vector arithmetic
-  , (.*)
-  , (!*)
-  , (.#)
-  , (!#)
-  , (*.)
-  , (*!)
-  , (#.)
-  , (#!)
-  , dual
-  , inner
-  , lerp
-  , quadrance
-  , cross
-  , triple
-  -- * Vector accessors and constructors
-  , dirac
-  , idx
-  , elt
-  , lensRep
-  , grateRep
-  -- * Matrix arithmetic
-  , (.#.)
-  , (!#!)
-  , trace
-  , transpose
-  , inv1
-  , inv2
-  , bdet2
-  , det2
-  , bdet3
-  , det3
-  , inv3
-  , bdet4
-  , det4
-  , inv4
-  -- * Matrix accessors and constructors
-  , tran
-  , elt2
-  , row
-  , rows
-  , col
-  , cols
-  , diag
-  , codiag
-  , outer
-  , scalar
-  , identity
   -- * Vector types
-  , V1(..)
+    V1(..)
   , unV1
   , V2(..)
   , V3(..)
+  , cross
+  , triple
   , V4(..)
   -- * Matrix types
   , type M11
@@ -106,6 +55,17 @@ module Data.Semimodule.Free (
   , m42
   , m43
   , m44
+  -- * Matrix determinants & inverses
+  , inv1
+  , inv2
+  , bdet2
+  , det2
+  , bdet3
+  , det3
+  , inv3
+  , bdet4
+  , det4
+  , inv4
 ) where
 
 import safe Control.Applicative
@@ -119,14 +79,26 @@ import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
 import safe Data.Semimodule.Basis
 import safe Data.Semimodule.Transform
+import safe Data.Semimodule.Operator
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Prelude (fromInteger)
 
 
 -------------------------------------------------------------------------------
--- Vector Arithmetic
+-- Vectors
 -------------------------------------------------------------------------------
+
+unV1 :: V1 a -> a
+unV1 (V1 a) = a
+
+newtype V1 a = V1 a deriving (Eq,Ord,Show)
+
+data V2 a = V2 !a !a deriving (Eq,Ord,Show)
+
+data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
+
+data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
 
 -- | Cross product.
 --
@@ -160,53 +132,205 @@ triple :: Ring a => V3 a -> V3 a -> V3 a -> a
 triple x y z = inner x (cross y z)
 {-# INLINE triple #-}
 
--------------------------------------------------------------------------------
--- Vector Constructors & Acessors
--------------------------------------------------------------------------------
-
--- | Dirac delta function.
---
-dirac :: Eq i => Semiring a => i -> i -> a
-dirac i j = bool zero one (i == j)
-{-# INLINE dirac #-}
-
--- | Create a unit vector at an index.
---
--- >>> idx E21 :: V2 Int
--- V2 1 0
---
--- >>> idx E42 :: V4 Int
--- V4 0 1 0 0
---
-idx :: Semiring a => Basis b f => b -> f a
-idx i = tabulate $ dirac i
-{-# INLINE idx #-}
-
--- | Retrieve an element of a vector.
---
--- >>> elt E21 (V2 1 2)
--- 1
---
-elt :: Basis b f => b -> f a -> a
-elt = flip index
-{-# INLINE elt #-}
-
--- | Create a lens from a representable functor.
---
-lensRep :: Basis b f => b -> forall g. Functor g => (a -> g a) -> f a -> g (f a) 
-lensRep i f s = setter s <$> f (getter s)
-  where getter = flip index i
-        setter s' b = tabulate $ \j -> bool (index s' j) b (i == j)
-{-# INLINE lensRep #-}
-
--- | Create an indexed grate from a representable functor.
---
-grateRep :: Basis b f => forall g. Functor g => (b -> g a1 -> a2) -> g (f a1) -> f a2
-grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
-{-# INLINE grateRep #-}
 
 -------------------------------------------------------------------------------
--- Matrix Arithmetic
+-- Matrices
+-------------------------------------------------------------------------------
+
+-- All matrices use row-major representation.
+
+-- | A 1x1 matrix.
+type M11 = Compose V1 V1
+
+-- | A 1x2 matrix.
+type M12 = Compose V1 V2
+
+-- | A 1x3 matrix.
+type M13 = Compose V1 V3
+
+-- | A 1x4 matrix.
+type M14 = Compose V1 V4
+
+-- | A 2x1 matrix.
+type M21 = Compose V2 V1
+
+-- | A 3x1 matrix.
+type M31 = Compose V3 V1
+
+-- | A 4x1 matrix.
+type M41 = Compose V4 V1
+
+-- | A 2x2 matrix.
+type M22 = Compose V2 V2
+
+-- | A 2x3 matrix.
+type M23 = Compose V2 V3
+
+-- | A 2x4 matrix.
+type M24 = Compose V2 V4
+
+-- | A 3x2 matrix.
+type M32 = Compose V3 V2
+
+-- | A 3x3 matrix.
+type M33 = Compose V3 V3
+
+-- | A 3x4 matrix.
+type M34 = Compose V3 V4
+
+-- | A 4x2 matrix.
+type M42 = Compose V4 V2
+
+-- | A 4x3 matrix.
+type M43 = Compose V4 V3
+
+-- | A 4x4 matrix.
+type M44 = Compose V4 V4
+
+-------------------------------------------------------------------------------
+-- Matrix constructors
+-------------------------------------------------------------------------------
+
+-- | Construct a 1x1 matrix.
+--
+-- >>> m11 1 :: M11 Int
+-- Compose (V1 (V1 1))
+--
+m11 :: a -> M11 a
+m11 a = Compose $ V1 (V1 a)
+{-# INLINE m11 #-}
+
+-- | Construct a 1x2 matrix.
+--
+-- >>> m12 1 2 :: M12 Int
+-- Compose (V1 (V2 1 2))
+--
+m12 :: a -> a -> M12 a
+m12 a b = Compose $ V1 (V2 a b)
+{-# INLINE m12 #-}
+
+-- | Construct a 1x3 matrix.
+--
+-- >>> m13 1 2 3 :: M13 Int
+-- Compose (V1 (V3 1 2 3))
+--
+m13 :: a -> a -> a -> M13 a
+m13 a b c = Compose $ V1 (V3 a b c)
+{-# INLINE m13 #-}
+
+-- | Construct a 1x4 matrix.
+--
+-- >>> m14 1 2 3 4 :: M14 Int
+-- Compose (V1 (V4 1 2 3 4))
+--
+m14 :: a -> a -> a -> a -> M14 a
+m14 a b c d = Compose $ V1 (V4 a b c d)
+{-# INLINE m14 #-}
+
+-- | Construct a 2x1 matrix.
+--
+-- >>> m21 1 2 :: M21 Int
+-- Compose (V2 (V1 1) (V1 2))
+--
+m21 :: a -> a -> M21 a
+m21 a b = Compose $ V2 (V1 a) (V1 b)
+{-# INLINE m21 #-}
+
+-- | Construct a 3x1 matrix.
+--
+-- >>> m31 1 2 3 :: M31 Int
+-- Compose (V3 (V1 1) (V1 2) (V1 3))
+--
+m31 :: a -> a -> a -> M31 a
+m31 a b c = Compose $ V3 (V1 a) (V1 b) (V1 c)
+{-# INLINE m31 #-}
+
+-- | Construct a 4x1 matrix.
+--
+-- >>> m41 1 2 3 4 :: M41 Int
+-- Compose (V4 (V1 1) (V1 2) (V1 3) (V1 4))
+--
+m41 :: a -> a -> a -> a -> M41 a
+m41 a b c d = Compose $ V4 (V1 a) (V1 b) (V1 c) (V1 d)
+{-# INLINE m41 #-}
+
+-- | Construct a 2x2 matrix.
+--
+-- Arguments are in row-major order.
+--
+-- >>> m22 1 2 3 4 :: M22 Int
+-- Compose (V2 (V2 1 2) (V2 3 4))
+--
+m22 :: a -> a -> a -> a -> M22 a
+m22 a b c d = Compose $ V2 (V2 a b) (V2 c d)
+{-# INLINE m22 #-}
+
+-- | Construct a 2x3 matrix.
+--
+-- Arguments are in row-major order.
+--
+m23 :: a -> a -> a -> a -> a -> a -> M23 a
+m23 a b c d e f = Compose $ V2 (V3 a b c) (V3 d e f)
+{-# INLINE m23 #-}
+
+-- | Construct a 2x4 matrix.
+--
+-- Arguments are in row-major order.
+--
+m24 :: a -> a -> a -> a -> a -> a -> a -> a -> M24 a
+m24 a b c d e f g h = Compose $ V2 (V4 a b c d) (V4 e f g h)
+{-# INLINE m24 #-}
+
+-- | Construct a 3x2 matrix.
+--
+-- Arguments are in row-major order.
+--
+m32 :: a -> a -> a -> a -> a -> a -> M32 a
+m32 a b c d e f = Compose $ V3 (V2 a b) (V2 c d) (V2 e f)
+{-# INLINE m32 #-}
+
+-- | Construct a 3x3 matrix.
+--
+-- Arguments are in row-major order.
+--
+m33 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> M33 a
+m33 a b c d e f g h i = Compose $ V3 (V3 a b c) (V3 d e f) (V3 g h i)
+{-# INLINE m33 #-}
+
+-- | Construct a 3x4 matrix.
+--
+-- Arguments are in row-major order.
+--
+m34 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M34 a
+m34 a b c d e f g h i j k l = Compose $ V3 (V4 a b c d) (V4 e f g h) (V4 i j k l)
+{-# INLINE m34 #-}
+
+-- | Construct a 4x2 matrix.
+--
+-- Arguments are in row-major order.
+--
+m42 :: a -> a -> a -> a -> a -> a -> a -> a -> M42 a
+m42 a b c d e f g h = Compose $ V4 (V2 a b) (V2 c d) (V2 e f) (V2 g h)
+{-# INLINE m42 #-}
+
+-- | Construct a 4x3 matrix.
+--
+-- Arguments are in row-major order.
+--
+m43 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M43 a
+m43 a b c d e f g h i j k l = Compose $ V4 (V3 a b c) (V3 d e f) (V3 g h i) (V3 j k l)
+{-# INLINE m43 #-}
+
+-- | Construct a 4x4 matrix.
+--
+-- Arguments are in row-major order.
+--
+m44 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M44 a
+m44 a b c d e f g h i j k l m n o p = Compose $ V4 (V4 a b c d) (V4 e f g h) (V4 i j k l) (V4 m n o p)
+{-# INLINE m44 #-}
+
+-------------------------------------------------------------------------------
+-- Matrix determinants and inverses
 -------------------------------------------------------------------------------
 
 -- | 1x1 matrix inverse over a field.
@@ -460,220 +584,8 @@ inv4 x = lscaleDef (recip det) $ x' where
 {-# INLINE inv4 #-}
 
 -------------------------------------------------------------------------------
--- Matrix constructors and accessors
+-- V1 instances
 -------------------------------------------------------------------------------
-
--- | Retrieve an element of a matrix.
---
--- >>> elt2 E21 E21 $ m22 1 2 3 4
--- 1
---
-elt2 :: Basis2 b c f g => b -> c -> (f**g) a -> a
-elt2 i j = elt i . col j
-{-# INLINE elt2 #-}
-
--- | Construct a 1x1 matrix.
---
--- >>> m11 1 :: M11 Int
--- Compose (V1 (V1 1))
---
-m11 :: a -> M11 a
-m11 a = Compose $ V1 (V1 a)
-{-# INLINE m11 #-}
-
--- | Construct a 1x2 matrix.
---
--- >>> m12 1 2 :: M12 Int
--- Compose (V1 (V2 1 2))
---
-m12 :: a -> a -> M12 a
-m12 a b = Compose $ V1 (V2 a b)
-{-# INLINE m12 #-}
-
--- | Construct a 1x3 matrix.
---
--- >>> m13 1 2 3 :: M13 Int
--- Compose (V1 (V3 1 2 3))
---
-m13 :: a -> a -> a -> M13 a
-m13 a b c = Compose $ V1 (V3 a b c)
-{-# INLINE m13 #-}
-
--- | Construct a 1x4 matrix.
---
--- >>> m14 1 2 3 4 :: M14 Int
--- Compose (V1 (V4 1 2 3 4))
---
-m14 :: a -> a -> a -> a -> M14 a
-m14 a b c d = Compose $ V1 (V4 a b c d)
-{-# INLINE m14 #-}
-
--- | Construct a 2x1 matrix.
---
--- >>> m21 1 2 :: M21 Int
--- Compose (V2 (V1 1) (V1 2))
---
-m21 :: a -> a -> M21 a
-m21 a b = Compose $ V2 (V1 a) (V1 b)
-{-# INLINE m21 #-}
-
--- | Construct a 3x1 matrix.
---
--- >>> m31 1 2 3 :: M31 Int
--- Compose (V3 (V1 1) (V1 2) (V1 3))
---
-m31 :: a -> a -> a -> M31 a
-m31 a b c = Compose $ V3 (V1 a) (V1 b) (V1 c)
-{-# INLINE m31 #-}
-
--- | Construct a 4x1 matrix.
---
--- >>> m41 1 2 3 4 :: M41 Int
--- Compose (V4 (V1 1) (V1 2) (V1 3) (V1 4))
---
-m41 :: a -> a -> a -> a -> M41 a
-m41 a b c d = Compose $ V4 (V1 a) (V1 b) (V1 c) (V1 d)
-{-# INLINE m41 #-}
-
--- | Construct a 2x2 matrix.
---
--- Arguments are in row-major order.
---
--- >>> m22 1 2 3 4 :: M22 Int
--- Compose (V2 (V2 1 2) (V2 3 4))
---
-m22 :: a -> a -> a -> a -> M22 a
-m22 a b c d = Compose $ V2 (V2 a b) (V2 c d)
-{-# INLINE m22 #-}
-
--- | Construct a 2x3 matrix.
---
--- Arguments are in row-major order.
---
-m23 :: a -> a -> a -> a -> a -> a -> M23 a
-m23 a b c d e f = Compose $ V2 (V3 a b c) (V3 d e f)
-{-# INLINE m23 #-}
-
--- | Construct a 2x4 matrix.
---
--- Arguments are in row-major order.
---
-m24 :: a -> a -> a -> a -> a -> a -> a -> a -> M24 a
-m24 a b c d e f g h = Compose $ V2 (V4 a b c d) (V4 e f g h)
-{-# INLINE m24 #-}
-
--- | Construct a 3x2 matrix.
---
--- Arguments are in row-major order.
---
-m32 :: a -> a -> a -> a -> a -> a -> M32 a
-m32 a b c d e f = Compose $ V3 (V2 a b) (V2 c d) (V2 e f)
-{-# INLINE m32 #-}
-
--- | Construct a 3x3 matrix.
---
--- Arguments are in row-major order.
---
-m33 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> M33 a
-m33 a b c d e f g h i = Compose $ V3 (V3 a b c) (V3 d e f) (V3 g h i)
-{-# INLINE m33 #-}
-
--- | Construct a 3x4 matrix.
---
--- Arguments are in row-major order.
---
-m34 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M34 a
-m34 a b c d e f g h i j k l = Compose $ V3 (V4 a b c d) (V4 e f g h) (V4 i j k l)
-{-# INLINE m34 #-}
-
--- | Construct a 4x2 matrix.
---
--- Arguments are in row-major order.
---
-m42 :: a -> a -> a -> a -> a -> a -> a -> a -> M42 a
-m42 a b c d e f g h = Compose $ V4 (V2 a b) (V2 c d) (V2 e f) (V2 g h)
-{-# INLINE m42 #-}
-
--- | Construct a 4x3 matrix.
---
--- Arguments are in row-major order.
---
-m43 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M43 a
-m43 a b c d e f g h i j k l = Compose $ V4 (V3 a b c) (V3 d e f) (V3 g h i) (V3 j k l)
-{-# INLINE m43 #-}
-
--- | Construct a 4x4 matrix.
---
--- Arguments are in row-major order.
---
-m44 :: a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> a -> M44 a
-m44 a b c d e f g h i j k l m n o p = Compose $ V4 (V4 a b c d) (V4 e f g h) (V4 i j k l) (V4 m n o p)
-{-# INLINE m44 #-}
-
--------------------------------------------------------------------------------
--- Matrix types
--------------------------------------------------------------------------------
-
--- All matrices use row-major representation.
-
--- | A 1x1 matrix.
-type M11 = Compose V1 V1
-
--- | A 1x2 matrix.
-type M12 = Compose V1 V2
-
--- | A 1x3 matrix.
-type M13 = Compose V1 V3
-
--- | A 1x4 matrix.
-type M14 = Compose V1 V4
-
--- | A 2x1 matrix.
-type M21 = Compose V2 V1
-
--- | A 3x1 matrix.
-type M31 = Compose V3 V1
-
--- | A 4x1 matrix.
-type M41 = Compose V4 V1
-
--- | A 2x2 matrix.
-type M22 = Compose V2 V2
-
--- | A 2x3 matrix.
-type M23 = Compose V2 V3
-
--- | A 2x4 matrix.
-type M24 = Compose V2 V4
-
--- | A 3x2 matrix.
-type M32 = Compose V3 V2
-
--- | A 3x3 matrix.
-type M33 = Compose V3 V3
-
--- | A 3x4 matrix.
-type M34 = Compose V3 V4
-
--- | A 4x2 matrix.
-type M42 = Compose V4 V2
-
--- | A 4x3 matrix.
-type M43 = Compose V4 V3
-
--- | A 4x4 matrix.
-type M44 = Compose V4 V4
-
-
-
--------------------------------------------------------------------------------
--- V1
--------------------------------------------------------------------------------
-
-unV1 :: V1 a -> a
-unV1 (V1 a) = a
-
-newtype V1 a = V1 a deriving (Eq,Ord,Show)
 
 instance Show1 V1 where
   liftShowsPrec f _ d (V1 a) = showParen (d >= 10) $ showString "V1 " . f d a
@@ -718,10 +630,9 @@ instance Representable V1 where
   {-# INLINE index #-}
 
 -------------------------------------------------------------------------------
--- V2
+-- V2 instances
 -------------------------------------------------------------------------------
 
-data V2 a = V2 !a !a deriving (Eq,Ord,Show)
 
 instance Show1 V2 where
   liftShowsPrec f _ d (V2 a b) = showsBinaryWith f f "V2" d a b
@@ -760,11 +671,9 @@ instance Representable V2 where
   {-# INLINE index #-}
 
 -------------------------------------------------------------------------------
--- V3
+-- V3 instances
 -------------------------------------------------------------------------------
 
-
-data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
 
 -- TODO add Prd1 and push instance downstream
 instance Eq1 V3 where
@@ -808,13 +717,10 @@ instance Representable V3 where
   index (V3 _ _ z) E33 = z
   {-# INLINE index #-}
 
-
-
 -------------------------------------------------------------------------------
--- V4
+-- V4 instances
 -------------------------------------------------------------------------------
 
-data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
 
 instance Show1 V4 where
   liftShowsPrec f _ z (V4 a b c d) = showParen (z > 10) $

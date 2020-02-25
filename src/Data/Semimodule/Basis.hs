@@ -9,9 +9,9 @@ module Data.Semimodule.Basis (
   , E4(..), e4, fillE4
 ) where
 
-import safe Data.Algebra
 import safe Data.Functor.Rep
 import safe Data.Semimodule
+import safe Data.Semimodule.Algebra
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Control.Monad as M

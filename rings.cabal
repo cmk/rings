@@ -21,14 +21,14 @@ library
   ghc-options:     -Wall
 
   exposed-modules:
-      Data.Algebra
-    , Data.Semiring
+      Data.Semiring
     , Data.Semiring.Property
     , Data.Semifield
     , Data.Semigroup.Additive
     , Data.Semigroup.Property
     , Data.Semimodule
     , Data.Semimodule.Free
+    , Data.Semimodule.Algebra
     , Data.Semimodule.Basis
     , Data.Semimodule.Transform
 
