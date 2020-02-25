@@ -20,7 +20,9 @@ module Data.Semimodule.Operator (
   , type Basis2
   , type Basis3
   -- * Vector accessors and constructors
+  , Dual(..)
   , dual
+  , image'
   , dirac
   , idx
   , elt
@@ -40,7 +42,9 @@ module Data.Semimodule.Operator (
   , lerp
   , quadrance
   -- * Matrix accessors and constructors
+  , Tran(..)
   , tran
+  , image
   , elt2
   , row
   , rows

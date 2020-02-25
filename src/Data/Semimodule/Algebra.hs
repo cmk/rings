@@ -94,6 +94,10 @@ class Semiring a => Algebra a b where
 
   -- |
   --
+  -- @
+  -- 'joined' = 'runTran' 'diagonal' '.' 'uncurry'
+  -- @
+  --
   joined :: (b -> b -> a) -> b -> a
   joined = runTran diagonal . uncurry
 
@@ -139,8 +143,15 @@ type FreeUnital a f = (FreeAlgebra a f, Unital a (Rep f))
 -- | A < https://en.wikipedia.org/wiki/Algebra_over_a_field#Unital_algebra unital algebra > over a semiring.
 --
 class Algebra a b => Unital a b where
+
+  -- |
+  --
+  -- @
+  -- 'unital' = 'runTran' 'initial' '.' 'const'
+  -- @
+  --
   unital :: a -> b -> a
-  unital a = runTran initial $ const a
+  unital = runTran initial . const
 
   initial :: Tran a b ()
   initial = Tran $ \k -> unital $ k ()
@@ -174,6 +185,10 @@ type FreeCoalgebra a f = (FreeSemimodule a f, Coalgebra a (Rep f))
 class Semiring a => Coalgebra a c where
 
   -- |
+  --
+  -- @
+  -- 'cojoined' = 'curry' '.' 'runTran' 'codiagonal'
+  -- @
   --
   cojoined :: (c -> a) -> c -> c -> a
   cojoined = curry . runTran codiagonal
@@ -239,11 +254,14 @@ type FreeCounital a f = (FreeCoalgebra a f, Counital a (Rep f))
 -- | A counital coalgebra over a semiring.
 --
 class Coalgebra a c => Counital a c where
+
+  -- @
+  -- 'counital' = 'flip' ('runTran' 'coinitial') '()'
+  -- @
+  --
   counital :: (c -> a) -> a
   counital = flip (runTran coinitial) ()
 
-  -- | TODO: Document
-  --
   coinitial :: Tran a () c
   coinitial = Tran $ const . counital
 
