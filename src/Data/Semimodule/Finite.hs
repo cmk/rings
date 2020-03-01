@@ -83,7 +83,6 @@ import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Prelude (fromInteger)
 
-
 -------------------------------------------------------------------------------
 -- Vectors
 -------------------------------------------------------------------------------

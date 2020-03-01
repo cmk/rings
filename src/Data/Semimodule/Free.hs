@@ -11,7 +11,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RankNTypes                 #-}
 
-
 module Data.Semimodule.Free (
   -- * Types
     type Free
@@ -28,13 +27,15 @@ module Data.Semimodule.Free (
   , vmap
   , join
   , init
+  , mult
   -- * Covectors
   , Cov(..)
+  , images
   , cov
   , cmap
   , cojoin
   , coinit
-  , images
+  , comult
 ) where
 
 import safe Control.Applicative
@@ -116,6 +117,18 @@ join = vmap diagonal
 init :: Unital a b => a -> Vec a b
 init = Op . unital
 
+infixr 7 `mult`
+
+-- | Multiplication operator on an algebra over a free semimodule.
+--
+-- >>> flip runVec E22 $ mult (vec $ V2 1 2) (vec $ V2 3 4)
+-- 8
+--
+-- /Caution/ in general 'mult' needn't be commutative, nor associative.
+--
+mult :: Algebra a b => Vec a b -> Vec a b -> Vec a b
+mult x y = Op $ joined (\i j -> runVec x i * runVec y j)
+
 -------------------------------------------------------------------------------
 -- Covectors
 -------------------------------------------------------------------------------
@@ -136,6 +149,14 @@ infixr 3 `runCov`
 -- See < https://en.wikipedia.org/wiki/Covariance_and_contravariance_of_vectors#Definition >.
 --
 newtype Cov a c = Cov { runCov :: (c -> a) -> a }
+
+-- | Obtain a covector from a linear combination of basis elements.
+--
+-- >>> images [(2, E31),(3, E32)] !* vec (V3 1 1 1) :: Int
+-- 5
+--
+images :: Semiring a => Foldable f => f (a, c) -> Cov a c
+images f = Cov $ \k -> foldl' (\acc (a, c) -> acc + a * k c) zero f 
 
 -- | Obtain a covector from an array of coefficients and a basis.
 --
@@ -166,13 +187,17 @@ cojoin = cmap codiagonal
 coinit :: Counital a c => Cov a c
 coinit = Cov counital
 
--- | Obtain a covector from a linear combination of basis elements.
+infixr 7 `comult`
+
+-- | Multiplication operator on a coalgebra over a free semimodule.
 --
--- >>> images [(2, E31),(3, E32)] !* vec (V3 1 1 1) :: Int
--- 5
+-- >>> flip runCov (e2 1 1) $ comult (cov $ V2 1 2) (cov $ V2 3 4)
+-- 11
 --
-images :: Semiring a => Foldable f => f (a, c) -> Cov a c
-images f = Cov $ \k -> foldl' (\acc (a, c) -> acc + a * k c) zero f 
+-- /Caution/ in general 'comult' needn't be commutative, nor coassociative.
+--
+comult :: Coalgebra a c => Cov a c -> Cov a c -> Cov a c
+comult (Cov f) (Cov g) = Cov $ \k -> f (\m -> g (cojoined k m))
 
 -------------------------------------------------------------------------------
 -- Cov instances
@@ -196,22 +221,30 @@ instance (Additive-Monoid) a => Alternative (Cov a) where
 instance (Additive-Monoid) a => MonadPlus (Cov a) where
   Cov m `mplus` Cov n = Cov $ m + n
   mzero = Cov zero
+{-
+newtype Vect a b = Vect (b -> a)
+
+instance ((Additive-Semigroup) a) => Semigroup (Additive (Vect a b)) where
+  Additive (Vect f) <> Additive (Vect g) = Additive . Vect $ \b -> f b + g b
+  {-# INLINE (<>) #-}
+
+instance ((Additive-Monoid) a) => Monoid (Additive (Vect a b)) where
+  mempty = Additive . Vect $ const zero
+
+instance ((Additive-Group) a) => Magma (Additive (Vect a b)) where
+  Additive (Vect f) << Additive (Vect g) = Additive . Vect $ \b -> f b - g b
+  {-# INLINE (<<) #-}
+
+instance ((Additive-Group) a) => Quasigroup (Additive (Vect a b))
+instance ((Additive-Group) a) => Loop (Additive (Vect a b)) where
+instance ((Additive-Group) a) => Group (Additive (Vect a b))
+-}
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Cov a b)) where
   (<>) = liftA2 $ \(Cov m) (Cov n) -> Cov $ m + n
 
 instance (Additive-Monoid) a => Monoid (Additive (Cov a b)) where
   mempty = Additive $ Cov zero
-
-instance Coalgebra a b => Semigroup (Multiplicative (Cov a b)) where
-  (<>) = liftA2 $ \(Cov f) (Cov g) -> Cov $ \k -> f (\m -> g (cojoined k m))
-
-instance Counital a b => Monoid (Multiplicative (Cov a b)) where
-  mempty = Multiplicative $ Cov counital
-
-instance Coalgebra a b => Presemiring (Cov a b)
-
-instance Counital a b => Semiring (Cov a b)
 
 instance (Additive-Group) a => Magma (Additive (Cov a b)) where
   (<<) = liftA2 $ \(Cov m) (Cov n) -> Cov $ m - n
@@ -220,16 +253,8 @@ instance (Additive-Group) a => Quasigroup (Additive (Cov a b)) where
 instance (Additive-Group) a => Loop (Additive (Cov a b)) where
 instance (Additive-Group) a => Group (Additive (Cov a b)) where
 
-instance (Ring a, Counital a b) => Ring (Cov a b)
-
-instance Counital r m => LeftSemimodule (Cov r m) (Cov r m) where
-  lscale = (*)
-
 instance LeftSemimodule r s => LeftSemimodule r (Cov s m) where
   lscale s m = Cov $ \k -> s *. runCov m k
-
-instance Counital r m => RightSemimodule (Cov r m) (Cov r m) where
-  rscale = (*)
 
 instance RightSemimodule r s => RightSemimodule r (Cov s m) where
   rscale s m = Cov $ \k -> runCov m k .* s

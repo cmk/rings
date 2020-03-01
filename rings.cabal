@@ -24,8 +24,6 @@ library
       Data.Semiring
     , Data.Semiring.Property
     , Data.Semifield
-    , Data.Semigroup.Additive
-    , Data.Semigroup.Property
     , Data.Semimodule
     , Data.Semimodule.Operator
     , Data.Semimodule.Algebra

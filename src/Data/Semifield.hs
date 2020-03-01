@@ -21,10 +21,8 @@ module Data.Semifield (
   , (^^)
 ) where
 
-import safe Data.Complex
 import safe Data.Fixed
 import safe Data.Semiring
-import safe Data.Semigroup.Additive 
 import safe GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
 import safe Numeric.Natural
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
@@ -66,6 +64,41 @@ anan = zero / zero
 pinf :: Semifield a => a
 pinf = one / zero
 {-# INLINE pinf #-}
+
+infixl 7 \\, /
+
+-- | Reciprocal of a multiplicative group element.
+--
+-- @ 
+-- x '/' y = x '*' 'recip' y
+-- x '\\' y = 'recip' x '*' y
+-- @
+--
+-- >>> recip (3 :+ 4) :: Complex Rational
+-- 3 % 25 :+ (-4) % 25
+-- >>> recip (3 :+ 4) :: Complex Double
+-- 0.12 :+ (-0.16)
+-- >>> recip (3 :+ 4) :: Complex Pico
+-- 0.120000000000 :+ -0.160000000000
+-- 
+recip :: (Multiplicative-Group) a => a -> a 
+recip a = one / a
+{-# INLINE recip #-}
+
+-- | Right division by a multiplicative group element.
+--
+(/) :: (Multiplicative-Group) a => a -> a -> a
+a / b = unMultiplicative (Multiplicative a << Multiplicative b)
+{-# INLINE (/) #-}
+
+-- | Left division by a multiplicative group element.
+--
+-- When '*' is commutative we must have:
+--
+-- @ x '\\' y = y '/' x @
+--
+(\\) :: (Multiplicative-Group) a => a -> a -> a
+(\\) x y = recip x * y
 
 -------------------------------------------------------------------------------
 -- Fields
@@ -124,7 +157,7 @@ instance Semifield Double
 instance Semifield CFloat
 instance Semifield CDouble
 
-instance Field a => Semifield (Complex a)
+--instance Field a => Semifield (Complex a)
 
 
 instance Field ()
@@ -143,7 +176,7 @@ instance Field Double
 instance Field CFloat
 instance Field CDouble
 
-instance Field a => Field (Complex a)
+--instance Field a => Field (Complex a)
 
 
 

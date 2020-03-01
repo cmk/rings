@@ -64,7 +64,7 @@ import safe Control.Arrow
 import safe Control.Applicative
 import safe Control.Category (Category, (>>>))
 import safe Data.Bool
-import safe Data.Functor.Contravariant
+--import safe Data.Functor.Contravariant
 --import safe qualified Data.Functor.Contravariant.Rep as F
 import safe Data.Functor.Rep
 import safe Data.Semimodule
@@ -130,12 +130,10 @@ infixl 7 .*.
 
 -- | Multiplication operator on an algebra over a free semimodule.
 --
--- /Caution/ in general (.*.) needn't be commutative, nor associative.
+-- /Caution/ in general '.*.' needn't be commutative, nor associative.
 --
 (.*.) :: FreeAlgebra a f => f a -> f a -> f a
 (.*.) x y = tabulate $ joined (\i j -> index x i * index y j)
-
---(.#.) x y  = F.tabulate $ joined (\i j -> F.index x i * F.index y j)
 
 -------------------------------------------------------------------------------
 -- Unital algebras
@@ -444,6 +442,11 @@ complr t1 t2 fg = t1 *** t2 !# fg
 -------------------------------------------------------------------------------
 -- Instances
 -------------------------------------------------------------------------------
+
+{-
+instance (Bisemimodule a a a, Algebra a b) => Semigroup (Multiplicative (Op a b)) where
+  (<>) = liftA2 $ \(Op x) (Op y) -> Op $ x .*. y
+-}
 
 instance Semiring a => Algebra a () where
   joined f = f ()

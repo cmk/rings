@@ -236,8 +236,8 @@ instance Semiring a => LeftSemimodule a (Ratio a) where
 instance Ring a => LeftSemimodule a (Complex a) where 
   lscale l (x :+ y) = (l * x) :+ (l * y)
 
-instance Ring a => LeftSemimodule (Complex a) (Complex a) where 
-   lscale = (*)  
+--instance Ring a => LeftSemimodule (Complex a) (Complex a) where 
+--   lscale = (*)  
 
 #define deriveLeftSemimodule(ty)                      \
 instance LeftSemimodule ty ty where {                 \
@@ -301,11 +301,11 @@ instance (RightSemimodule r a, RightSemimodule r b, RightSemimodule r c) => Righ
 instance Semiring a => RightSemimodule a (Ratio a) where 
   rscale r (x :% y) = (r * x) :% y
 
-instance Ring a => RightSemimodule a (Complex a) where 
-  rscale r (x :+ y) = (r * x) :+ (r * y)
+--instance Ring a => RightSemimodule a (Complex a) where 
+--  rscale r (x :+ y) = (r * x) :+ (r * y)
 
-instance Ring a => RightSemimodule (Complex a) (Complex a) where 
-  rscale = (*) 
+--instance Ring a => RightSemimodule (Complex a) (Complex a) where 
+--  rscale = (*) 
 
 #define deriveRightSemimodule(ty)                     \
 instance RightSemimodule ty ty where {                \
@@ -350,9 +350,9 @@ instance (Bisemimodule r r a, Bisemimodule r r b, Bisemimodule r r c) => Bisemim
 
 instance Semiring a => Bisemimodule a a (Ratio a)
 
-instance Ring a => Bisemimodule a a (Complex a)
+--instance Ring a => Bisemimodule a a (Complex a)
 
-instance Ring a => Bisemimodule (Complex a) (Complex a) (Complex a)
+--instance Ring a => Bisemimodule (Complex a) (Complex a) (Complex a)
 
 
 #define deriveBisemimodule(ty)                     \
