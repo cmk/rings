@@ -16,9 +16,7 @@ module Data.Semimodule (
     type (**) 
   , type (++) 
   , type Free
-  , type Basis
-  , type Basis2
-  , type Basis3 
+  , type Base
   , type FreeModule 
   , type FreeSemimodule
   -- * Left modules
@@ -68,13 +66,9 @@ type (f ** g) = Compose f g
 --
 type (f ++ g) = Product f g
 
-type Free f = (Representable f)
+type Free = Representable
 
-type Basis b f = (Free f, Rep f ~ b, Eq b)
-
-type Basis2 b c f g = (Basis b f, Basis c g)
-
-type Basis3 b c d f g h = (Basis b f, Basis c g, Basis d h)
+type Base f = Rep f
 
 type FreeModule a f = (Free f, (Additive-Group) (f a), Bimodule a a (f a))
 

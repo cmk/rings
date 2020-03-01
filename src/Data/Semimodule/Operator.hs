@@ -16,16 +16,11 @@
 module Data.Semimodule.Operator (
   -- * Types
     type Free
-  , type Basis
-  , type Basis2
-  , type Basis3
   -- * Vector accessors and constructors
-  , Dual(..)
-  , dual
-  , image'
-  , dirac
-  , idx
+  , vec
+  , cov
   , elt
+  , dirac
   , lensRep
   , grateRep
   -- * Vector arithmetic
@@ -42,9 +37,7 @@ module Data.Semimodule.Operator (
   , lerp
   , quadrance
   -- * Matrix accessors and constructors
-  , Tran(..)
   , tran
-  , image
   , elt2
   , row
   , rows
@@ -65,10 +58,10 @@ import safe Control.Arrow
 import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Functor.Compose
-import safe Data.Functor.Rep hiding (Co)
+import safe Data.Functor.Rep
 import safe Data.Semimodule
 import safe Data.Semimodule.Algebra
-import safe Data.Semimodule.Dual
+import safe Data.Semimodule.Free
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe qualified Control.Monad as M
@@ -77,44 +70,30 @@ import safe qualified Control.Monad as M
 -- Vector constructors & acessors
 -------------------------------------------------------------------------------
 
--- | Take the dual of a vector.
---
--- >>> dual (V2 3 4) !% V2 1 2 :: Int
--- 11
---
-dual :: FreeCounital a f => f a -> Dual a (Rep f)
-dual f = Dual $ \k -> f `inner` tabulate k
-
--- | Dirac delta function.
---
-dirac :: Eq i => Semiring a => i -> i -> a
-dirac i j = bool zero one (i == j)
-{-# INLINE dirac #-}
-
--- | Create a unit vector at an index.
---
--- >>> idx E21 :: V2 Int
--- V2 1 0
---
--- >>> idx E42 :: V4 Int
--- V4 0 1 0 0
---
-idx :: Semiring a => Basis b f => b -> f a
-idx i = tabulate $ dirac i
-{-# INLINE idx #-}
-
--- | Retrieve an element of a vector.
+-- | Retrieve the coefficient of a basis element
 --
 -- >>> elt E21 (V2 1 2)
 -- 1
 --
-elt :: Basis b f => b -> f a -> a
+elt :: Free f => Base f -> f a -> a
 elt = flip index
 {-# INLINE elt #-}
 
+-- | Create a unit vector at an index.
+--
+-- >>> dirac E21 :: V2 Int
+-- V2 1 0
+--
+-- >>> dirac E42 :: V4 Int
+-- V4 0 1 0 0
+--
+dirac :: Semiring a => Free f => Eq (Base f) => Base f -> f a
+dirac i = tabulate $ \j -> bool zero one (i == j)
+{-# INLINE dirac #-}
+
 -- | Create a lens from a representable functor.
 --
-lensRep :: Basis b f => b -> forall g. Functor g => (a -> g a) -> f a -> g (f a) 
+lensRep :: Free f => Eq (Base f) => Base f -> forall g. Functor g => (a -> g a) -> f a -> g (f a) 
 lensRep i f s = setter s <$> f (getter s)
   where getter = flip index i
         setter s' b = tabulate $ \j -> bool (index s' j) b (i == j)
@@ -122,10 +101,9 @@ lensRep i f s = setter s <$> f (getter s)
 
 -- | Create an indexed grate from a representable functor.
 --
-grateRep :: Basis b f => forall g. Functor g => (b -> g a1 -> a2) -> g (f a1) -> f a2
+grateRep :: Free f => forall g. Functor g => (Base f -> g a1 -> a2) -> g (f a1) -> f a2
 grateRep iab s = tabulate $ \i -> iab i (fmap (`index` i) s)
 {-# INLINE grateRep #-}
-
 
 -------------------------------------------------------------------------------
 -- Vector operations
@@ -162,19 +140,6 @@ infixl 7 #.
 x #. y = tabulate (\j -> x `inner` col j y)
 {-# INLINE (#.) #-}
 
-infix 6 `inner`
-
--- | Inner product.
---
--- This is a variant of 'Data.Semiring.xmult' restricted to free functors.
---
--- >>> V3 1 2 3 `inner` V3 1 2 3
--- 14
--- 
-inner :: FreeCounital a f => f a -> f a -> a
-inner x y = counit $ liftR2 (*) x y
-{-# INLINE inner #-}
-
 -- | Outer product.
 --
 -- >>> V2 1 1 `outer` V2 1 1
@@ -182,6 +147,7 @@ inner x y = counit $ liftR2 (*) x y
 --
 outer :: Semiring a => Free f => Free g => f a -> g a -> (f**g) a
 outer x y = Compose $ fmap (\z-> fmap (*z) y) x
+{-# INLINE outer #-}
 
 -- | Squared /l2/ norm of a vector.
 --
@@ -197,7 +163,7 @@ quadrance = M.join inner
 --
 -- @ ('.#') = ('!#') . 'tran' @
 --
-tran :: Free f => FreeCounital a g => (f**g) a -> Tran a (Rep f) (Rep g) 
+tran :: Free f => FreeCounital a g => (f**g) a -> Tran a (Base f) (Base g) 
 tran m = Tran $ \k -> index $ m .# tabulate k
 
 -- | Retrieve an element of a matrix.
@@ -205,7 +171,7 @@ tran m = Tran $ \k -> index $ m .# tabulate k
 -- >>> elt2 E21 E21 $ m22 1 2 3 4
 -- 1
 --
-elt2 :: Basis2 b c f g => b -> c -> (f**g) a -> a
+elt2 :: Free f => Free g => Base f -> Base g -> (f**g) a -> a
 elt2 i j = elt i . col j
 {-# INLINE elt2 #-}
 
@@ -214,7 +180,7 @@ elt2 i j = elt i . col j
 -- >>> row E22 $ m23 1 2 3 4 5 6
 -- V3 4 5 6
 --
-row :: Free f => Rep f -> (f**g) a -> g a
+row :: Free f => Base f -> (f**g) a -> g a
 row i = flip index i . getCompose
 {-# INLINE row #-}
 
@@ -232,7 +198,7 @@ rows g = arr snd !# g
 -- >>> elt E22 . col E31 $ m23 1 2 3 4 5 6
 -- 4
 --
-col :: Free f => Free g => Rep g -> (f**g) a -> f a
+col :: Free f => Free g => Base g -> (f**g) a -> f a
 col j = flip index j . distributeRep . getCompose
 {-# INLINE col #-}
 
