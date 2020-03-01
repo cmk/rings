@@ -51,6 +51,7 @@ import safe Data.Either
 import safe Data.Fixed
 import safe Data.Foldable as Foldable (Foldable, foldr')
 import safe Data.Functor.Apply
+import safe Data.Functor.Contravariant
 import safe Data.Group
 import safe Data.Int
 import safe Data.List.NonEmpty
@@ -395,7 +396,8 @@ instance Presemiring CDouble
 
 
 instance Ring a => Presemiring (Complex a)
-instance Presemiring a => Presemiring (r -> a)
+instance Presemiring a => Presemiring (e -> a)
+instance Presemiring a => Presemiring (Op a e)
 instance (Presemiring a, Presemiring b) => Presemiring (Either a b)
 instance Presemiring a => Presemiring (Maybe a)
 instance (Additive-Semigroup) a => Presemiring [a]
@@ -434,7 +436,8 @@ instance Semiring CFloat
 instance Semiring CDouble
 
 instance Ring a => Semiring (Complex a)
-instance Semiring a => Semiring (r -> a)
+instance Semiring a => Semiring (e -> a)
+instance Semiring a => Semiring (Op a e)
 instance Semiring a => Semiring (Maybe a)
 instance (Additive-Monoid) a => Semiring [a]
 
@@ -470,3 +473,5 @@ instance Ring CFloat
 instance Ring CDouble
 
 instance Ring a => Ring (Complex a)
+instance Ring a => Ring (e -> a)
+instance Ring a => Ring (Op a e)

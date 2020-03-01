@@ -16,9 +16,7 @@ module Data.Semimodule (
     type (**) 
   , type (++) 
   , type Free
-  , type Basis
-  , type Basis2
-  , type Basis3 
+  , type Base
   , type FreeModule 
   , type FreeSemimodule
   -- * Left modules
@@ -46,6 +44,7 @@ import safe Data.Complex
 import safe Data.Fixed
 import safe Data.Functor.Rep
 import safe Data.Functor.Compose
+import safe Data.Functor.Contravariant
 import safe Data.Functor.Product
 import safe Data.Int
 import safe Data.Semifield
@@ -68,13 +67,9 @@ type (f ** g) = Compose f g
 --
 type (f ++ g) = Product f g
 
-type Free f = (Representable f)
+type Free = Representable
 
-type Basis b f = (Free f, Rep f ~ b, Eq b)
-
-type Basis2 b c f g = (Basis b f, Basis c g)
-
-type Basis3 b c d f g h = (Basis b f, Basis c g, Basis d h)
+type Base f = Rep f
 
 type FreeModule a f = (Free f, (Additive-Group) (f a), Bimodule a a (f a))
 
@@ -226,6 +221,9 @@ instance ((Additive-Monoid) a, (Additive-Group) a) => LeftSemimodule Integer a w
 instance LeftSemimodule l a => LeftSemimodule l (e -> a) where 
   lscale l = fmap (l *.)
 
+instance LeftSemimodule l a => LeftSemimodule l (Op a e) where 
+  lscale l (Op f) = Op $ fmap (l *.) f
+
 instance (LeftSemimodule l a, LeftSemimodule l b) => LeftSemimodule l (a, b) where
   lscale n (a, b) = (n *. a, n *. b)
 
@@ -291,6 +289,9 @@ instance ((Additive-Monoid) a, (Additive-Group) a) => RightSemimodule Integer a 
 instance RightSemimodule r a => RightSemimodule r (e -> a) where 
   rscale r = fmap (.* r)
 
+instance RightSemimodule r a => RightSemimodule r (Op a e) where 
+  rscale r (Op f) = Op $ fmap (.* r) f
+
 instance (RightSemimodule r a, RightSemimodule r b) => RightSemimodule r (a, b) where
   rscale n (a, b) = (a .* n, b .* n)
 
@@ -340,6 +341,8 @@ deriveRightSemimodule((Ratio Natural))
 instance Semiring r => Bisemimodule r r ()
 
 instance Bisemimodule r r a => Bisemimodule r r (e -> a)
+
+instance Bisemimodule r r a => Bisemimodule r r (Op a e)
 
 instance (Bisemimodule r r a, Bisemimodule r r b) => Bisemimodule r r (a, b)
 

@@ -20,6 +20,7 @@ import safe Data.Maybe
 import safe Data.Either
 import safe Data.Distributive
 import safe Data.Functor.Rep
+import safe Data.Functor.Contravariant (Op(..))
 import safe Data.Fixed
 import safe Data.Group hiding ((\\))
 import safe Data.Int
@@ -34,7 +35,7 @@ import safe Numeric.Natural
 
 import safe Prelude
  ( Eq(..), Ord(..), Show, Applicative(..), Functor(..), Monoid(..), Semigroup(..)
- , (.), ($), (<$>), flip, Integer, Float, Double)
+ , (.), ($), (<$>), const, flip, Integer, Float, Double)
 import safe qualified Prelude as P
 
 import safe qualified Data.Map as Map
@@ -405,6 +406,9 @@ instance (Additive-Semigroup) b => Semigroup (Additive (a -> b)) where
   (<>) = liftA2 . liftA2 $ (+)
   {-# INLINE (<>) #-}
 
+instance (Additive-Monoid) b => Monoid (Additive (a -> b)) where
+  mempty = pure . pure $ zero
+
 instance (Additive-Group) b => Magma (Additive (a -> b)) where
   (<<) = liftA2 . liftA2 $ flip subtract 
 
@@ -412,8 +416,24 @@ instance (Additive-Group) b => Quasigroup (Additive (a -> b)) where
 instance (Additive-Group) b => Loop (Additive (a -> b)) where
 instance (Additive-Group) b => Group (Additive (a -> b)) where
 
-instance (Additive-Monoid) b => Monoid (Additive (a -> b)) where
-  mempty = pure . pure $ zero
+
+
+
+
+instance ((Additive-Semigroup) a) => Semigroup (Additive (Op a b)) where
+  Additive (Op f) <> Additive (Op g) = Additive . Op $ \b -> f b + g b
+  {-# INLINE (<>) #-}
+
+instance ((Additive-Monoid) a) => Monoid (Additive (Op a b)) where
+  mempty = Additive . Op $ const zero
+
+instance ((Additive-Group) a) => Magma (Additive (Op a b)) where
+  Additive (Op f) << Additive (Op g) = Additive . Op $ \b -> subtract (g b) (f b)
+  {-# INLINE (<<) #-}
+
+instance ((Additive-Group) a) => Quasigroup (Additive (Op a b))
+instance ((Additive-Group) a) => Loop (Additive (Op a b)) where
+instance ((Additive-Group) a) => Group (Additive (Op a b))
 
 instance Semigroup (Additive [a]) where
   (<>) = liftA2 (<>)
@@ -772,6 +792,31 @@ instance (Multiplicative-Semigroup) b => Semigroup (Multiplicative (a -> b)) whe
 
 instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
   mempty = pure . pure $ one
+
+instance ((Multiplicative-Group) b) => Magma (Multiplicative (a -> b)) where
+  Multiplicative f << Multiplicative g = Multiplicative $ \a -> f a / g a
+  {-# INLINE (<<) #-}
+
+instance ((Multiplicative-Group) b) => Quasigroup (Multiplicative (a -> b))
+instance ((Multiplicative-Group) b) => Loop (Multiplicative (a -> b)) where
+instance ((Multiplicative-Group) b) => Group (Multiplicative (a -> b))
+
+instance ((Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Op a b)) where
+  Multiplicative (Op f) <> Multiplicative (Op g) = Multiplicative . Op $ \b -> f b * g b
+  {-# INLINE (<>) #-}
+
+instance ((Multiplicative-Monoid) a) => Monoid (Multiplicative (Op a b)) where
+  mempty = Multiplicative . Op $ const one
+
+instance ((Multiplicative-Group) a) => Magma (Multiplicative (Op a b)) where
+  Multiplicative (Op f) << Multiplicative (Op g) = Multiplicative . Op $ \b -> f b / g b
+  {-# INLINE (<<) #-}
+
+instance ((Multiplicative-Group) a) => Quasigroup (Multiplicative (Op a b))
+instance ((Multiplicative-Group) a) => Loop (Multiplicative (Op a b)) where
+instance ((Multiplicative-Group) a) => Group (Multiplicative (Op a b))
+
+
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Maybe a)) where
   Multiplicative Nothing  <> _             = Multiplicative Nothing

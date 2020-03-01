@@ -1,9 +1,13 @@
 {-# LANGUAGE Safe                       #-}
 {-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE TypeFamilies                 #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ConstraintKinds            #-}
 module Data.Semimodule.Basis (
+    type Basis
+  , type Basis2
+  , type Basis3
   -- * Euclidean bases
-    E1(..), e1, fillE1
+  , E1(..), e1, fillE1
   , E2(..), e2, fillE2
   , E3(..), e3, fillE3
   , E4(..), e4, fillE4
@@ -15,6 +19,12 @@ import safe Data.Semimodule.Algebra
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Control.Monad as M
+
+type Basis b f = (Free f, Base f ~ b, Eq b)
+
+type Basis2 b c f g = (Basis b f, Basis c g)
+
+type Basis3 b c d f g h = (Basis b f, Basis c g, Basis d h)
 
 -------------------------------------------------------------------------------
 -- Standard basis on one real dimension

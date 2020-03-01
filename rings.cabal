@@ -30,7 +30,7 @@ library
     , Data.Semimodule.Operator
     , Data.Semimodule.Algebra
     , Data.Semimodule.Basis
-    , Data.Semimodule.Dual
+    , Data.Semimodule.Finite
     , Data.Semimodule.Free
 
   default-extensions:

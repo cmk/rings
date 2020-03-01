@@ -19,7 +19,7 @@ module Data.Semimodule.Algebra (
   , Algebra(..)
   , diag
   , (.*.)
-  -- * Unital Algebras 
+  -- * Unital algebras 
   , type FreeUnital
   , Unital(..)
   , unit
@@ -29,10 +29,11 @@ module Data.Semimodule.Algebra (
   , Coalgebra(..)
   , codiag
   , convolve
-  -- * Unital Coalgebras 
+  -- * Unital coalgebras 
   , type FreeCounital
   , Counital(..)
   , counit
+  , inner
   -- * Bialgebras 
   , type FreeBialgebra
   , Bialgebra
@@ -61,8 +62,10 @@ module Data.Semimodule.Algebra (
 
 import safe Control.Arrow
 import safe Control.Applicative
-import safe Control.Category (Category, (>>>), (<<<))
+import safe Control.Category (Category, (>>>))
 import safe Data.Bool
+import safe Data.Functor.Contravariant
+--import safe qualified Data.Functor.Contravariant.Rep as F
 import safe Data.Functor.Rep
 import safe Data.Semimodule
 import safe Data.Semiring
@@ -86,7 +89,7 @@ import safe Test.Logic hiding (join)
 --
 type FreeAlgebra a f = (FreeSemimodule a f, Algebra a (Rep f))
 
--- | An algebra < https://en.wikipedia.org/wiki/Algebra_over_a_field#Generalization:_algebra_over_a_ring algebra > over a semiring.
+-- | An < https://en.wikipedia.org/wiki/Algebra_over_a_field#Generalization:_algebra_over_a_ring algebra > over a semiring.
 --
 -- Note that the algebra < https://en.wikipedia.org/wiki/Non-associative_algebra needn't be associative >.
 --
@@ -104,16 +107,16 @@ class Semiring a => Algebra a b where
   -- |
   --
   -- @
-  -- 'Data.Semimodule.Dual.rmap'' (\((c1,()),(c2,())) -> (c1,c2)) '$' ('C.id' '***' 'initial') 'C..' 'diagonal' = 'C.id'
-  -- 'Data.Semimodule.Dual.rmap'' (\(((),c1),((),c2)) -> (c1,c2)) '$' ('initial' '***' 'C.id') 'C..' 'diagonal' = 'C.id'
+  -- 'rmap'' (\((c1,()),(c2,())) -> (c1,c2)) '$' ('C.id' '***' 'initial') 'C..' 'diagonal' = 'C.id'
+  -- 'rmap'' (\(((),c1),((),c2)) -> (c1,c2)) '$' ('initial' '***' 'C.id') 'C..' 'diagonal' = 'C.id'
   -- @
   --
   diagonal :: Tran a b (b,b)
   diagonal = Tran $ joined . curry
 
--- | Obtain the diagonal of a tensor product as a vector.
+-- | Obtain a vector from a tensor.
 --
--- When the coalgebra is trivial we have:
+-- When the algebra is trivial we have:
 --
 -- @ 'diag' f = 'tabulate' $ 'joined' ('index' . 'index' ('getCompose' f)) @
 --
@@ -131,6 +134,8 @@ infixl 7 .*.
 --
 (.*.) :: FreeAlgebra a f => f a -> f a -> f a
 (.*.) x y = tabulate $ joined (\i j -> index x i * index y j)
+
+--(.#.) x y  = F.tabulate $ joined (\i j -> F.index x i * F.index y j)
 
 -------------------------------------------------------------------------------
 -- Unital algebras
@@ -166,7 +171,7 @@ unit = tabulate . unital
 
 -- | Unital element of a unital algebra over a free semimodule.
 --
--- >>> unit one :: Complex Int
+-- >>> unit' :: Complex Int
 -- 1 :+ 0
 --
 unit' :: FreeUnital a f => f a
@@ -196,8 +201,8 @@ class Semiring a => Coalgebra a c where
   -- |
   --
   -- @
-  -- 'Data.Semimodule.Dual.lmap'' (\(c1,c2) -> ((c1,()),(c2,()))) '$' ('C.id' '***' 'coinitial') 'C..' 'codiagonal' = 'C.id'
-  -- 'Data.Semimodule.Dual.lmap'' (\(c1,c2) -> (((),c1),((),c2))) '$' ('coinitial' '***' 'C.id') 'C..' 'codiagonal' = 'C.id'
+  -- 'lmap'' (\(c1,c2) -> ((c1,()),(c2,()))) '$' ('C.id' '***' 'coinitial') 'C..' 'codiagonal' = 'C.id'
+  -- 'lmap'' (\(c1,c2) -> (((),c1),((),c2))) '$' ('coinitial' '***' 'C.id') 'C..' 'codiagonal' = 'C.id'
   -- @
   --
   codiagonal :: Tran a (c,c) c
@@ -241,7 +246,7 @@ V2 3 3
 --
 --
 convolve :: Algebra a b => Coalgebra a c => Tran a b c -> Tran a b c -> Tran a b c
-convolve f g = codiagonal <<< (f *** g) <<< diagonal
+convolve f g = codiagonal !#! (f *** g) !#! diagonal
 
 -------------------------------------------------------------------------------
 -- Counital Coalgebras
@@ -269,6 +274,19 @@ class Coalgebra a c => Counital a c where
 --
 counit :: FreeCounital a f => f a -> a
 counit = counital . index
+
+infix 6 `inner`
+
+-- | Inner product.
+--
+-- This is a variant of 'Data.Semiring.xmult' restricted to free functors.
+--
+-- >>> V3 1 2 3 `inner` V3 1 2 3
+-- 14
+-- 
+inner :: FreeCounital a f => f a -> f a -> a
+inner x y = counit $ liftR2 (*) x y
+{-# INLINE inner #-}
 
 -------------------------------------------------------------------------------
 -- Bialgebras
@@ -328,9 +346,15 @@ infixl 2 #!
 (#!) :: Free f => Free g => g a -> Tran a (Rep f) (Rep g) -> f a
 (#!) = flip (!#)
 
-infix 2 !#!
+infixr 1 !#!
 
 -- | Compose two transformations.
+--
+-- Provided for convenience:
+--
+-- @
+-- ('!#!') = ('C..')
+-- @
 --
 (!#!) :: Tran a c d -> Tran a b c -> Tran a b d
 (!#!) = (C..)
@@ -343,7 +367,7 @@ infix 2 !#!
 -- V3 5 5 4
 --
 dimap' :: (b1 -> b2) -> (c1 -> c2) -> Tran a b2 c1 -> Tran a b1 c2
-dimap' l r f = arr r <<< f <<< arr l
+dimap' l r f = arr r !#! f !#! arr l
 
 lmap' :: (b1 -> b2) -> Tran a b2 c -> Tran a b1 c
 lmap' l = dimap' l id
@@ -363,6 +387,8 @@ invmap f g (Tran t) = Tran $ \x -> t (x >>> g) >>> f
 -------------------------------------------------------------------------------
 
 -- | Swap components of a tensor product.
+--
+-- This is equivalent to a matrix transpose.
 --
 braid :: Tran a (b , c) (c , b)
 braid = arr swap
