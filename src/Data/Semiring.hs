@@ -15,6 +15,9 @@
 module Data.Semiring (
   -- * Types
     type (-)
+  , type (**) 
+  , type (++) 
+  , type Free
   -- * Presemirings
   , type PresemiringLaw, Presemiring
   , (+), (*)
@@ -57,12 +60,14 @@ import safe Data.Fixed
 import safe Data.Foldable as Foldable (Foldable, foldr')
 import safe Data.Functor.Apply
 import safe Data.Functor.Rep
+import safe Data.Functor.Compose
+import safe Data.Functor.Product
 import safe Data.Functor.Contravariant
 import safe Data.Group
 import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Maybe
-import safe Data.Semigroup
+import safe Data.Semigroup hiding (Product)
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Ord (Down(..))
 import safe Data.Word
@@ -79,6 +84,20 @@ import safe qualified Data.Set as Set
 
 -- | Hyphenation operator.
 type (g - f) a = f (g a)
+
+infixr 2 **
+
+-- | Tensor product.
+--
+type (f ** g) = Compose f g
+
+infixr 1 ++
+
+-- | Direct sum.
+--
+type (f ++ g) = Product f g
+
+type Free = Representable
 
 -------------------------------------------------------------------------------
 -- Presemiring
@@ -750,6 +769,37 @@ deriveAdditiveGroup(Double)
 deriveAdditiveGroup(CDouble)
 
 
+instance ((Additive-Semigroup) a, Free f, Free g) => Semigroup (Additive ((f++g) a)) where
+   (<>) = liftA2 $ mzipWithRep (+)
+   {-# INLINE (<>) #-}
+
+instance ((Additive-Monoid) a, Free f, Free g) => Monoid (Additive ((f++g) a)) where
+   mempty = pure $ pureRep zero 
+   {-# INLINE mempty #-}
+
+instance ((Additive-Group) a, Free f, Free g) => Magma (Additive ((f++g) a)) where
+   (<<) = liftA2 $ mzipWithRep (-)
+   {-# INLINE (<<) #-}
+
+instance ((Additive-Group) a, Free f, Free g) => Quasigroup (Additive ((f++g) a))
+instance ((Additive-Group) a, Free f, Free g) => Loop (Additive ((f++g) a))
+instance ((Additive-Group) a, Free f, Free g) => Group (Additive ((f++g) a))
+
+instance ((Additive-Semigroup) a, Free f, Free g) => Semigroup (Additive ((f**g) a)) where
+   (<>) = liftA2 $ mzipWithRep (+)
+   {-# INLINE (<>) #-}
+
+instance ((Additive-Monoid) a, Free f, Free g) => Monoid (Additive ((f**g) a)) where
+   mempty = pure $ pureRep zero 
+   {-# INLINE mempty #-}
+
+instance ((Additive-Group) a, Free f, Free g) => Magma (Additive ((f**g) a)) where
+   (<<) = liftA2 $ mzipWithRep (-)
+   {-# INLINE (<<) #-}
+
+instance ((Additive-Group) a, Free f, Free g) => Quasigroup (Additive ((f**g) a))
+instance ((Additive-Group) a, Free f, Free g) => Loop (Additive ((f**g) a))
+instance ((Additive-Group) a, Free f, Free g) => Group (Additive ((f**g) a))
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Complex a)) where
   Additive (a :+ b) <> Additive (c :+ d) = Additive $ (a + b) :+ (c + d)
@@ -790,7 +840,6 @@ instance ((Additive-Group) a, (Multiplicative-Group) a) => Loop (Multiplicative 
 
 instance ((Additive-Group) a, (Multiplicative-Group) a) => Group (Multiplicative (Complex a))
 -}
-
 
 instance ((Additive-Semigroup) a, (Multiplicative-Semigroup) a) => Semigroup (Additive (Ratio a)) where
   Additive (a :% b) <> Additive (c :% d) = Additive $ (a * d + c * b) :% (b  *  d)

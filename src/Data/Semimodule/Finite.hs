@@ -78,7 +78,7 @@ import safe Data.Semifield
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
 import safe Data.Semimodule.Basis
-import safe Data.Semimodule.Operator
+import safe Data.Semimodule.Combinator
 import safe Data.Semiring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Prelude (fromInteger)
@@ -915,17 +915,8 @@ deriveFreeRightSemimodule(V4)
 deriveFreeBisemimodule(V4)
 
 -- M11
-deriveAdditiveSemigroup(M11)
-deriveAdditiveMonoid(M11)
-
-deriveAdditiveMagma(M11)
-deriveAdditiveQuasigroup(M11)
-deriveAdditiveLoop(M11)
-deriveAdditiveGroup(M11)
-
 deriveLeftSemimodule(M11, M11)
 deriveRightSemimodule(M11, M11)
-deriveBisemimodule(M11, M11, M11)
 
 deriveMultiplicativeMatrixSemigroup(M11)
 deriveMultiplicativeMatrixMonoid(M11)
@@ -935,73 +926,32 @@ deriveSemiring(M11)
 deriveRing(M11)
 
 -- M21
-deriveAdditiveSemigroup(M21)
-deriveAdditiveMonoid(M21)
-
-deriveAdditiveMagma(M21)
-deriveAdditiveQuasigroup(M21)
-deriveAdditiveLoop(M21)
-deriveAdditiveGroup(M21)
-
 deriveLeftSemimodule(M22, M21)
 deriveRightSemimodule(M11, M21)
 deriveBisemimodule(M22, M11, M21)
 
 
 -- M31
-deriveAdditiveSemigroup(M31)
-deriveAdditiveMonoid(M31)
-
-deriveAdditiveMagma(M31)
-deriveAdditiveQuasigroup(M31)
-deriveAdditiveLoop(M31)
-deriveAdditiveGroup(M31)
-
 deriveLeftSemimodule(M33, M31)
 deriveRightSemimodule(M11, M31)
 deriveBisemimodule(M33, M11, M31)
 
 
 -- M41
-deriveAdditiveSemigroup(M41)
-deriveAdditiveMonoid(M41)
-
-deriveAdditiveMagma(M41)
-deriveAdditiveQuasigroup(M41)
-deriveAdditiveLoop(M41)
-deriveAdditiveGroup(M41)
-
 deriveLeftSemimodule(M44, M41)
 deriveRightSemimodule(M11, M41)
 deriveBisemimodule(M44, M11, M41)
 
 
 -- M12
-deriveAdditiveSemigroup(M12)
-deriveAdditiveMonoid(M12)
-
-deriveAdditiveMagma(M12)
-deriveAdditiveQuasigroup(M12)
-deriveAdditiveLoop(M12)
-deriveAdditiveGroup(M12)
-
 deriveLeftSemimodule(M11, M12)
 deriveRightSemimodule(M22, M12)
 deriveBisemimodule(M11, M22, M12)
 
 
 -- M22
-deriveAdditiveSemigroup(M22)
-deriveAdditiveMonoid(M22)
-
-deriveAdditiveMagma(M22)
-deriveAdditiveQuasigroup(M22)
-deriveAdditiveLoop(M22)
-deriveAdditiveGroup(M22)
-
 deriveLeftSemimodule(M22, M22)
 deriveRightSemimodule(M22, M22)
-deriveBisemimodule(M22, M22, M22)
 
 deriveMultiplicativeMatrixSemigroup(M22)
 deriveMultiplicativeMatrixMonoid(M22)
@@ -1012,73 +962,32 @@ deriveRing(M22)
 
 
 -- M32
-deriveAdditiveSemigroup(M32)
-deriveAdditiveMonoid(M32)
-
-deriveAdditiveMagma(M32)
-deriveAdditiveQuasigroup(M32)
-deriveAdditiveLoop(M32)
-deriveAdditiveGroup(M32)
-
 deriveLeftSemimodule(M33, M32)
 deriveRightSemimodule(M22, M32)
 deriveBisemimodule(M33, M22, M32)
 
 
 -- M42
-deriveAdditiveSemigroup(M42)
-deriveAdditiveMonoid(M42)
-
-deriveAdditiveMagma(M42)
-deriveAdditiveQuasigroup(M42)
-deriveAdditiveLoop(M42)
-deriveAdditiveGroup(M42)
-
 deriveLeftSemimodule(M44, M42)
 deriveRightSemimodule(M22, M42)
 deriveBisemimodule(M44, M22, M42)
 
 
 -- M13
-deriveAdditiveSemigroup(M13)
-deriveAdditiveMonoid(M13)
-
-deriveAdditiveMagma(M13)
-deriveAdditiveQuasigroup(M13)
-deriveAdditiveLoop(M13)
-deriveAdditiveGroup(M13)
-
 deriveLeftSemimodule(M11, M13)
 deriveRightSemimodule(M33, M13)
 deriveBisemimodule(M11, M33, M13)
 
 
 -- M23
-deriveAdditiveSemigroup(M23)
-deriveAdditiveMonoid(M23)
-
-deriveAdditiveMagma(M23)
-deriveAdditiveQuasigroup(M23)
-deriveAdditiveLoop(M23)
-deriveAdditiveGroup(M23)
-
 deriveLeftSemimodule(M22, M23)
 deriveRightSemimodule(M33, M23)
 deriveBisemimodule(M22, M33, M23)
 
 
 -- M33
-deriveAdditiveSemigroup(M33)
-deriveAdditiveMonoid(M33)
-
-deriveAdditiveMagma(M33)
-deriveAdditiveQuasigroup(M33)
-deriveAdditiveLoop(M33)
-deriveAdditiveGroup(M33)
-
 deriveLeftSemimodule(M33, M33)
 deriveRightSemimodule(M33, M33)
-deriveBisemimodule(M33, M33, M33)
 
 deriveMultiplicativeMatrixSemigroup(M33)
 deriveMultiplicativeMatrixMonoid(M33)
@@ -1089,73 +998,32 @@ deriveRing(M33)
 
 
 -- M43
-deriveAdditiveSemigroup(M43)
-deriveAdditiveMonoid(M43)
-
-deriveAdditiveMagma(M43)
-deriveAdditiveQuasigroup(M43)
-deriveAdditiveLoop(M43)
-deriveAdditiveGroup(M43)
-
 deriveLeftSemimodule(M44, M43)
 deriveRightSemimodule(M33, M43)
 deriveBisemimodule(M44, M33, M43)
 
 
 -- M14
-deriveAdditiveSemigroup(M14)
-deriveAdditiveMonoid(M14)
-
-deriveAdditiveMagma(M14)
-deriveAdditiveQuasigroup(M14)
-deriveAdditiveLoop(M14)
-deriveAdditiveGroup(M14)
-
 deriveLeftSemimodule(M11, M14)
 deriveRightSemimodule(M44, M14)
 deriveBisemimodule(M11, M44, M14)
 
 
 -- M24
-deriveAdditiveSemigroup(M24)
-deriveAdditiveMonoid(M24)
-
-deriveAdditiveMagma(M24)
-deriveAdditiveQuasigroup(M24)
-deriveAdditiveLoop(M24)
-deriveAdditiveGroup(M24)
-
 deriveLeftSemimodule(M22, M24)
 deriveRightSemimodule(M44, M24)
 deriveBisemimodule(M22, M44, M24)
 
 
 -- M34
-deriveAdditiveSemigroup(M34)
-deriveAdditiveMonoid(M34)
-
-deriveAdditiveMagma(M34)
-deriveAdditiveQuasigroup(M34)
-deriveAdditiveLoop(M34)
-deriveAdditiveGroup(M34)
-
 deriveLeftSemimodule(M33, M34)
 deriveRightSemimodule(M44, M34)
 deriveBisemimodule(M33, M44, M34)
 
 
 -- M44
-deriveAdditiveSemigroup(M44)
-deriveAdditiveMonoid(M44)
-
-deriveAdditiveMagma(M44)
-deriveAdditiveQuasigroup(M44)
-deriveAdditiveLoop(M44)
-deriveAdditiveGroup(M44)
-
 deriveLeftSemimodule(M44, M44)
 deriveRightSemimodule(M44, M44)
-deriveBisemimodule(M44, M44, M44)
 
 deriveMultiplicativeMatrixSemigroup(M44)
 deriveMultiplicativeMatrixMonoid(M44)

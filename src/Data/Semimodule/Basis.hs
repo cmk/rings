@@ -14,13 +14,12 @@ module Data.Semimodule.Basis (
 ) where
 
 import safe Data.Functor.Rep
-import safe Data.Semimodule
-import safe Data.Semimodule.Algebra
 import safe Data.Semiring
+import safe Data.Semimodule
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Control.Monad as M
 
-type Basis b f = (Free f, Base f ~ b, Eq b)
+type Basis b f = (Free f, Rep f ~ b, Eq b)
 
 type Basis2 b c f g = (Basis b f, Basis c g)
 
@@ -50,7 +49,7 @@ instance Semiring r => Coalgebra r E1 where
   cojoined f E11 E11 = f E11
 
 instance Semiring r => Counital r E1 where
-  coinitial = Tran $ \f _ -> f E11
+  counital f = f E11
 
 instance Semiring r => Bialgebra r E1
 
@@ -79,7 +78,7 @@ instance Semiring r => Coalgebra r E2 where
   cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E2 where
-  coinitial = Tran $ \f _ -> f E21 + f E22
+  counital f = f E21 + f E22
 
 instance Semiring r => Bialgebra r E2
 
@@ -110,7 +109,7 @@ instance Semiring r => Coalgebra r E3 where
   cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E3 where
-  coinitial = Tran $ \f _ -> f E31 + f E32 + f E33
+  counital f = f E31 + f E32 + f E33
 
 instance Semiring r => Bialgebra r E3
 
@@ -143,7 +142,7 @@ instance Semiring r => Coalgebra r E4 where
   cojoined _ _ _ = zero
 
 instance Semiring r => Counital r E4 where
-  coinitial = Tran $ \f _ -> f E41 + f E42 + f E43 + f E44
+  counital f = f E41 + f E42 + f E43 + f E44
 
 instance Semiring r => Bialgebra r E4
 

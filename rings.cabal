@@ -1,5 +1,5 @@
 name:                rings
-version:             0.1.2
+version:             0.1.3
 synopsis:            Ring-like objects.
 description:         Semirings, rings, division rings, modules, and algebras.
 homepage:            https://github.com/cmk/rings
@@ -25,11 +25,10 @@ library
     , Data.Semiring.Property
     , Data.Semifield
     , Data.Semimodule
-    , Data.Semimodule.Operator
-    , Data.Semimodule.Algebra
+    , Data.Semimodule.Free
     , Data.Semimodule.Basis
     , Data.Semimodule.Finite
-    , Data.Semimodule.Free
+    , Data.Semimodule.Combinator
 
   default-extensions:
       ScopedTypeVariables
@@ -49,3 +48,4 @@ library
     , distributive   >= 0.3   && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
     , magmas         >= 0.0.1 && < 1.0
+    , profunctors    >= 5.3   && < 6
