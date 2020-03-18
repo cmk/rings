@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE Safe                       #-}
-{-# LANGUAGE PolyKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -8,16 +6,25 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TypeOperators              #-}
+
+
+{-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE QuantifiedConstraints                #-}
+{-# LANGUAGE StandaloneDeriving                #-}
+
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE MonoLocalBinds             #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-module Data.Semiring (
+module Data.Semiring where
+{- (
   -- * Types
     type (-)
   , type (**) 
   , type (++) 
-  , type Free
+  , module Data.Semiring
+
+
   -- * Presemirings
   , type PresemiringLaw, Presemiring
   , (+), (*)
@@ -39,10 +46,10 @@ module Data.Semiring (
   , type RingLaw, Ring
   , (-)
   , subtract, negate, abs, signum
-  -- * Additive
-  , Additive(..)
-  -- * Multiplicative
-  , Multiplicative(..)
+  -- * Sum
+  , Sum(..)
+  -- * Product
+  , Product(..)
   -- * Re-exports
   , mreplicate
   , Magma(..)
@@ -50,40 +57,45 @@ module Data.Semiring (
   , Loop
   , Group(..)
 ) where
+-}
 
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Complex
-import safe Data.Distributive
-import safe Data.Either
-import safe Data.Fixed
-import safe Data.Foldable as Foldable (Foldable, foldr')
-import safe Data.Functor.Apply
-import safe Data.Functor.Rep
-import safe Data.Functor.Compose
-import safe Data.Functor.Product
-import safe Data.Functor.Contravariant
-import safe Data.Group
-import safe Data.Int
-import safe Data.List.NonEmpty
-import safe Data.Maybe
-import safe Data.Semigroup hiding (Product)
-import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Ord (Down(..))
-import safe Data.Word
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-import safe GHC.Generics (Generic)
-import safe GHC.Real hiding (Fractional(..), (^^), (^))
-import safe Numeric.Natural
-import safe Prelude (Eq, Ord(..), Show(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, flip, const, (.), ($), Integer, Float, Double)
-import safe qualified Prelude as P
-import safe qualified Data.IntMap as IntMap
-import safe qualified Data.IntSet as IntSet
-import safe qualified Data.Map as Map
-import safe qualified Data.Set as Set
+import Control.Applicative
+import Data.Bool
+import Data.Complex
+import Data.Either
+import Data.Fixed
+import Data.Foldable as Foldable (Foldable, foldl',foldl1)
+import Data.Functor.Apply
+import Data.Functor.Rep
+import Data.Functor.Compose
+import Data.Functor.Identity
+import Data.Functor.Contravariant
+import Data.Group
+import Data.Int
+import Data.List.NonEmpty
+import Data.Maybe
+import Data.Monoid
+import Data.Semigroup
+import Data.Semigroup.Foldable as Foldable1
+import Data.Prd
+import Data.Ord (Down(..))
+import Data.Word
+import Foreign.C.Types (CFloat(..),CDouble(..))
+import GHC.Generics (Generic)
+--import GHC.TypeNats (KnownNat(..))
+import GHC.Real hiding (Fractional(..), (^^), (^))
+import Numeric.Natural
+import Prelude (Eq, Ord, Show(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, flip, const, (.), ($), Integer, Float, Double)
+import qualified Prelude as P
+import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.Functor.Product as F
 
--- | Hyphenation operator.
-type (g - f) a = f (g a)
+
+--import Data.Vector.Sized hiding (foldl')
+
 
 infixr 2 **
 
@@ -95,19 +107,133 @@ infixr 1 ++
 
 -- | Direct sum.
 --
-type (f ++ g) = Product f g
+type (f ++ g) = F.Product f g
 
-type Free = Representable
+
+--type f $ a = N1 f a
+-- | Hyphenation operator.
+--type (g - f) a = f (g a)
+
+newtype N0 a = N0 { getN0 :: a } deriving (Functor)
+
+newtype N1 f a = N1 { getN1 :: f a } deriving (Functor)
+
+newtype N2 f g a = N2 { getN2 :: f (g a) } deriving (Functor)
+
+instance Applicative N0 where
+  pure = N0
+  N0 f <*> N0 a = N0 (f a)
+
+instance Applicative f => Applicative (N1 f) where
+  pure = N1 . pure
+  N1 f <*> N1 a = N1 (f <*> a)
+
+deriving via (Compose f g) instance (Applicative f, Applicative g) => Applicative (N2 f g) 
+
+
+-- | A commutative 'Semigroup' under '+'.
+newtype Additive a = Additive { getAdditive :: a }
+  deriving stock (Eq, Generic, Ord, Show)
+  deriving (Functor, Applicative) via Identity
+
+-- | A (potentially non-commutative) 'Semigroup' under '*'.
+newtype Multiplicative a = Multiplicative { getMultiplicative :: a }
+  deriving stock (Eq, Generic, Ord, Show)
+  deriving (Functor, Applicative) via Identity
+{-
+instance Presemiring a => Semigroup (Additive a) where
+  Additive x <> Additive y = Additive $ x + y
+
+instance Semiring a => Monoid (Additive a) where
+  mempty = Additive zero
+
+instance Presemiring a => Semigroup (Multiplicative a) where
+  Multiplicative x <> Multiplicative y = Multiplicative $ x * y
+
+instance Semiring a => Monoid (Multiplicative a) where
+  mempty = Multiplicative one
+
+--use for Semimodule?
+instance Presemiring a => Semigroup (N1 Additive a) where
+  N1 x <> N1 y = N1 $ liftA2 (+)
+
+instance Semiring a => Monoid (N1 Additive a) where
+  mempty = N1 $ pure zero
+-}
+
+
+type MinPlus a = Min a
+type MaxPlus a = Min (Down a)
+type MinTimes a = Max (Down a)
+type MaxTimes a = Max a
+
+newtype Tropical f g a = Tropical { getTropical :: f (g a) } deriving Show
+
+instance (Applicative f, Semigroup (f (g a)), Semigroup (g a)) => Presemiring (Tropical f g a) where
+  Tropical x * Tropical y = Tropical $ x <> y
+  Tropical x + Tropical y = Tropical $ liftA2 (<>) x y
+
+instance (Applicative f, Monoid (f (g a)), Monoid (g a)) => Semiring (Tropical f g a) where
+  zero = Tropical mempty
+  one = Tropical $ pure mempty
+{-
+(%%) :: (Add-Semigroup) a => a -> a -> a
+a %% b = getNum (Num a <> Num b)
+newtype Num a = Num { getNum :: a } deriving (Functor)
+
+instance Applicative Num where
+  pure = Add
+  Num f <*> Num a = Num (f a)
+
+instance (Semigroup a) => Semigroup (Num a) where
+  (<>) = liftA2 (<>)
+
+instance (Add-Semigroup) a => Presemiring a where
+  (%%%) = (%%)
+
+deriving via (Num P.String) instance Presemiring P.String 
+-}
+--deriving via (Sum Int) instance Presemiring Int -- Num a = Semigroup (Sum a)
+--deriving via ((f++g) $ (a :: *)) instance (Applicative f, Applicative g, P.Num a) => Presemiring ((f++g) a) 
+{-
+instance (Sum-Semigroup) a => Presemiring a
+
+--deriving instance Presemiring Int via (Sum Int)
+--deriving via (Vector2D a) instance (Sum a) => Sum (Square a)
+
+deriving via (Sum $ Double) instance Presemiring Double
+deriving via (Sum P.String) instance Presemiring P.String -- Semigroup a => Semigroup (Sum a)
+
+deriving via (Alt Maybe a) instance Presemiring (Maybe a) -- Alternative f => Semigroup (Alt f a)
+-- Alternative f => Semigroup (Alt f a)
+
+instance (Sum - Semigroup) a => Semigroup (Sum $ a) where
+  (<>) = liftA2 (%%)
+
+deriving via ((f++g) $ (a :: *)) instance (Sum-Semigroup) a => Presemiring ((f++g) a) --YESS!!! we can insert a 'node' between 'instance Num a' and 'instance Semigroup (Sum a)'
+
+-}
+
+{-
+--TODO grok the difference between this and putting the constraint inthe class head
+instance (forall f . Semigroup (f $ a)) => Presemiring a
+
+
+deriving via (Sum $ Double) instance Presemiring Double
+--deriving via (Fun (Alt Maybe) a) instance Presemiring a
+deriving via ((f++g) $ (a :: *)) instance (Sum-Semigroup) a => Presemiring ((f++g) a) 
+-}
+
 
 -------------------------------------------------------------------------------
 -- Presemiring
 -------------------------------------------------------------------------------
 
-type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
+--type PresemiringLaw a = ((Sum-Semigroup) a, (Product-Semigroup) a)
 
 -- | Right pre-semirings. and (non-unital and unital) right semirings.
 -- 
--- A right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
+-- Fun right pre-semiring (sometimes referred to as a bisemigroup) is a type /R/ endowed 
 -- with two associative binary (i.e. semigroup) operations: '+' and '*', along with a 
 -- right-distributivity property connecting them:
 --
@@ -121,41 +247,149 @@ type PresemiringLaw a = ((Additive-Semigroup) a, (Multiplicative-Semigroup) a)
 --
 -- See the properties module for a detailed specification of the laws.
 --
-class PresemiringLaw a => Presemiring a
+class Presemiring a where
+  infixl 6 +
+
+  -- | Sum semigroup operation on a semiring.
+  --
+  -- >>> Dual [2] + Dual [3] :: Dual [Int]
+  -- Dual {getDual = [3,2]}
+  --
+  (+) :: a -> a -> a
+  default (+) :: Semigroup (Sum a) => a -> a -> a
+  a + b = getSum (Sum a <> Sum b)
+  {-# INLINE (+) #-}
 
 
-infixl 6 +
+  infixl 7 *
 
--- | Additive semigroup operation on a semiring.
---
--- >>> Dual [2] + Dual [3] :: Dual [Int]
--- Dual {getDual = [3,2]}
---
-(+) :: (Additive-Semigroup) a => a -> a -> a
-a + b = unAdditive (Additive a <> Additive b)
-{-# INLINE (+) #-}
+  -- | Product semigroup operation on a semiring.
+  --
+  -- >>> Dual [2] * Dual [3] :: Dual [Int]
+  -- Dual {getDual = [5]}
+  --
+  (*) :: a -> a -> a
+  default (*) :: Semigroup (Product a) => a -> a -> a
+  a * b = getProduct (Product a <> Product b)
+  {-# INLINE (*) #-}
 
 
-infixl 7 *
+instance (Semigroup (Sum a), Semigroup (Product a)) => Presemiring (N0 a) where
+  N0 x * N0 y = N0 . getProduct $ Product x <> Product y
+  N0 x + N0 y = N0 . getSum $ Sum x <> Sum y
 
--- | Multiplicative semigroup operation on a semiring.
---
--- >>> Dual [2] * Dual [3] :: Dual [Int]
--- Dual {getDual = [5]}
---
-(*) :: (Multiplicative-Semigroup) a => a -> a -> a
-a * b = unMultiplicative (Multiplicative a <> Multiplicative b)
-{-# INLINE (*) #-}
+instance (Alternative f, Semigroup a) => Presemiring (N1 f a) where
+  N1 x * N1 y = N1 . getAp $ Ap x <> Ap y
+  N1 x + N1 y = N1 . getAlt $ Alt x <> Alt y
 
--------------------------------------------------------------------------------
--- Presemiring folds
--------------------------------------------------------------------------------
+instance (Applicative f, Applicative g, Presemiring a) => Presemiring (N2 f g a) where
+  (+) = liftA2 (+)
+  (*) = liftA2 (*) -- should make this matrix mult instead? use Ap/Alt?
 
--- | Evaluate a non-empty presemiring sum.
---
-sum1 :: (Additive-Semigroup) a => Foldable1 f => f a -> a
-sum1 = sumWith1 id
+instance (Representable f, Presemiring a) => Presemiring (Co f a) where
+  (+) = liftR2 (+)
+  (*) = liftR2 (*)
 
+--If R is a ring, we can define a dual ring which has the same underlying set and the same addition operation, but the opposite multiplication: 
+-- > if a* b = c, then Dual b * Dual a = Dual c
+-- Any left R-module M can then be seen to be a right module over Rop, and any right module over R can be considered a left module over Rop.
+instance (Semigroup (Sum a), Semigroup (Product a)) => Presemiring (Dual a) where
+  Dual x * Dual y = Dual . getProduct $ Product y <> Product x
+  Dual x + Dual y = Dual . getSum $ Sum x <> Sum y
+
+
+--  N0 x + N0 y = N0 . getSum $ Sum x <> Sum y
+instance (Monoid (Sum a), Monoid (Product a)) => Semiring (N0 a) where
+  one = N0 . getProduct $ mempty
+  zero = N0 . getSum $ mempty
+
+instance (Alternative f, Monoid a) => Semiring (N1 f a) where
+  one = N1 . getAp $ mempty
+  zero = N1 . getAlt $ mempty
+
+instance (Applicative f, Applicative g, Semiring a) => Semiring (N2 f g a) where
+  one = pure one
+  zero = pure zero
+
+instance (Monoid (Sum a), Monoid (Product a)) => Semiring (Dual a) where
+  one = Dual . getProduct $ mempty
+  zero = Dual . getSum $ mempty
+
+instance (Group (Sum a), Monoid (Product a)) => Ring (N0 a) where
+  N0 a - N0 b = N0 . getSum $ Sum a << Sum b
+
+---TODO move upstream
+--instance (Alternative f, Group a) => Magma (Alt f a) where
+  
+--instance (Alternative f, Group a) => Ring (N1 f a) where
+--  N1 x - N1 y = N1 . getAlt $ Alt x << Alt y
+
+--deriving via (Co (Vector n) a) instance (KnownNat n, Presemiring a) => Presemiring (Vector n a)
+
+instance Presemiring Bool where
+  (+) = (||)
+  (*) = (&&)
+
+instance Semiring Bool where
+  one = True
+  zero = False
+
+deriving via (N0 Double) instance Presemiring Double
+deriving via (N0 Int) instance Presemiring Int
+deriving via (N0 Double) instance Semiring Double
+deriving via (N0 Int) instance Semiring Int
+--deriving via (N0 a) instance P.Num a => Presemiring a -- too generic?
+
+instance Presemiring b => Presemiring (a -> b) where
+  (+) = liftA2 (+)
+  (*) = liftA2 (*)
+
+instance Semiring b => Semiring (a -> b) where
+  one = pure one
+  zero = pure zero
+
+instance Ring b => Ring (a -> b) where
+  (-) = liftA2 (-)
+
+--deriving via (N1 ((->) r) a) instance Semigroup a => Presemiring (r -> a) 
+deriving via (N1 Maybe a) instance Semigroup a => Presemiring (Maybe a) 
+deriving via (N1 [] a) instance Semigroup a => Presemiring [a] 
+deriving via (N1 ZipList a) instance Semigroup a => Presemiring (ZipList a) 
+deriving via (N2 f g a) instance (Applicative f, Applicative g, Presemiring a) => Presemiring ((f**g) a) 
+
+deriving via (N1 Maybe a) instance Monoid a => Semiring (Maybe a) 
+deriving via (N1 [] a) instance Monoid a => Semiring [a] 
+deriving via (N1 ZipList a) instance Monoid a => Semiring (ZipList a) 
+deriving via (N2 f g a) instance (Applicative f, Applicative g, Semiring a) => Semiring ((f**g) a) 
+{-
+λ> Min 3 + Min 4
+Min {getMin = 3}
+λ> Min 3 * Min 4
+Min {getMin = 7}
+λ> Min (Down 3) + Min (Down 4)
+Min {getMin = Down 4}
+λ> Min (Down 3) * Min (Down 4)
+Min {getMin = Down 7}
+-}
+deriving via (Tropical Sum Min a) instance (P.Num a, Ord a) => Presemiring (Min a)
+
+{-
+λ> Max 3 + Max 4
+Max {getMax = 3}
+λ> Max 3 * Max 4
+Max {getMax = 12}
+λ> Max (Down 3) + Max (Down 4)
+Max {getMax = Down 4}
+λ> Max (Down 3) * Max (Down 4)
+Max {getMax = Down 12}
+-}
+deriving via (Tropical Product Max a) instance (P.Num a, Ord a) => Presemiring (Max a)
+
+
+
+-- or try instance Num a => Semigroup (Product a) where..
+
+{-
 -- | Evaluate a non-empty presemiring sum using a given presemiring.
 -- 
 -- >>> evalWith1 Max $ (1 :| [2..5 :: Int]) :| [1 :| [2..5 :: Int]]
@@ -168,15 +402,8 @@ sum1 = sumWith1 id
 -- >>> sumWith1 Just $ 1 :| [2..5 :: Int]
 -- Just 15
 --
-sumWith1 :: (Additive-Semigroup) a => Foldable1 t => (b -> a) -> t b -> a
-sumWith1 f = unAdditive . foldMap1 (Additive . f)
-{-# INLINE sumWith1 #-}
-
--- | Evaluate a non-empty presemiring product.
---
-product1 :: (Multiplicative-Semigroup) a => Foldable1 f => f a -> a
-product1 = productWith1 id
-
+sumWith1 :: Foldable1 t => (b -> a) -> t b -> a
+sumWith1 f = foldl1 (\a b -> a + f b) 
 -- | Evaluate a non-empty presemiring product using a given presemiring.
 -- 
 -- As the collection is non-empty this does not require a distinct multiplicative unit:
@@ -188,9 +415,186 @@ product1 = productWith1 id
 -- >>> productWith1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
 -- First {getFirst = Just 11}
 --
-productWith1 :: (Multiplicative-Semigroup) a => Foldable1 t => (b -> a) -> t b -> a
-productWith1 f = unMultiplicative . foldMap1 (Multiplicative . f)
+productWith1 :: Foldable1 t => (b -> a) -> t b -> a
+productWith1 f = getProduct . foldMap1 (Product . f)
 {-# INLINE productWith1 #-}
+-}
+
+-- | Right semirings.
+-- 
+-- Fun right semiring is a pre-semiring with two distinct neutral elements, 'zero' 
+-- and 'one', such that 'zero' is right-neutral wrt addition, 'one' is right-neutral wrt
+-- multiplication, and 'zero' is right-annihilative wrt multiplication. 
+--
+-- /Neutrality/
+--
+-- @
+-- 'zero' '+' r = r
+-- 'one' '*' r = r
+-- @
+--
+-- /Absorbtion/
+--
+-- @
+-- 'zero' '*' a = 'zero'
+-- @
+--
+class Presemiring a => Semiring a where
+
+  -- | Sum unit of a semiring.
+  --
+  zero :: a
+  default zero :: Monoid (Sum a) => a
+  zero = getSum mempty
+  {-# INLINE zero #-}
+
+  -- | Product unit of a semiring.
+  --
+  one :: a
+  default one :: Monoid (Product a) => a
+  one = getProduct mempty
+  {-# INLINE one #-}
+
+  --infixr 8 ^
+
+  -- | Evaluate a natural-numbered power of a semiring element.
+  --
+  -- @ 'one' = a '^' 0 @
+  --
+  -- >>> 8 ^ 0 :: Int
+  -- 1
+  --
+  --(^) :: a -> Natural -> a
+  --a ^ n = getMultiplicative $ mreplicate n (Multiplicative a)
+
+
+--instance (Applicative f, Semigroup (f (g a)), Semigroup (g a)) => Presemiring (Tropical f g a) where
+
+
+sum :: Semiring a => Foldable f => f a -> a
+sum = sumWith id
+
+-- | Evaluate a semiring sum using a given semiring.
+-- 
+sumWith :: Semiring a => Foldable f => (b -> a) -> f b -> a
+sumWith f = foldl' (\a b -> a + f b) zero
+{-# INLINE sumWith #-}
+
+-- | Evaluate a semiring product using a given semiring.
+--
+-- @
+-- 'product' f = 'Data.foldr'' (('*') . f) 'one'
+-- @
+--
+-- >>> productWith Just [1..5 :: Int]
+-- Just 120
+--
+productWith :: Semiring a => Foldable f => (b -> a) -> f b -> a
+productWith f = foldl' (\a b -> a * f b) one
+{-# INLINE productWith #-}
+
+
+-------------------------------------------------------------------------------
+-- Ring
+-------------------------------------------------------------------------------
+
+--type RingLaw a = ((Sum-Group) a, (Product-Monoid) a)
+
+-- | Rings.
+--
+-- Fun ring /R/ is a commutative group with a second monoidal operation '*' that distributes over '+'.
+--
+-- The basic properties of a ring follow immediately from the axioms:
+-- 
+-- @ r '*' 'zero' = 'zero' = 'zero' '*' r @
+--
+-- @ 'negate' 'one' '*' r = 'negate' r @
+--
+-- Furthermore, the binomial formula holds for any commuting pair of elements (that is, any /a/ and /b/ such that /a * b = b * a/).
+--
+-- If /zero = one/ in a ring /R/, then /R/ has only one element, and is called the zero ring.
+-- Otherwise the additive identity, the additive inverse of each element, and the multiplicative identity are unique.
+--
+-- See < https://en.wikipedia.org/wiki/Ring_(mathematics) >.
+--
+-- If the ring is < https://en.wikipedia.org/wiki/Ordered_ring ordered > (i.e. has an 'Ord' instance), then the following additional properties must hold:
+--
+-- @ a '<=' b ⇒ a '+' c '<=' b '+' c @
+--
+-- @ 'zero' '<=' a '&&' 'zero' '<=' b ⇒ 'zero' '<=' a '*' b @
+--
+-- See the properties module for a detailed specification of the laws.
+--
+class Semiring a => Ring a where
+
+  infixl 6 -
+
+  -- | Subtract two elements.
+  --
+  -- @
+  -- a '-' b = 'subtract' b a
+  -- @
+  --
+  (-) :: a -> a -> a
+  (-) a b = a + negate b
+  {-# INLINE (-) #-}
+
+  -- | Reverse the sign of an element.
+  --
+  negate :: a -> a
+  negate a = zero - a
+  {-# INLINE negate #-}
+
+  -- | Subtract two elements.
+  --
+  -- > subtract = flip (-)
+  --
+  --subtract :: a -> a -> a
+  --subtract a b = b - a 
+  --{-# INLINE subtract #-}
+
+  -- | Absolute value of an element.
+  --
+  -- @ 'abs' r = r '*' ('signum' r) @
+  --
+  abs :: Prd a => a -> a
+  abs x = bool (negate x) x $ zero <= x
+  {-# INLINE abs #-}
+
+  -- | Extract the sign of an element.
+  --
+  -- 'signum' satisfies a trichotomy law:
+  --
+  -- @ 'signum' r = 'negate' r || 'zero' || r @
+  -- 
+  -- This follows from the fact that ordered rings are abelian, linearly 
+  -- ordered groups with respect to addition.
+  --
+  -- See < https://en.wikipedia.org/wiki/Linearly_ordered_group >.
+  --
+  signum :: Prd a => a -> a
+  signum x = bool (negate one) one $ zero <= x
+  {-# INLINE signum #-}
+
+
+
+-------------------------------------------------------------------------------
+-- Presemiring folds
+-------------------------------------------------------------------------------
+
+{-
+-- | Evaluate a non-empty presemiring sum.
+--
+sum1 :: (Sum-Semigroup) a => Foldable1 f => f a -> a
+sum1 = sumWith1 id
+
+
+-- | Evaluate a non-empty presemiring product.
+--
+product1 :: (Product-Semigroup) a => Foldable1 f => f a -> a
+product1 = productWith1 id
+
+
 
 -- | Cross-multiply two non-empty collections.
 --
@@ -220,40 +624,9 @@ evalWith1 f = sum1 . fmap product1 . (fmap . fmap) f
 -- Semiring
 -------------------------------------------------------------------------------
 
-type SemiringLaw a = ((Additive-Monoid) a, (Multiplicative-Monoid) a)
+type SemiringLaw a = ((Sum-Monoid) a, (Product-Monoid) a)
 
--- | Right semirings.
--- 
--- A right semiring is a pre-semiring with two distinct neutral elements, 'zero' 
--- and 'one', such that 'zero' is right-neutral wrt addition, 'one' is right-neutral wrt
--- multiplication, and 'zero' is right-annihilative wrt multiplication. 
---
--- /Neutrality/
---
--- @
--- 'zero' '+' r = r
--- 'one' '*' r = r
--- @
---
--- /Absorbtion/
---
--- @
--- 'zero' '*' a = 'zero'
--- @
---
-class (Presemiring a, SemiringLaw a) => Semiring a
 
--- | Additive unit of a semiring.
---
-zero :: (Additive-Monoid) a => a
-zero = unAdditive mempty
-{-# INLINE zero #-}
-
--- | Multiplicative unit of a semiring.
---
-one :: (Multiplicative-Monoid) a => a
-one = unMultiplicative mempty
-{-# INLINE one #-}
 
 -- |
 --
@@ -265,17 +638,7 @@ two :: Semiring a => a
 two = one + one
 {-# INLINE two #-}
 
-infixr 8 ^
 
--- | Evaluate a natural-numbered power of a semiring element.
---
--- @ 'one' = a '^' 0 @
---
--- >>> 8 ^ 0 :: Int
--- 1
---
-(^) :: Semiring a => a -> Natural -> a
-a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
 
 -------------------------------------------------------------------------------
 -- Semiring folds
@@ -286,12 +649,12 @@ a ^ n = unMultiplicative $ mreplicate (P.fromIntegral n) (Multiplicative a)
 -- >>> sum [1..5 :: Int]
 -- 15
 --
-sum :: (Additive-Monoid) a => Foldable f => f a -> a
+sum :: (Sum-Monoid) a => Foldable f => f a -> a
 sum = sumWith id
 
 -- | Evaluate a semiring sum using a given semiring.
 -- 
-sumWith :: (Additive-Monoid) a => Foldable f => (b -> a) -> f b -> a
+sumWith :: (Sum-Monoid) a => Foldable f => (b -> a) -> f b -> a
 sumWith f = foldr' ((+) . f) zero
 {-# INLINE sumWith #-}
 
@@ -300,7 +663,7 @@ sumWith f = foldr' ((+) . f) zero
 -- >>> product [1..5 :: Int]
 -- 120
 --
-product :: (Multiplicative-Monoid) a => Foldable f => f a -> a
+product :: (Product-Monoid) a => Foldable f => f a -> a
 product = productWith id
 
 -- | Evaluate a semiring product using a given semiring.
@@ -312,7 +675,7 @@ product = productWith id
 -- >>> productWith Just [1..5 :: Int]
 -- Just 120
 --
-productWith :: (Multiplicative-Monoid) a => Foldable f => (b -> a) -> f b -> a
+productWith :: (Product-Monoid) a => Foldable f => (b -> a) -> f b -> a
 productWith f = foldr' ((*) . f) one
 {-# INLINE productWith #-}
 
@@ -349,90 +712,13 @@ eval = sum . fmap product
 evalWith :: Semiring r => Functor f => Functor g => Foldable f => Foldable g => (a -> r) -> f (g a) -> r
 evalWith f = sum . fmap product . (fmap . fmap) f
 
--------------------------------------------------------------------------------
--- Ring
--------------------------------------------------------------------------------
-
-type RingLaw a = ((Additive-Group) a, (Multiplicative-Monoid) a)
-
--- | Rings.
---
--- A ring /R/ is a commutative group with a second monoidal operation '*' that distributes over '+'.
---
--- The basic properties of a ring follow immediately from the axioms:
--- 
--- @ r '*' 'zero' = 'zero' = 'zero' '*' r @
---
--- @ 'negate' 'one' '*' r = 'negate' r @
---
--- Furthermore, the binomial formula holds for any commuting pair of elements (that is, any /a/ and /b/ such that /a * b = b * a/).
---
--- If /zero = one/ in a ring /R/, then /R/ has only one element, and is called the zero ring.
--- Otherwise the additive identity, the additive inverse of each element, and the multiplicative identity are unique.
---
--- See < https://en.wikipedia.org/wiki/Ring_(mathematics) >.
---
--- If the ring is < https://en.wikipedia.org/wiki/Ordered_ring ordered > (i.e. has an 'Ord' instance), then the following additional properties must hold:
---
--- @ a '<=' b ⇒ a '+' c '<=' b '+' c @
---
--- @ 'zero' '<=' a '&&' 'zero' '<=' b ⇒ 'zero' '<=' a '*' b @
---
--- See the properties module for a detailed specification of the laws.
---
-class (Semiring a, RingLaw a) => Ring a where
-
-infixl 6 -
-
--- | Subtract two elements.
---
--- @
--- a '-' b = 'subtract' b a
--- @
---
-(-) :: (Additive-Group) a => a -> a -> a
-a - b = unAdditive (Additive a << Additive b)
-{-# INLINE (-) #-}
-
--- | Reverse the sign of an element.
---
-negate :: (Additive-Group) a => a -> a
-negate a = zero - a
-{-# INLINE negate #-}
-
--- | Subtract two elements.
---
-subtract :: (Additive-Group) a => a -> a -> a
-subtract a b = unAdditive (Additive b << Additive a)
-{-# INLINE subtract #-}
-
--- | Absolute value of an element.
---
--- @ 'abs' r = r '*' ('signum' r) @
---
-abs :: (Additive-Group) a => Ord a => a -> a
-abs x = bool (negate x) x $ zero <= x
-{-# INLINE abs #-}
-
--- | Extract the sign of an element.
---
--- 'signum' satisfies a trichotomy law:
---
--- @ 'signum' r = 'negate' r || 'zero' || r @
--- 
--- This follows from the fact that ordered rings are abelian, linearly 
--- ordered groups with respect to addition.
---
--- See < https://en.wikipedia.org/wiki/Linearly_ordered_group >.
---
-signum :: Ring a => Ord a => a -> a
-signum x = bool (negate one) one $ zero <= x
-{-# INLINE signum #-}
+-}
 
 ---------------------------------------------------------------------
 --  Instances
 ---------------------------------------------------------------------
 
+{-
 -- Semirings
 instance Presemiring ()
 instance Presemiring Bool
@@ -471,8 +757,8 @@ instance Presemiring a => Presemiring (e -> a)
 --instance Presemiring a => Presemiring (Op a e)
 instance (Presemiring a, Presemiring b) => Presemiring (Either a b)
 instance Presemiring a => Presemiring (Maybe a)
-instance (Additive-Semigroup) a => Presemiring [a]
-instance (Additive-Semigroup) a => Presemiring (NonEmpty a)
+instance (Sum-Semigroup) a => Presemiring [a]
+instance (Sum-Semigroup) a => Presemiring (NonEmpty a)
 
 
 instance Semiring ()
@@ -510,14 +796,14 @@ instance Semiring CDouble
 instance Semiring a => Semiring (e -> a)
 --instance Semiring a => Semiring (Op a e)
 instance Semiring a => Semiring (Maybe a)
-instance (Additive-Monoid) a => Semiring [a]
+instance (Sum-Monoid) a => Semiring [a]
 
 instance Presemiring IntSet.IntSet
 instance Ord a => Presemiring (Set.Set a)
 instance Presemiring a => Presemiring (IntMap.IntMap a)
 instance (Ord k, Presemiring a) => Presemiring (Map.Map k a)
 instance Semiring a => Semiring (IntMap.IntMap a)
-instance (Ord k, (Multiplicative-Monoid) k, Semiring a) => Semiring (Map.Map k a)
+instance (Ord k, (Product-Monoid) k, Semiring a) => Semiring (Map.Map k a)
 
 -- Rings
 instance Ring ()
@@ -547,368 +833,547 @@ instance Ring a => Ring (e -> a)
 --instance Ring a => Ring (Op a e)
 
 
+import Data.Connection
+import Data.Prd
 
+  , forked
+  , joined
+
+  --, (&&&)
+  , (|||)
+
+joined :: Prd a => Trip a (Either a a)
+joined = Trip Left (either id id) Right
+
+--forked :: JoinSemilattice a => MeetSemilattice a => Trip (a, a) a
+--forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
+
+--infixr 3 &&&
+--(&&&) :: Prd a => Prd b => JoinSemilattice c => MeetSemilattice c => Conn c a -> Conn c b -> Conn c (a, b)
+--f &&& g = tripr forked >>> f `strong` g
+
+
+{-
+--(a ∧ b) ⊗ c = (a ⊗ c) ∧ (b ⊗ c), c ⊗ (a ∧ b) = (c ⊗ a) ∧ (c ⊗ b)
+-- (meet x y) ∧ z = x ∧ z `meet` y ∧ z
+
+-- idempotent sup dioids ? complete (join-semi)lattices derived from <=?
+--connr-distributivity (the group (E\{ε}, ⊗) is therefore reticulated)
+--
+-- mon zero = const Nothing
+
+-- bounded meet semilattice
+-- need the codistributive property & absorbtion & commutativity
+
+If E is a distributive lattice, then (E, ∨, ∧) is a doublyidempotent dioid, the order relation (canonical) of the dioid being defined as:
+a ≤ b ⇔ a ∨ b = b.
+Conversely, let (E, ⊕, ⊗) be a doubly-idempotent dioid for which ≤, the canonical
+order relation relative to the law ⊕ is also a canonical order relation for ⊗:
+x ≤ y ⇔ x ⊗ y = x.
+Then E is a distributive lattice.
+-}
+
+
+-- Lattice types
+
+
+type LatticeLaw a = (JoinSemilattice a, MeetSemilattice a)
+
+type BoundedLatticeLaw a = (BoundedJoinSemilattice a, BoundedMeetSemilattice a)
+
+type BoundedLattice a = (Lattice a, BoundedLatticeLaw a)
+
+type LowerBoundedLattice a = (Lattice a, (Join-Monoid) a)
+
+type UpperBoundedLattice a = (Lattice a, (Meet-Monoid) a)
+
+type BoundedJoinSemilattice a = (JoinSemilattice a, (Join-Monoid) a)
+
+type BoundedMeetSemilattice a = (MeetSemilattice a, (Meet-Monoid) a)
+
+
+-- | Lattices.
+--
+-- A lattice is a partially ordered set in which every two elements have a unique join 
+-- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum). 
+--
+-- /Neutrality/
+--
+-- @
+-- x '∨' 'zero' = x
+-- x '∧' 'one' = x
+-- @
+--
+-- /Associativity/
+--
+-- @
+-- x '∨' (y '∨' z) = (x '∨' y) '∨' z
+-- x '∧' (y '∧' z) = (x '∧' y) '∧' z
+-- @
+--
+-- /Commutativity/
+--
+-- @
+-- x '∨' y = y '∨' x
+-- x '∧' y = y '∧' x
+-- @
+--
+-- /Idempotency/
+--
+-- @
+-- x '∨' x = x
+-- x '∧' x = x
+-- @
+--
+-- /Absorption/
+--
+-- @
+-- (x '∨' y) '∧' y = y
+-- (x '∧' y) '∨' y = y
+-- @
+--
+-- See <http://en.wikipedia.org/wiki/Lattice_(order)> and <http://en.wikipedia.org/wiki/Absorption_law>.
+--
+-- Note that distributivity is _not_ a requirement for a lattice,
+-- however distributive lattices are idempotent, commutative dioids.
+-- 
+class LatticeLaw a => Lattice a
+
+
+-- | Birkhoff's self-dual < https://en.wikipedia.org/wiki/Median_algebra ternary median > operation.
+--
+-- If the lattice is distributive then 'glb' has the following properties.
+--
+-- @ 
+-- 'glb' x y y = y
+-- 'glb' x y z = 'glb' z x y
+-- 'glb' x y z = 'glb' x z y
+-- 'glb' ('glb' x w y) w z = 'glb' x w ('glb' y w z)
+-- @
+--
+-- >>> glb 1 2 3 :: Int
+-- 2
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- fromList [3,5]
+--
+-- See 'Data.Semilattice.Property'.
+-- 
+glb :: Lattice a => a -> a -> a -> a
+glb = glbWith id
+
+-- |
+-- >>> glbWith N5 1 9 7
+-- N5 {fromN5 = 7.0}
+-- >>> glbWith N5 1 9 (0/0)
+-- N5 {fromN5 = 9.0}
+glbWith :: Lattice r => (a -> r) -> a -> a -> a -> r
+glbWith f x y z = (f x ∨ f y) ∧ (f y ∨ f z) ∧ (f z ∨ f x)
+
+-- | The order dual of 'glb'.
+--
+lub :: Lattice a => a -> a -> a -> a
+lub = lubWith id
+
+-- |
+-- >>> lubWith N5 1 9 7
+-- N5 {fromN5 = 7.0}
+-- >>> lubWith N5 1 9 (0/0)
+-- N5 {fromN5 = 1.0}
+lubWith :: Lattice r => (a -> r) -> a -> a -> a -> r
+lubWith f x y z = (f x ∧ f y) ∨ (f y ∧ f z) ∨ (f z ∧ f x)
+
+{-
+-- analagous to Maybe (Meet-Semigroup) instance
+instance (Join-Semigroup) a => Semigroup (Join (Top a)) where
+  Join Top <> _                      = Join Top
+  Join (Fin{}) <> Join Top      = Join Top
+  Join (Fin x) <> Join (Fin y) = Join . Fin $ x ∨ y
+
+-- analagous to Maybe (Meet-Monoid) instance
+instance (Join-Monoid) a => Monoid (Join (Top a)) where
+  mempty = Join $ Fin bottom
+
+instance (Meet-Semigroup) a => Semigroup (Meet (Top a)) where
+  Meet (Fin x) <> Meet (Fin y) = Meet . Fin $ x ∧ y
+  Meet (x@Fin{}) <> _             = Meet x
+  Meet Top <> y                      = y
+
+instance (Meet-Semigroup) a => Monoid (Meet (Top a)) where
+  mempty = Meet Top
+
+instance Lattice a => Lattice (Top a)
+
+instance Covered (Top Float) where
+  Bound x <. Bound y = shiftf 1 x == y
+
+instance Graded (Top Float) where
+  rank (Bound x) | ind x = 0
+                   | otherwise = r where
+    x' = floatInt32 x
+    y' = floatInt32 (-1/0)
+    r = fromIntegral . abs $ x' - y'
+-}
+
+
+-}
+
+{-
 -------------------------------------------------------------------------------
--- Additive
+-- Sum
 -------------------------------------------------------------------------------
 
--- | A commutative 'Semigroup' under '+'.
-newtype Additive a = Additive { unAdditive :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
-instance Applicative Additive where
-  pure = Additive
-  Additive f <*> Additive a = Additive (f a)
 
-instance Distributive Additive where
+
+instance Distributive Sum where
   distribute = distributeRep
   {-# INLINE distribute #-}
 
-instance Representable Additive where
-  type Rep Additive = ()
-  tabulate f = Additive (f ())
+instance Representable Sum where
+  type Rep Sum = ()
+  tabulate f = Sum (f ())
   {-# INLINE tabulate #-}
 
-  index (Additive x) () = x
+  index (Sum x) () = x
   {-# INLINE index #-}
 
 -------------------------------------------------------------------------------
--- Multiplicative
+-- Product
 -------------------------------------------------------------------------------
 
 
 -- | A (potentially non-commutative) 'Semigroup' under '*'.
-newtype Multiplicative a = Multiplicative { unMultiplicative :: a } deriving (Eq, Generic, Ord, Show, Functor)
+newtype Product a = Product { getProduct :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
-instance Applicative Multiplicative where
-  pure = Multiplicative
-  Multiplicative f <*> Multiplicative a = Multiplicative (f a)
+instance Applicative Product where
+  pure = Product
+  Product f <*> Product a = Product (f a)
 
-instance Distributive Multiplicative where
+instance Distributive Product where
   distribute = distributeRep
   {-# INLINE distribute #-}
 
-instance Representable Multiplicative where
-  type Rep Multiplicative = ()
-  tabulate f = Multiplicative (f ())
+instance Representable Product where
+  type Rep Product = ()
+  tabulate f = Product (f ())
   {-# INLINE tabulate #-}
 
-  index (Multiplicative x) () = x
+  index (Product x) () = x
   {-# INLINE index #-}
 
 
 ---------------------------------------------------------------------
--- Additive semigroup instances
+-- Sum semigroup instances
 ---------------------------------------------------------------------
 
-#define deriveAdditiveSemigroup(ty)             \
-instance Semigroup (Additive ty) where {        \
+#define deriveSumSemigroup(ty)             \
+instance Semigroup (Sum ty) where {        \
    a <> b = (P.+) <$> a <*> b                   \
 ;  {-# INLINE (<>) #-}                          \
 }
 
-deriveAdditiveSemigroup(Int)
-deriveAdditiveSemigroup(Int8)
-deriveAdditiveSemigroup(Int16)
-deriveAdditiveSemigroup(Int32)
-deriveAdditiveSemigroup(Int64)
-deriveAdditiveSemigroup(Integer)
+deriveSumSemigroup(Int)
+deriveSumSemigroup(Int8)
+deriveSumSemigroup(Int16)
+deriveSumSemigroup(Int32)
+deriveSumSemigroup(Int64)
+deriveSumSemigroup(Integer)
 
-deriveAdditiveSemigroup(Word)  --TODO clip these at maxBound to make dioids
-deriveAdditiveSemigroup(Word8)
-deriveAdditiveSemigroup(Word16)
-deriveAdditiveSemigroup(Word32)
-deriveAdditiveSemigroup(Word64)
-deriveAdditiveSemigroup(Natural)
+deriveSumSemigroup(Word)  --TODO clip these at maxBound to make dioids
+deriveSumSemigroup(Word8)
+deriveSumSemigroup(Word16)
+deriveSumSemigroup(Word32)
+deriveSumSemigroup(Word64)
+deriveSumSemigroup(Natural)
 
-deriveAdditiveSemigroup(Uni)
-deriveAdditiveSemigroup(Deci)
-deriveAdditiveSemigroup(Centi)
-deriveAdditiveSemigroup(Milli)
-deriveAdditiveSemigroup(Micro)
-deriveAdditiveSemigroup(Nano)
-deriveAdditiveSemigroup(Pico)
+deriveSumSemigroup(Uni)
+deriveSumSemigroup(Deci)
+deriveSumSemigroup(Centi)
+deriveSumSemigroup(Milli)
+deriveSumSemigroup(Micro)
+deriveSumSemigroup(Nano)
+deriveSumSemigroup(Pico)
 
-deriveAdditiveSemigroup(Float)
-deriveAdditiveSemigroup(CFloat)
-deriveAdditiveSemigroup(Double)
-deriveAdditiveSemigroup(CDouble)
+deriveSumSemigroup(Float)
+deriveSumSemigroup(CFloat)
+deriveSumSemigroup(Double)
+deriveSumSemigroup(CDouble)
 
-#define deriveAdditiveMonoid(ty)                \
-instance Monoid (Additive ty) where {           \
+#define deriveSumMonoid(ty)                \
+instance Monoid (Sum ty) where {           \
    mempty = pure 0                              \
 ;  {-# INLINE mempty #-}                        \
 }
 
-deriveAdditiveMonoid(Int)
-deriveAdditiveMonoid(Int8)
-deriveAdditiveMonoid(Int16)
-deriveAdditiveMonoid(Int32)
-deriveAdditiveMonoid(Int64)
-deriveAdditiveMonoid(Integer)
+deriveSumMonoid(Int)
+deriveSumMonoid(Int8)
+deriveSumMonoid(Int16)
+deriveSumMonoid(Int32)
+deriveSumMonoid(Int64)
+deriveSumMonoid(Integer)
 
-deriveAdditiveMonoid(Word)
-deriveAdditiveMonoid(Word8)
-deriveAdditiveMonoid(Word16)
-deriveAdditiveMonoid(Word32)
-deriveAdditiveMonoid(Word64)
-deriveAdditiveMonoid(Natural)
+deriveSumMonoid(Word)
+deriveSumMonoid(Word8)
+deriveSumMonoid(Word16)
+deriveSumMonoid(Word32)
+deriveSumMonoid(Word64)
+deriveSumMonoid(Natural)
 
-deriveAdditiveMonoid(Uni)
-deriveAdditiveMonoid(Deci)
-deriveAdditiveMonoid(Centi)
-deriveAdditiveMonoid(Milli)
-deriveAdditiveMonoid(Micro)
-deriveAdditiveMonoid(Nano)
-deriveAdditiveMonoid(Pico)
+deriveSumMonoid(Uni)
+deriveSumMonoid(Deci)
+deriveSumMonoid(Centi)
+deriveSumMonoid(Milli)
+deriveSumMonoid(Micro)
+deriveSumMonoid(Nano)
+deriveSumMonoid(Pico)
 
-deriveAdditiveMonoid(Float)
-deriveAdditiveMonoid(CFloat)
-deriveAdditiveMonoid(Double)
-deriveAdditiveMonoid(CDouble)
+deriveSumMonoid(Float)
+deriveSumMonoid(CFloat)
+deriveSumMonoid(Double)
+deriveSumMonoid(CDouble)
 
-#define deriveAdditiveMagma(ty)                 \
-instance Magma (Additive ty) where {            \
+#define deriveSumMagma(ty)                 \
+instance Magma (Sum ty) where {            \
    a << b = (P.-) <$> a <*> b                   \
 ;  {-# INLINE (<<) #-}                          \
 }
 
-deriveAdditiveMagma(Int)
-deriveAdditiveMagma(Int8)
-deriveAdditiveMagma(Int16)
-deriveAdditiveMagma(Int32)
-deriveAdditiveMagma(Int64)
-deriveAdditiveMagma(Integer)
+deriveSumMagma(Int)
+deriveSumMagma(Int8)
+deriveSumMagma(Int16)
+deriveSumMagma(Int32)
+deriveSumMagma(Int64)
+deriveSumMagma(Integer)
 
-deriveAdditiveMagma(Uni)
-deriveAdditiveMagma(Deci)
-deriveAdditiveMagma(Centi)
-deriveAdditiveMagma(Milli)
-deriveAdditiveMagma(Micro)
-deriveAdditiveMagma(Nano)
-deriveAdditiveMagma(Pico)
+deriveSumMagma(Uni)
+deriveSumMagma(Deci)
+deriveSumMagma(Centi)
+deriveSumMagma(Milli)
+deriveSumMagma(Micro)
+deriveSumMagma(Nano)
+deriveSumMagma(Pico)
 
-deriveAdditiveMagma(Float)
-deriveAdditiveMagma(CFloat)
-deriveAdditiveMagma(Double)
-deriveAdditiveMagma(CDouble)
+deriveSumMagma(Float)
+deriveSumMagma(CFloat)
+deriveSumMagma(Double)
+deriveSumMagma(CDouble)
 
-#define deriveAdditiveQuasigroup(ty)            \
-instance Quasigroup (Additive ty) where {             \
+#define deriveSumQuasigroup(ty)            \
+instance Quasigroup (Sum ty) where {             \
 }
 
-deriveAdditiveQuasigroup(Int)
-deriveAdditiveQuasigroup(Int8)
-deriveAdditiveQuasigroup(Int16)
-deriveAdditiveQuasigroup(Int32)
-deriveAdditiveQuasigroup(Int64)
-deriveAdditiveQuasigroup(Integer)
+deriveSumQuasigroup(Int)
+deriveSumQuasigroup(Int8)
+deriveSumQuasigroup(Int16)
+deriveSumQuasigroup(Int32)
+deriveSumQuasigroup(Int64)
+deriveSumQuasigroup(Integer)
 
-deriveAdditiveQuasigroup(Uni)
-deriveAdditiveQuasigroup(Deci)
-deriveAdditiveQuasigroup(Centi)
-deriveAdditiveQuasigroup(Milli)
-deriveAdditiveQuasigroup(Micro)
-deriveAdditiveQuasigroup(Nano)
-deriveAdditiveQuasigroup(Pico)
+deriveSumQuasigroup(Uni)
+deriveSumQuasigroup(Deci)
+deriveSumQuasigroup(Centi)
+deriveSumQuasigroup(Milli)
+deriveSumQuasigroup(Micro)
+deriveSumQuasigroup(Nano)
+deriveSumQuasigroup(Pico)
 
-deriveAdditiveQuasigroup(Float)
-deriveAdditiveQuasigroup(CFloat)
-deriveAdditiveQuasigroup(Double)
-deriveAdditiveQuasigroup(CDouble)
+deriveSumQuasigroup(Float)
+deriveSumQuasigroup(CFloat)
+deriveSumQuasigroup(Double)
+deriveSumQuasigroup(CDouble)
 
-#define deriveAdditiveLoop(ty)                  \
-instance Loop (Additive ty) where {             \
-   lreplicate n (Additive a) = Additive $ P.fromIntegral n  *  (-a) \
+#define deriveSumLoop(ty)                  \
+instance Loop (Sum ty) where {             \
+   lreplicate n (Sum a) = Sum $ P.fromIntegral n  *  (-a) \
 ;  {-# INLINE lreplicate #-}                    \
 }
 
-deriveAdditiveLoop(Int)
-deriveAdditiveLoop(Int8)
-deriveAdditiveLoop(Int16)
-deriveAdditiveLoop(Int32)
-deriveAdditiveLoop(Int64)
-deriveAdditiveLoop(Integer)
+deriveSumLoop(Int)
+deriveSumLoop(Int8)
+deriveSumLoop(Int16)
+deriveSumLoop(Int32)
+deriveSumLoop(Int64)
+deriveSumLoop(Integer)
 
-deriveAdditiveLoop(Uni)
-deriveAdditiveLoop(Deci)
-deriveAdditiveLoop(Centi)
-deriveAdditiveLoop(Milli)
-deriveAdditiveLoop(Micro)
-deriveAdditiveLoop(Nano)
-deriveAdditiveLoop(Pico)
+deriveSumLoop(Uni)
+deriveSumLoop(Deci)
+deriveSumLoop(Centi)
+deriveSumLoop(Milli)
+deriveSumLoop(Micro)
+deriveSumLoop(Nano)
+deriveSumLoop(Pico)
 
-deriveAdditiveLoop(Float)
-deriveAdditiveLoop(CFloat)
-deriveAdditiveLoop(Double)
-deriveAdditiveLoop(CDouble)
+deriveSumLoop(Float)
+deriveSumLoop(CFloat)
+deriveSumLoop(Double)
+deriveSumLoop(CDouble)
 
-#define deriveAdditiveGroup(ty)                 \
-instance Group (Additive ty) where {            \
-   greplicate n (Additive a) = Additive $ P.fromInteger n  *  a \
+#define deriveSumGroup(ty)                 \
+instance Group (Sum ty) where {            \
+   greplicate n (Sum a) = Sum $ P.fromInteger n  *  a \
 ;  {-# INLINE greplicate #-}                    \
 }
 
-deriveAdditiveGroup(Int)
-deriveAdditiveGroup(Int8)
-deriveAdditiveGroup(Int16)
-deriveAdditiveGroup(Int32)
-deriveAdditiveGroup(Int64)
-deriveAdditiveGroup(Integer)
+deriveSumGroup(Int)
+deriveSumGroup(Int8)
+deriveSumGroup(Int16)
+deriveSumGroup(Int32)
+deriveSumGroup(Int64)
+deriveSumGroup(Integer)
 
-deriveAdditiveGroup(Uni)
-deriveAdditiveGroup(Deci)
-deriveAdditiveGroup(Centi)
-deriveAdditiveGroup(Milli)
-deriveAdditiveGroup(Micro)
-deriveAdditiveGroup(Nano)
-deriveAdditiveGroup(Pico)
+deriveSumGroup(Uni)
+deriveSumGroup(Deci)
+deriveSumGroup(Centi)
+deriveSumGroup(Milli)
+deriveSumGroup(Micro)
+deriveSumGroup(Nano)
+deriveSumGroup(Pico)
 
-deriveAdditiveGroup(Float)
-deriveAdditiveGroup(CFloat)
-deriveAdditiveGroup(Double)
-deriveAdditiveGroup(CDouble)
+deriveSumGroup(Float)
+deriveSumGroup(CFloat)
+deriveSumGroup(Double)
+deriveSumGroup(CDouble)
 
-
-instance ((Additive-Semigroup) a, Free f, Free g) => Semigroup (Additive ((f++g) a)) where
+instance ((Sum-Semigroup) a, Free f, Free g) => Semigroup (Sum ((f++g) a)) where
    (<>) = liftA2 $ mzipWithRep (+)
    {-# INLINE (<>) #-}
 
-instance ((Additive-Monoid) a, Free f, Free g) => Monoid (Additive ((f++g) a)) where
+instance ((Sum-Monoid) a, Free f, Free g) => Monoid (Sum ((f++g) a)) where
    mempty = pure $ pureRep zero 
    {-# INLINE mempty #-}
 
-instance ((Additive-Group) a, Free f, Free g) => Magma (Additive ((f++g) a)) where
+instance ((Sum-Group) a, Free f, Free g) => Magma (Sum ((f++g) a)) where
    (<<) = liftA2 $ mzipWithRep (-)
    {-# INLINE (<<) #-}
 
-instance ((Additive-Group) a, Free f, Free g) => Quasigroup (Additive ((f++g) a))
-instance ((Additive-Group) a, Free f, Free g) => Loop (Additive ((f++g) a))
-instance ((Additive-Group) a, Free f, Free g) => Group (Additive ((f++g) a))
+instance ((Sum-Group) a, Free f, Free g) => Quasigroup (Sum ((f++g) a))
+instance ((Sum-Group) a, Free f, Free g) => Loop (Sum ((f++g) a))
+instance ((Sum-Group) a, Free f, Free g) => Group (Sum ((f++g) a))
 
-instance ((Additive-Semigroup) a, Free f, Free g) => Semigroup (Additive ((f**g) a)) where
+instance ((Sum-Semigroup) a, Free f, Free g) => Semigroup (Sum ((f**g) a)) where
    (<>) = liftA2 $ mzipWithRep (+)
    {-# INLINE (<>) #-}
 
-instance ((Additive-Monoid) a, Free f, Free g) => Monoid (Additive ((f**g) a)) where
+instance ((Sum-Monoid) a, Free f, Free g) => Monoid (Sum ((f**g) a)) where
    mempty = pure $ pureRep zero 
    {-# INLINE mempty #-}
 
-instance ((Additive-Group) a, Free f, Free g) => Magma (Additive ((f**g) a)) where
+instance ((Sum-Group) a, Free f, Free g) => Magma (Sum ((f**g) a)) where
    (<<) = liftA2 $ mzipWithRep (-)
    {-# INLINE (<<) #-}
 
-instance ((Additive-Group) a, Free f, Free g) => Quasigroup (Additive ((f**g) a))
-instance ((Additive-Group) a, Free f, Free g) => Loop (Additive ((f**g) a))
-instance ((Additive-Group) a, Free f, Free g) => Group (Additive ((f**g) a))
+instance ((Sum-Group) a, Free f, Free g) => Quasigroup (Sum ((f**g) a))
+instance ((Sum-Group) a, Free f, Free g) => Loop (Sum ((f**g) a))
+instance ((Sum-Group) a, Free f, Free g) => Group (Sum ((f**g) a))
 
-instance (Additive-Semigroup) a => Semigroup (Additive (Complex a)) where
-  Additive (a :+ b) <> Additive (c :+ d) = Additive $ (a + b) :+ (c + d)
+instance (Sum-Semigroup) a => Semigroup (Sum (Complex a)) where
+  Sum (a :+ b) <> Sum (c :+ d) = Sum $ (a + b) :+ (c + d)
   {-# INLINE (<>) #-}
 
-instance (Additive-Monoid) a => Monoid (Additive (Complex a)) where
-  mempty = Additive $ zero :+ zero
+instance (Sum-Monoid) a => Monoid (Sum (Complex a)) where
+  mempty = Sum $ zero :+ zero
 
-instance (Additive-Group) a => Magma (Additive (Complex a)) where
-  Additive (a :+ b) << Additive (c :+ d) = Additive $ (subtract c a) :+ (subtract d b)
+instance (Sum-Group) a => Magma (Sum (Complex a)) where
+  Sum (a :+ b) << Sum (c :+ d) = Sum $ (subtract c a) :+ (subtract d b)
   {-# INLINE (<<) #-}
 
-instance (Additive-Group) a => Quasigroup (Additive (Complex a))
+instance (Sum-Group) a => Quasigroup (Sum (Complex a))
 
-instance (Additive-Group) a => Loop (Additive (Complex a)) where
+instance (Sum-Group) a => Loop (Sum (Complex a)) where
   lreplicate n = mreplicate n . inv
 
-instance (Additive-Group) a => Group (Additive (Complex a))
+instance (Sum-Group) a => Group (Sum (Complex a))
 
--- type Rng a = ((Additive-Group) a, (Multiplicative-Semigroup) a)
-instance ((Additive-Group) a, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) <> Multiplicative (c :+ d) = Multiplicative $ (subtract (b * d) (a * c)) :+ (a * d + b * c)
+-- type Rng a = ((Sum-Group) a, (Product-Semigroup) a)
+instance ((Sum-Group) a, (Product-Semigroup) a) => Semigroup (Product (Complex a)) where
+  Product (a :+ b) <> Product (c :+ d) = Product $ (subtract (b * d) (a * c)) :+ (a * d + b * c)
   {-# INLINE (<>) #-}
 
 {-
--- type Ring a = ((Additive-Group) a, (Multiplicative-Monoid) a)
-instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Monoid (Multiplicative (Complex a)) where
-  mempty = Multiplicative $ one :+ zero
+-- type Ring a = ((Sum-Group) a, (Product-Monoid) a)
+instance ((Sum-Group) a, (Product-Monoid) a) => Monoid (Product (Complex a)) where
+  mempty = Product $ one :+ zero
 
-instance ((Additive-Group) a, (Multiplicative-Group) a) => Magma (Multiplicative (Complex a)) where
-  Multiplicative (a :+ b) << Multiplicative (c :+ d) = Multiplicative $ ((a * c + b * d) / (c * c + d * d)) :+ ((subtract (a * d) (b * c)) / (c * c + d * d))
+instance ((Sum-Group) a, (Product-Group) a) => Magma (Product (Complex a)) where
+  Product (a :+ b) << Product (c :+ d) = Product $ ((a * c + b * d) / (c * c + d * d)) :+ ((subtract (a * d) (b * c)) / (c * c + d * d))
   {-# INLINE (<<) #-}
 
-instance ((Additive-Group) a, (Multiplicative-Group) a) => Quasigroup (Multiplicative (Complex a))
+instance ((Sum-Group) a, (Product-Group) a) => Quasigroup (Product (Complex a))
 
-instance ((Additive-Group) a, (Multiplicative-Group) a) => Loop (Multiplicative (Complex a)) where
+instance ((Sum-Group) a, (Product-Group) a) => Loop (Product (Complex a)) where
   lreplicate n = mreplicate n . inv
 
-instance ((Additive-Group) a, (Multiplicative-Group) a) => Group (Multiplicative (Complex a))
+instance ((Sum-Group) a, (Product-Group) a) => Group (Product (Complex a))
 -}
 
-instance ((Additive-Semigroup) a, (Multiplicative-Semigroup) a) => Semigroup (Additive (Ratio a)) where
-  Additive (a :% b) <> Additive (c :% d) = Additive $ (a * d + c * b) :% (b  *  d)
+instance ((Sum-Semigroup) a, (Product-Semigroup) a) => Semigroup (Sum (Ratio a)) where
+  Sum (a :% b) <> Sum (c :% d) = Sum $ (a * d + c * b) :% (b  *  d)
   {-# INLINE (<>) #-}
 
-instance ((Additive-Monoid) a, (Multiplicative-Monoid) a) => Monoid (Additive (Ratio a)) where
-  mempty = Additive $ zero :% one
+instance ((Sum-Monoid) a, (Product-Monoid) a) => Monoid (Sum (Ratio a)) where
+  mempty = Sum $ zero :% one
 
-instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Magma (Additive (Ratio a)) where
-  Additive (a :% b) << Additive (c :% d) = Additive $ (subtract (c * b) (a * d)) :% (b  *  d)
+instance ((Sum-Group) a, (Product-Monoid) a) => Magma (Sum (Ratio a)) where
+  Sum (a :% b) << Sum (c :% d) = Sum $ (subtract (c * b) (a * d)) :% (b  *  d)
   {-# INLINE (<<) #-}
 
-instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Quasigroup (Additive (Ratio a))
+instance ((Sum-Group) a, (Product-Monoid) a) => Quasigroup (Sum (Ratio a))
 
-instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Loop (Additive (Ratio a)) where
+instance ((Sum-Group) a, (Product-Monoid) a) => Loop (Sum (Ratio a)) where
   lreplicate n = mreplicate n . inv
 
-instance ((Additive-Group) a, (Multiplicative-Monoid) a) => Group (Additive (Ratio a))
+instance ((Sum-Group) a, (Product-Monoid) a) => Group (Sum (Ratio a))
 
-instance (Additive-Semigroup) b => Semigroup (Additive (a -> b)) where
+instance (Sum-Semigroup) b => Semigroup (Sum (a -> b)) where
   (<>) = liftA2 . liftA2 $ (+)
   {-# INLINE (<>) #-}
 
-instance (Additive-Monoid) b => Monoid (Additive (a -> b)) where
+instance (Sum-Monoid) b => Monoid (Sum (a -> b)) where
   mempty = pure . pure $ zero
 
-instance (Additive-Group) b => Magma (Additive (a -> b)) where
+instance (Sum-Group) b => Magma (Sum (a -> b)) where
   (<<) = liftA2 . liftA2 $ flip subtract 
 
-instance (Additive-Group) b => Quasigroup (Additive (a -> b)) where
-instance (Additive-Group) b => Loop (Additive (a -> b)) where
-instance (Additive-Group) b => Group (Additive (a -> b)) where
+instance (Sum-Group) b => Quasigroup (Sum (a -> b)) where
+instance (Sum-Group) b => Loop (Sum (a -> b)) where
+instance (Sum-Group) b => Group (Sum (a -> b)) where
 
-instance ((Additive-Semigroup) a) => Semigroup (Additive (Op a b)) where
-  Additive (Op f) <> Additive (Op g) = Additive . Op $ \b -> f b + g b
+instance ((Sum-Semigroup) a) => Semigroup (Sum (Op a b)) where
+  Sum (Op f) <> Sum (Op g) = Sum . Op $ \b -> f b + g b
   {-# INLINE (<>) #-}
 
-instance ((Additive-Monoid) a) => Monoid (Additive (Op a b)) where
-  mempty = Additive . Op $ const zero
+instance ((Sum-Monoid) a) => Monoid (Sum (Op a b)) where
+  mempty = Sum . Op $ const zero
 
-instance ((Additive-Group) a) => Magma (Additive (Op a b)) where
-  Additive (Op f) << Additive (Op g) = Additive . Op $ \b -> f b - g b
+instance ((Sum-Group) a) => Magma (Sum (Op a b)) where
+  Sum (Op f) << Sum (Op g) = Sum . Op $ \b -> f b - g b
   {-# INLINE (<<) #-}
 
-instance ((Additive-Group) a) => Quasigroup (Additive (Op a b))
-instance ((Additive-Group) a) => Loop (Additive (Op a b)) where
-instance ((Additive-Group) a) => Group (Additive (Op a b))
+instance ((Sum-Group) a) => Quasigroup (Sum (Op a b))
+instance ((Sum-Group) a) => Loop (Sum (Op a b)) where
+instance ((Sum-Group) a) => Group (Sum (Op a b))
 
-instance Semigroup (Additive [a]) where
+instance Semigroup (Sum [a]) where
   (<>) = liftA2 (<>)
 
-instance Monoid (Additive [a]) where
+instance Monoid (Sum [a]) where
   mempty = pure mempty
 
 -- >>> [1, 2] * [3, 4]
 -- [4,5,5,6]
-instance (Additive-Semigroup) a => Semigroup (Multiplicative [a]) where 
+instance (Sum-Semigroup) a => Semigroup (Product [a]) where 
   (<>) = liftA2 . liftA2 $ (+) 
   {-# INLINE (<>) #-}
 
-instance (Additive-Monoid) a => Monoid (Multiplicative [a]) where 
+instance (Sum-Monoid) a => Monoid (Product [a]) where 
   mempty = pure [zero]
 
 -- >>> (1 :| [2 :: Int]) * (3 :| [4 :: Int])
 -- 4 :| [5,5,6]
-instance Semigroup (Additive (NonEmpty a)) where
+instance Semigroup (Sum (NonEmpty a)) where
   (<>) = liftA2 (<>)
 
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (NonEmpty a)) where
+instance (Sum-Semigroup) a => Semigroup (Product (NonEmpty a)) where
   (<>) = liftA2 (+) 
   {-# INLINE (<>) #-}
 
@@ -917,373 +1382,380 @@ instance (Additive-Semigroup) a => Semigroup (Multiplicative (NonEmpty a)) where
 -- MinPlus Predioid
 -- >>> Min 1  *  Min 2 :: Min Int
 -- Min {getMin = 3}
-instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (+) a b
+instance (Sum-Semigroup) a => Semigroup (Product (Min a)) where
+  Product a <> Product b = Product $ liftA2 (+) a b
 
 -- MinPlus Dioid
-instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
-  mempty = Multiplicative $ pure zero
+instance (Sum-Monoid) a => Monoid (Product (Min a)) where
+  mempty = Product $ pure zero
 
-instance (Additive-Semigroup) a => Semigroup (Additive (Down a)) where
+instance (Sum-Semigroup) a => Semigroup (Sum (Down a)) where
   (<>) = liftA2 . liftA2 $ (+) 
 
-instance (Additive-Monoid) a => Monoid (Additive (Down a)) where
-  --Additive (Down a) <> Additive (Down b)
+instance (Sum-Monoid) a => Monoid (Sum (Down a)) where
+  --Sum (Down a) <> Sum (Down b)
   mempty = pure . pure $ zero
 
 
 
-instance Semigroup (Additive ()) where
+instance Semigroup (Sum ()) where
   _ <> _ = pure ()
   {-# INLINE (<>) #-}
 
-instance Monoid (Additive ()) where
+instance Monoid (Sum ()) where
   mempty = pure ()
   {-# INLINE mempty #-}
 
-instance Magma (Additive ()) where
+instance Magma (Sum ()) where
   _ << _ = pure ()
 
-instance Quasigroup (Additive ()) 
+instance Quasigroup (Sum ()) 
 
-instance Loop (Additive ()) 
+instance Loop (Sum ()) 
 
-instance Group (Additive ()) 
+instance Group (Sum ()) 
 
-instance Semigroup (Additive Bool) where
+instance Semigroup (Sum Bool) where
   a <> b = (P.||) <$> a <*> b
   {-# INLINE (<>) #-}
 
-instance Monoid (Additive Bool) where
+instance Monoid (Sum Bool) where
   mempty = pure False
   {-# INLINE mempty #-}
 
---instance ((Additive-Semigroup) a, Minimal a) => Monoid (Additive a) where
---  mempty = Additive minimal
+--instance ((Sum-Semigroup) a, Minimal a) => Monoid (Sum a) where
+--  mempty = Sum minimal
 
 -- instance (Meet-Monoid) (Down a) => Monoid (Meet (Down a)) where mempty = Down <$> mempty
 
-instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (a, b)) where
+instance ((Sum-Semigroup) a, (Sum-Semigroup) b) => Semigroup (Sum (a, b)) where
   (<>) = liftA2 $ \(x1,y1) (x2,y2) -> (x1+x2, y1+y2)
 
-instance ((Additive-Monoid) a, (Additive-Monoid) b) => Monoid (Additive (a, b)) where
+instance ((Sum-Monoid) a, (Sum-Monoid) b) => Monoid (Sum (a, b)) where
   mempty = pure (zero, zero)
 
-instance ((Additive-Semigroup) a, (Additive-Semigroup) b, (Additive-Semigroup) c) => Semigroup (Additive (a, b, c)) where
+instance ((Sum-Semigroup) a, (Sum-Semigroup) b, (Sum-Semigroup) c) => Semigroup (Sum (a, b, c)) where
   (<>) = liftA2 $ \(x1,y1,z1) (x2,y2,z2) -> (x1+x2, y1+y2, z1+z2)
 
-instance ((Additive-Monoid) a, (Additive-Monoid) b, (Additive-Monoid) c) => Monoid (Additive (a, b, c)) where
+instance ((Sum-Monoid) a, (Sum-Monoid) b, (Sum-Monoid) c) => Monoid (Sum (a, b, c)) where
   mempty = pure (zero, zero, zero)
 
-instance (Additive-Semigroup) a => Semigroup (Additive (Maybe a)) where
-  Additive (Just x) <> Additive (Just y) = Additive . Just $ x + y
-  Additive (x@Just{}) <> _           = Additive x
-  Additive Nothing  <> y             = y
+instance (Sum-Semigroup) a => Semigroup (Sum (Maybe a)) where
+  Sum (Just x) <> Sum (Just y) = Sum . Just $ x + y
+  Sum (x@Just{}) <> _           = Sum x
+  Sum Nothing  <> y             = y
 
-instance (Additive-Semigroup) a => Monoid (Additive (Maybe a)) where
-  mempty = Additive Nothing
+instance (Sum-Semigroup) a => Monoid (Sum (Maybe a)) where
+  mempty = Sum Nothing
 
-instance ((Additive-Semigroup) a, (Additive-Semigroup) b) => Semigroup (Additive (Either a b)) where
-  Additive (Right x) <> Additive (Right y) = Additive . Right $ x + y
+instance ((Sum-Semigroup) a, (Sum-Semigroup) b) => Semigroup (Sum (Either a b)) where
+  Sum (Right x) <> Sum (Right y) = Sum . Right $ x + y
 
-  Additive(x@Right{}) <> _     = Additive x
-  Additive (Left x)  <> Additive (Left y)  = Additive . Left $ x + y
-  Additive (Left _)  <> y     = y
+  Sum(x@Right{}) <> _     = Sum x
+  Sum (Left x)  <> Sum (Left y)  = Sum . Left $ x + y
+  Sum (Left _)  <> y     = y
 
-instance Ord a => Semigroup (Additive (Set.Set a)) where
+instance Ord a => Semigroup (Sum (Set.Set a)) where
   (<>) = liftA2 Set.union 
 
-instance (Ord k, (Additive-Semigroup) a) => Semigroup (Additive (Map.Map k a)) where
+instance (Ord k, (Sum-Semigroup) a) => Semigroup (Sum (Map.Map k a)) where
   (<>) = liftA2 (Map.unionWith (+))
 
-instance (Additive-Semigroup) a => Semigroup (Additive (IntMap.IntMap a)) where
+instance (Sum-Semigroup) a => Semigroup (Sum (IntMap.IntMap a)) where
   (<>) = liftA2 (IntMap.unionWith (+))
 
-instance Semigroup (Additive IntSet.IntSet) where
+instance Semigroup (Sum IntSet.IntSet) where
   (<>) = liftA2 IntSet.union 
 
-instance Monoid (Additive IntSet.IntSet) where
-  mempty = Additive IntSet.empty
+instance Monoid (Sum IntSet.IntSet) where
+  mempty = Sum IntSet.empty
 
-instance (Additive-Semigroup) a => Monoid (Additive (IntMap.IntMap a)) where
-  mempty = Additive IntMap.empty
+instance (Sum-Semigroup) a => Monoid (Sum (IntMap.IntMap a)) where
+  mempty = Sum IntMap.empty
 
-instance Ord a => Monoid (Additive (Set.Set a)) where
-  mempty = Additive Set.empty
+instance Ord a => Monoid (Sum (Set.Set a)) where
+  mempty = Sum Set.empty
 
-instance (Ord k, (Additive-Semigroup) a) => Monoid (Additive (Map.Map k a)) where
-  mempty = Additive Map.empty
+instance (Ord k, (Sum-Semigroup) a) => Monoid (Sum (Map.Map k a)) where
+  mempty = Sum Map.empty
 
 
 
 
 ---------------------------------------------------------------------
--- Multiplicative Semigroup Instances
+-- Product Semigroup Instances
 ---------------------------------------------------------------------
 
-#define deriveMultiplicativeSemigroup(ty)       \
-instance Semigroup (Multiplicative ty) where {  \
+#define deriveProductSemigroup(ty)       \
+instance Semigroup (Product ty) where {  \
    a <> b = (P.*) <$> a <*> b                   \
 ;  {-# INLINE (<>) #-}                          \
 }
 
-deriveMultiplicativeSemigroup(Int)
-deriveMultiplicativeSemigroup(Int8)
-deriveMultiplicativeSemigroup(Int16)
-deriveMultiplicativeSemigroup(Int32)
-deriveMultiplicativeSemigroup(Int64)
-deriveMultiplicativeSemigroup(Integer)
+deriveProductSemigroup(Int)
+deriveProductSemigroup(Int8)
+deriveProductSemigroup(Int16)
+deriveProductSemigroup(Int32)
+deriveProductSemigroup(Int64)
+deriveProductSemigroup(Integer)
 
-deriveMultiplicativeSemigroup(Word)
-deriveMultiplicativeSemigroup(Word8)
-deriveMultiplicativeSemigroup(Word16)
-deriveMultiplicativeSemigroup(Word32)
-deriveMultiplicativeSemigroup(Word64)
-deriveMultiplicativeSemigroup(Natural)
+deriveProductSemigroup(Word)
+deriveProductSemigroup(Word8)
+deriveProductSemigroup(Word16)
+deriveProductSemigroup(Word32)
+deriveProductSemigroup(Word64)
+deriveProductSemigroup(Natural)
 
-deriveMultiplicativeSemigroup(Uni)
-deriveMultiplicativeSemigroup(Deci)
-deriveMultiplicativeSemigroup(Centi)
-deriveMultiplicativeSemigroup(Milli)
-deriveMultiplicativeSemigroup(Micro)
-deriveMultiplicativeSemigroup(Nano)
-deriveMultiplicativeSemigroup(Pico)
+deriveProductSemigroup(Uni)
+deriveProductSemigroup(Deci)
+deriveProductSemigroup(Centi)
+deriveProductSemigroup(Milli)
+deriveProductSemigroup(Micro)
+deriveProductSemigroup(Nano)
+deriveProductSemigroup(Pico)
 
-deriveMultiplicativeSemigroup(Float)
-deriveMultiplicativeSemigroup(CFloat)
-deriveMultiplicativeSemigroup(Double)
-deriveMultiplicativeSemigroup(CDouble)
+deriveProductSemigroup(Float)
+deriveProductSemigroup(CFloat)
+deriveProductSemigroup(Double)
+deriveProductSemigroup(CDouble)
 
-#define deriveMultiplicativeMonoid(ty)          \
-instance Monoid (Multiplicative ty) where {     \
+#define deriveProductMonoid(ty)          \
+instance Monoid (Product ty) where {     \
    mempty = pure 1                              \
 ;  {-# INLINE mempty #-}                        \
 }
 
-deriveMultiplicativeMonoid(Int)
-deriveMultiplicativeMonoid(Int8)
-deriveMultiplicativeMonoid(Int16)
-deriveMultiplicativeMonoid(Int32)
-deriveMultiplicativeMonoid(Int64)
-deriveMultiplicativeMonoid(Integer)
+deriveProductMonoid(Int)
+deriveProductMonoid(Int8)
+deriveProductMonoid(Int16)
+deriveProductMonoid(Int32)
+deriveProductMonoid(Int64)
+deriveProductMonoid(Integer)
 
-deriveMultiplicativeMonoid(Word)
-deriveMultiplicativeMonoid(Word8)
-deriveMultiplicativeMonoid(Word16)
-deriveMultiplicativeMonoid(Word32)
-deriveMultiplicativeMonoid(Word64)
-deriveMultiplicativeMonoid(Natural)
+deriveProductMonoid(Word)
+deriveProductMonoid(Word8)
+deriveProductMonoid(Word16)
+deriveProductMonoid(Word32)
+deriveProductMonoid(Word64)
+deriveProductMonoid(Natural)
 
-deriveMultiplicativeMonoid(Uni)
-deriveMultiplicativeMonoid(Deci)
-deriveMultiplicativeMonoid(Centi)
-deriveMultiplicativeMonoid(Milli)
-deriveMultiplicativeMonoid(Micro)
-deriveMultiplicativeMonoid(Nano)
-deriveMultiplicativeMonoid(Pico)
+deriveProductMonoid(Uni)
+deriveProductMonoid(Deci)
+deriveProductMonoid(Centi)
+deriveProductMonoid(Milli)
+deriveProductMonoid(Micro)
+deriveProductMonoid(Nano)
+deriveProductMonoid(Pico)
 
-deriveMultiplicativeMonoid(Float)
-deriveMultiplicativeMonoid(CFloat)
-deriveMultiplicativeMonoid(Double)
-deriveMultiplicativeMonoid(CDouble)
+deriveProductMonoid(Float)
+deriveProductMonoid(CFloat)
+deriveProductMonoid(Double)
+deriveProductMonoid(CDouble)
 
-#define deriveMultiplicativeMagma(ty)                 \
-instance Magma (Multiplicative ty) where {            \
+#define deriveProductMagma(ty)                 \
+instance Magma (Product ty) where {            \
    a << b = (P./) <$> a <*> b                         \
 ;  {-# INLINE (<<) #-}                                \
 }
 
-deriveMultiplicativeMagma(Uni)
-deriveMultiplicativeMagma(Deci)
-deriveMultiplicativeMagma(Centi)
-deriveMultiplicativeMagma(Milli)
-deriveMultiplicativeMagma(Micro)
-deriveMultiplicativeMagma(Nano)
-deriveMultiplicativeMagma(Pico)
+deriveProductMagma(Uni)
+deriveProductMagma(Deci)
+deriveProductMagma(Centi)
+deriveProductMagma(Milli)
+deriveProductMagma(Micro)
+deriveProductMagma(Nano)
+deriveProductMagma(Pico)
 
-deriveMultiplicativeMagma(Float)
-deriveMultiplicativeMagma(CFloat)
-deriveMultiplicativeMagma(Double)
-deriveMultiplicativeMagma(CDouble)
+deriveProductMagma(Float)
+deriveProductMagma(CFloat)
+deriveProductMagma(Double)
+deriveProductMagma(CDouble)
 
-#define deriveMultiplicativeQuasigroup(ty)            \
-instance Quasigroup (Multiplicative ty) where {       \
+#define deriveProductQuasigroup(ty)            \
+instance Quasigroup (Product ty) where {       \
 }
 
-deriveMultiplicativeQuasigroup(Uni)
-deriveMultiplicativeQuasigroup(Deci)
-deriveMultiplicativeQuasigroup(Centi)
-deriveMultiplicativeQuasigroup(Milli)
-deriveMultiplicativeQuasigroup(Micro)
-deriveMultiplicativeQuasigroup(Nano)
-deriveMultiplicativeQuasigroup(Pico)
+deriveProductQuasigroup(Uni)
+deriveProductQuasigroup(Deci)
+deriveProductQuasigroup(Centi)
+deriveProductQuasigroup(Milli)
+deriveProductQuasigroup(Micro)
+deriveProductQuasigroup(Nano)
+deriveProductQuasigroup(Pico)
 
-deriveMultiplicativeQuasigroup(Float)
-deriveMultiplicativeQuasigroup(CFloat)
-deriveMultiplicativeQuasigroup(Double)
-deriveMultiplicativeQuasigroup(CDouble)
+deriveProductQuasigroup(Float)
+deriveProductQuasigroup(CFloat)
+deriveProductQuasigroup(Double)
+deriveProductQuasigroup(CDouble)
 
-#define deriveMultiplicativeLoop(ty)                  \
-instance Loop (Multiplicative ty) where {             \
+#define deriveProductLoop(ty)                  \
+instance Loop (Product ty) where {             \
    lreplicate n = mreplicate n . inv                  \
 }
 
-deriveMultiplicativeLoop(Uni)
-deriveMultiplicativeLoop(Deci)
-deriveMultiplicativeLoop(Centi)
-deriveMultiplicativeLoop(Milli)
-deriveMultiplicativeLoop(Micro)
-deriveMultiplicativeLoop(Nano)
-deriveMultiplicativeLoop(Pico)
+deriveProductLoop(Uni)
+deriveProductLoop(Deci)
+deriveProductLoop(Centi)
+deriveProductLoop(Milli)
+deriveProductLoop(Micro)
+deriveProductLoop(Nano)
+deriveProductLoop(Pico)
 
-deriveMultiplicativeLoop(Float)
-deriveMultiplicativeLoop(CFloat)
-deriveMultiplicativeLoop(Double)
-deriveMultiplicativeLoop(CDouble)
+deriveProductLoop(Float)
+deriveProductLoop(CFloat)
+deriveProductLoop(Double)
+deriveProductLoop(CDouble)
 
-#define deriveMultiplicativeGroup(ty)           \
-instance Group (Multiplicative ty) where {      \
-   greplicate n (Multiplicative a) = Multiplicative $ a P.^^ P.fromInteger n \
+#define deriveProductGroup(ty)           \
+instance Group (Product ty) where {      \
+   greplicate n (Product a) = Product $ a P.^^ P.fromInteger n \
 ;  {-# INLINE greplicate #-}                    \
 }
 
-deriveMultiplicativeGroup(Uni)
-deriveMultiplicativeGroup(Deci)
-deriveMultiplicativeGroup(Centi)
-deriveMultiplicativeGroup(Milli)
-deriveMultiplicativeGroup(Micro)
-deriveMultiplicativeGroup(Nano)
-deriveMultiplicativeGroup(Pico)
+deriveProductGroup(Uni)
+deriveProductGroup(Deci)
+deriveProductGroup(Centi)
+deriveProductGroup(Milli)
+deriveProductGroup(Micro)
+deriveProductGroup(Nano)
+deriveProductGroup(Pico)
 
-deriveMultiplicativeGroup(Float)
-deriveMultiplicativeGroup(CFloat)
-deriveMultiplicativeGroup(Double)
-deriveMultiplicativeGroup(CDouble)
+deriveProductGroup(Float)
+deriveProductGroup(CFloat)
+deriveProductGroup(Double)
+deriveProductGroup(CDouble)
 
 
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Ratio a)) where
-  Multiplicative (a :% b) <> Multiplicative (c :% d) = Multiplicative $ (a * c) :% (b * d)
+instance (Product-Semigroup) a => Semigroup (Product (Ratio a)) where
+  Product (a :% b) <> Product (c :% d) = Product $ (a * c) :% (b * d)
   {-# INLINE (<>) #-}
 
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Ratio a)) where
-  mempty = Multiplicative $ unMultiplicative mempty :% unMultiplicative mempty
+instance (Product-Monoid) a => Monoid (Product (Ratio a)) where
+  mempty = Product $ getProduct mempty :% getProduct mempty
 
-instance (Multiplicative-Monoid) a => Magma (Multiplicative (Ratio a)) where
-  Multiplicative (a :% b) << Multiplicative (c :% d) = Multiplicative $ (a * d) :% (b * c)
+instance (Product-Monoid) a => Magma (Product (Ratio a)) where
+  Product (a :% b) << Product (c :% d) = Product $ (a * d) :% (b * c)
   {-# INLINE (<<) #-}
 
-instance (Multiplicative-Monoid) a => Quasigroup (Multiplicative (Ratio a))
+instance (Product-Monoid) a => Quasigroup (Product (Ratio a))
 
-instance (Multiplicative-Monoid) a => Loop (Multiplicative (Ratio a)) where
+instance (Product-Monoid) a => Loop (Product (Ratio a)) where
   lreplicate n = mreplicate n . inv
 
-instance (Multiplicative-Monoid) a => Group (Multiplicative (Ratio a))
+instance (Product-Monoid) a => Group (Product (Ratio a))
 
 
 ---------------------------------------------------------------------
 -- Misc
 ---------------------------------------------------------------------
 
---instance ((Multiplicative-Semigroup) a, Maximal a) => Monoid (Multiplicative a) where
---  mempty = Multiplicative maximal
+--instance ((Product-Semigroup) a, Maximal a) => Monoid (Product a) where
+--  mempty = Product maximal
 
-instance Semigroup (Multiplicative ()) where
+instance Semigroup (Product ()) where
   _ <> _ = pure ()
   {-# INLINE (<>) #-}
 
-instance Monoid (Multiplicative ()) where
+instance Monoid (Product ()) where
   mempty = pure ()
   {-# INLINE mempty #-}
 
-instance  Magma (Multiplicative ()) where
+instance  Magma (Product ()) where
   _ << _ = pure ()
   {-# INLINE (<<) #-}
 
-instance Quasigroup (Multiplicative ())
+instance Quasigroup (Product ())
 
-instance Loop (Multiplicative ())
+instance Loop (Product ())
 
-instance Group (Multiplicative ())
+instance Group (Product ())
 
-instance Semigroup (Multiplicative Bool) where
+instance Semigroup (Product Bool) where
   a <> b = (P.&&) <$> a <*> b
   {-# INLINE (<>) #-}
 
-instance Monoid (Multiplicative Bool) where
+instance Monoid (Product Bool) where
   mempty = pure True
   {-# INLINE mempty #-}
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Dual a)) where
+instance (Product-Semigroup) a => Semigroup (Product (Dual a)) where
   (<>) = liftA2 . liftA2 $ flip (*)
 
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Dual a)) where
+instance (Product-Monoid) a => Monoid (Product (Dual a)) where
   mempty = pure . pure $ one
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Down a)) where
-  --Additive (Down a) <> Additive (Down b)
+instance (Product-Semigroup) a => Semigroup (Product (Down a)) where
+  --Sum (Down a) <> Sum (Down b)
   (<>) = liftA2 . liftA2 $ (*) 
 
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Down a)) where
+instance (Product-Monoid) a => Monoid (Product (Down a)) where
   mempty = pure . pure $ one
 
 -- MaxTimes Predioid
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Max a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (*) a b
+instance (Product-Semigroup) a => Semigroup (Product (Max a)) where
+  Product a <> Product b = Product $ liftA2 (*) a b
 
 -- MaxTimes Dioid
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Max a)) where
-  mempty = Multiplicative $ pure one
+instance (Product-Monoid) a => Monoid (Product (Max a)) where
+  mempty = Product $ pure one
 
-instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (a, b)) where
-  Multiplicative (x1, y1) <> Multiplicative (x2, y2) = Multiplicative (x1 * x2, y1 * y2)
+instance ((Product-Semigroup) a, (Product-Semigroup) b) => Semigroup (Product (a, b)) where
+  Product (x1, y1) <> Product (x2, y2) = Product (x1 * x2, y1 * y2)
 
-instance (Multiplicative-Semigroup) b => Semigroup (Multiplicative (a -> b)) where
+instance (Product-Semigroup) b => Semigroup (Product (a -> b)) where
   (<>) = liftA2 . liftA2 $ (*)
   {-# INLINE (<>) #-}
 
-instance (Multiplicative-Monoid) b => Monoid (Multiplicative (a -> b)) where
+instance (Product-Monoid) b => Monoid (Product (a -> b)) where
   mempty = pure . pure $ one
 
 {-
-instance ((Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Op a b)) where
-  Multiplicative (Op f) <> Multiplicative (Op g) = Multiplicative . Op $ \b -> f b * g b
+instance ((Product-Semigroup) a) => Semigroup (Product (Op a b)) where
+  Product (Op f) <> Product (Op g) = Product . Op $ \b -> f b * g b
   {-# INLINE (<>) #-}
 
-instance ((Multiplicative-Monoid) a) => Monoid (Multiplicative (Op a b)) where
-  mempty = Multiplicative . Op $ const one
+instance ((Product-Monoid) a) => Monoid (Product (Op a b)) where
+  mempty = Product . Op $ const one
 -}
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Maybe a)) where
-  Multiplicative Nothing  <> _             = Multiplicative Nothing
-  Multiplicative (Just{}) <> Multiplicative Nothing   = Multiplicative Nothing
-  Multiplicative (Just x) <> Multiplicative (Just y) = Multiplicative . Just $ x * y
+instance (Product-Semigroup) a => Semigroup (Product (Maybe a)) where
+  Product Nothing  <> _             = Product Nothing
+  Product (Just{}) <> Product Nothing   = Product Nothing
+  Product (Just x) <> Product (Just y) = Product . Just $ x * y
   -- Mul a <> Mul b = Mul $ liftA2 (*) a b
 
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Maybe a)) where
-  mempty = Multiplicative $ pure one
+instance (Product-Monoid) a => Monoid (Product (Maybe a)) where
+  mempty = Product $ pure one
 
-instance ((Multiplicative-Semigroup) a, (Multiplicative-Semigroup) b) => Semigroup (Multiplicative (Either a b)) where
-  Multiplicative (Right x) <> Multiplicative (Right y) = Multiplicative . Right $ x * y
-  Multiplicative (Right{}) <> y     = y
-  Multiplicative (Left x) <> Multiplicative (Left y)  = Multiplicative . Left $ x * y
-  Multiplicative (x@Left{}) <> _     = Multiplicative x
+instance ((Product-Semigroup) a, (Product-Semigroup) b) => Semigroup (Product (Either a b)) where
+  Product (Right x) <> Product (Right y) = Product . Right $ x * y
+  Product (Right{}) <> y     = y
+  Product (Left x) <> Product (Left y)  = Product . Left $ x * y
+  Product (x@Left{}) <> _     = Product x
 
-instance Ord a => Semigroup (Multiplicative (Set.Set a)) where
+instance Ord a => Semigroup (Product (Set.Set a)) where
   (<>) = liftA2 Set.intersection 
 
-instance (Ord k, (Multiplicative-Semigroup) a) => Semigroup (Multiplicative (Map.Map k a)) where
+instance (Ord k, (Product-Semigroup) a) => Semigroup (Product (Map.Map k a)) where
   (<>) = liftA2 (Map.intersectionWith (*))
 
-instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (IntMap.IntMap a)) where
+{-
+A 'HashMap k' is not Applicative, but it is an instance of Apply
+A 'Map k' is not Applicative, but it is an instance of Apply
+An IntMap is not Applicative, but it is an instance of Apply
+-}
+instance (Product-Semigroup) a => Semigroup (Product (IntMap.IntMap a)) where
   (<>) = liftA2 (IntMap.intersectionWith (*))
 
-instance Semigroup (Multiplicative IntSet.IntSet) where
+instance Semigroup (Product IntSet.IntSet) where
   (<>) = liftA2 IntSet.intersection 
 
-instance (Ord k, (Multiplicative-Monoid) k, (Multiplicative-Monoid) a) => Monoid (Multiplicative (Map.Map k a)) where
-  mempty = Multiplicative $ Map.singleton one one
+instance (Ord k, (Product-Monoid) k, (Product-Monoid) a) => Monoid (Product (Map.Map k a)) where
+  mempty = Product $ Map.singleton one one
 
-instance (Multiplicative-Monoid) a => Monoid (Multiplicative (IntMap.IntMap a)) where
-  mempty = Multiplicative $ IntMap.singleton 0 one
+instance (Product-Monoid) a => Monoid (Product (IntMap.IntMap a)) where
+  mempty = Product $ IntMap.singleton 0 one
+
+-}

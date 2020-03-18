@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE Safe                       #-}
 {-# LANGUAGE PolyKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
@@ -9,7 +8,8 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TypeOperators              #-}
 
-module Data.Semifield (
+module Data.Semifield where
+{- (
   -- * Semifields
     type SemifieldLaw, Semifield
   , anan, pinf
@@ -20,20 +20,84 @@ module Data.Semifield (
   , ninf
   , (^^)
 ) where
-
-import safe Data.Fixed
-import safe Data.Semiring
-import safe GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
-import safe Numeric.Natural
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
+-}
+import Data.Fixed
+import Data.Semiring
+import GHC.Real hiding (Real, Fractional(..), (^^), (^), div)
+import Numeric.Natural
+import Foreign.C.Types (CFloat(..),CDouble(..))
 
 import Prelude (Monoid(..), Integer, Float, Double, ($))
+
+
+
+{-
+--nanfld :: Prd a => Field a => Trip (Nan a) a
+-- Field a => Field (Nan a)
+-- /Caution/ this is only legal if (Nan a) has no nans.
+{-
+fldnan :: Prd a => Field a => Trip a (Nan a)
+fldnan = Trip f g f where
+  f a = if a =~ 0 / 0 then Nan else Def a 
+  g = nan (0 / 0) id
+-}
+
+fldord :: Prd a => Field a => Trip a (Nan Ordering)
+fldord = Trip f g h where
+  g (Def GT) = pinf 
+  g (Def LT) = ninf 
+  g (Def EQ) = 0
+  g Nan = anan 
+  
+  f x | x =~ anan  = Nan
+      | x =~ ninf  = Def LT
+      | x <= 0  = Def EQ
+      | otherwise  = Def GT
+
+  h x | x =~ anan  = Nan
+      | x =~ pinf  = Def GT
+      | x >= 0  = Def EQ
+      | otherwise  = Def LT
+
+finite :: Prd a => Floating a => a -> Bool
+finite a = (a /~ 0/0) || (a /~ pinf) || (a /~ ninf)
+
+extend :: (Prd a, Field a, Field b) => (a -> b) -> a -> b
+extend f x  | x =~ 0/0 = 0/0
+            | x =~ ninf = ninf
+            | x =~ pinf = pinf
+            | otherwise = f x
+
+-- | Exception-safe polymorphic infinity.
+--
+pinf :: Semifield a => a
+pinf = 1 / 0
+
+-- | Exception-safe polymorphic negative infinity.
+--
+ninf :: Field a => a
+ninf = (-1) / 0
+
+-- | Exception-safe polymorphic NaN.
+--
+anan :: Semifield a => a
+anan = 0 / 0
 
 -------------------------------------------------------------------------------
 -- Semifields
 -------------------------------------------------------------------------------
 
 type SemifieldLaw a = ((Additive-Monoid) a, (Multiplicative-Group) a)
+
+-- | The /NaN/ value of a semifield.
+--
+pattern NaN :: Semifield a => Eq a => a
+pattern NaN <- ((== NaN) -> True)
+  where NaN = zero / zero
+
+pattern PInf :: Semifield a => Eq a => a
+pattern PInf <- ((== pinf) -> True)
+  where PInf = one / zero
 
 -- | A semifield, near-field, or division ring.
 --
@@ -194,3 +258,4 @@ instance Real Float
 instance Real Double
 instance Real CFloat
 instance Real CDouble
+-}

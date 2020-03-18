@@ -21,14 +21,17 @@ library
   ghc-options: -Wall
 
   exposed-modules:
-      Data.Semiring
-    , Data.Semiring.Property
+      Data.Algebra
+    , Data.Semiring
+    , Data.Semiring.Free
+    --, Data.Semiring.Matrix
+    --, Data.Semiring.Property
     , Data.Semifield
-    , Data.Semimodule
-    , Data.Semimodule.Free
-    , Data.Semimodule.Basis
-    , Data.Semimodule.Finite
-    , Data.Semimodule.Combinator
+    --, Data.Semilattice
+    --, Data.Semilattice.N5
+    --, Data.Semilattice.Property
+
+    --, Numeric.Prelude
 
   default-extensions:
       ScopedTypeVariables
@@ -41,11 +44,13 @@ library
     , TypeOperators
 
   build-depends:       
-      base           >= 4.10  && < 5.0
-    , lawz           >= 0.1.1 && < 0.2
-    , adjunctions    >= 4.4   && < 5.0
-    , containers     >= 0.4.0 && < 1.0
-    , distributive   >= 0.3   && < 1.0
-    , semigroupoids  >= 5.0   && < 6.0
-    , magmas         >= 0.0.1 && < 1.0
-    , profunctors    >= 5.3   && < 6
+      base            >= 4.10    && < 5.0
+    , adjunctions     >= 4.4     && < 5.0
+    , containers      >= 0.4.0   && < 1.0
+    , connections     >= 0.0.3   && < 0.1
+    , finite-typelits >= 0.1.4.2 && < 0.2
+    , magmas          >= 0.0.1   && < 1.0
+    , semigroupoids   >= 5.0     && < 6.0
+    , profunctors     >= 5.3     && < 6
+
+    , vector-sized

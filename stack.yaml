@@ -4,7 +4,7 @@ flags: {}
 packages:
   - .
 extra-deps:
-  - github: cmk/lawz
-    commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
   - github: cmk/magmas
     commit: f86a7433ffa13407b939280523feb661143a800a
+  - github: cmk/connections
+    commit: c91c7a753ebd9004ba05c02a8e681a6a257f17c4
