@@ -11,13 +11,15 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Semimodule (
+{-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+
+module Data.Semimodule where
+{- (
   -- * Left modules
     type LeftModule
   , LeftSemimodule(..)
   , (*.)
-  , (/.)
-  , (\.)
   , lerp
   , lscaleDef
   , negateDef
@@ -25,70 +27,174 @@ module Data.Semimodule (
   , type RightModule
   , RightSemimodule(..)
   , (.*)
-  , (./)
-  , (.\)
   , rscaleDef
   -- * Bimodules
   , type Bimodule
-  , type FreeModule 
-  , type FreeSemimodule
   , Bisemimodule(..)
-  -- * Algebras 
-  , type FreeAlgebra
-  , Algebra(..)
-  -- * Unital algebras 
-  , type FreeUnital
-  , Unital(..)
-  -- * Coalgebras 
-  , type FreeCoalgebra
-  , Coalgebra(..)
-  -- * Unital coalgebras 
-  , type FreeCounital
-  , Counital(..)
-  -- * Bialgebras 
-  , type FreeBialgebra
-  , Bialgebra
 ) where
 
+-}
+
+--import safe Data.Functor.Contravariant
+--import safe qualified Data.Functor.Contravariant.Rep as F
+import safe Control.Applicative
+import safe Control.Category (Category, (<<<), (>>>))
+import safe Data.Bool
 import safe Data.Complex
 import safe Data.Fixed
-import safe Data.Functor.Rep
+import safe Data.Functor.Alt
+import safe Data.Functor.Apply
 import safe Data.Functor.Compose
 import safe Data.Functor.Contravariant
 import safe Data.Functor.Product
+import safe Data.Functor.Rep
 import safe Data.Int
-import safe Data.Semifield
+import safe Data.Monoid hiding (Alt(..), Product(..), Sum(..))
+import safe Data.Profunctor
+import safe Data.Ring
 import safe Data.Semiring
+import safe Data.Sequence hiding (reverse,index)
+import safe Data.Tuple (swap)
 import safe Data.Word
 import safe Foreign.C.Types (CFloat(..),CDouble(..))
 import safe GHC.Real hiding (Fractional(..))
 import safe Numeric.Natural
-import safe Prelude (fromInteger)
-
-import safe Control.Arrow
-import safe Control.Applicative
-import safe Control.Category (Category, (<<<), (>>>))
-import safe Data.Bool
---import safe Data.Functor.Contravariant
---import safe qualified Data.Functor.Contravariant.Rep as F
-import safe Data.Functor.Apply
-import safe Data.Functor.Rep
-import safe Data.Semiring
-import safe Data.Tuple (swap)
 import safe Prelude (Ord, reverse)
-import safe qualified Data.IntSet as IntSet
-import safe qualified Data.Set as Set
-import safe qualified Data.Sequence as Seq
-import safe Data.Sequence hiding (reverse,index)
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe qualified Control.Category as C
-import safe Test.Logic hiding (join)
+import safe qualified Data.IntSet as IntSet
+import safe qualified Data.Sequence as Seq
+import safe qualified Data.Set as Set
+import safe qualified Prelude as P
+
+
+
+-- | Lift a function into a profunctor arrow.
+--
+-- Usable w/ arrowow syntax w/ the /Arrows/ & /RebindableSyntax/ extensions.
+--
+-- @
+-- (a '>>>' b) '>>>' c = a '>>>' (b '>>>' c)
+-- 'arr' f '>>>' a = 'dimap' f id a
+-- a '>>>' arrow f = 'dimap' id f a
+-- 'arr' (g . f) = 'arr' f '>>>' 'arr' g
+-- @
+--
+arrow :: (Category p, Profunctor p) => (a -> b) -> p a b
+arrow f = rmap f C.id
+{-# INLINE arrow #-}
+
+fork :: b -> (b, b)
+fork x = (x, x)
+
+cofork :: Either c c -> c
+cofork = either id id
+
+coswap :: Either a b -> Either b a
+coswap = either Right Left
+
+pureP :: (Category p, Profunctor p) => b -> p a b
+pureP = arrow . const
+
+liftP2 :: (Category p, Strong p) => (b1 -> b2 -> b) -> p a b1 -> p a b2 -> p a b
+liftP2 = divideR . uncurry
+
+apply :: (Category p, Strong p) => p a (b -> c) -> p a b -> p a c
+apply = liftP2 id
+{-# INLINE apply #-}
+
+-- > unapply . apply = id
+-- > apply . unapply = id
+--
+unapply :: (Category p, Strong p, Closed p) => p a c -> p b c -> p a (b -> c)
+unapply = (curry' .) . divideL id
+{-# INLINE unapply #-}
+
+--liftP2 :: (Category p, Strong p) => (b1 -> b2 -> b) -> p a b1 -> p a b2 -> p a b
+--liftP2 f p q = 
+--dimap (\x -> (x, x)) (uncurry f) $ proc p >>> proc q where
+--  proc x = first' x >>> rmap swap C.id
+
+-- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:divideL divideL >.
+--
+divideL :: (Category p, Strong p) => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
+divideL f x y = dimap f fst $ x *** y
+{-# INLINE divideL #-}
+
+-- > divideR f x y = tabulate $ \s -> liftA2 (curry f) (sieve x s) (sieve y s)
+divideR :: (Category p, Strong p) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
+divideR f p q = dimap fork f $ p *** q
+{-# INLINE divideR #-}
+
+-- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:chooseL chooseL >.
+--
+chooseL :: (Category p, Choice p) => (a -> Either a1 a2) -> p a1 b -> p a2 b -> p a b 
+chooseL f p q = dimap f cofork $ p +++ q
+{-# INLINE chooseL #-}
+
+chooseR :: (Category p, Choice p) => (Either b1 b2 -> b) -> p a b1 -> p a b2 -> p a b
+chooseR f x y = dimap Left f $ x +++ y
+{-# INLINE chooseR #-}
+
+infixr 3 ***
+
+(***) :: (Category p, Strong p) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
+x *** y = first' x >>> arrow swap >>> first' y >>> arrow swap
+{-# INLINE (***) #-}
+
+infixr 2 +++
+
+(+++) :: (Category p, Choice p) => p a1 b1 -> p a2 b2 -> p (Either a1 a2) (Either b1 b2)
+x +++ y = left' x >>> arrow coswap >>> left' y >>> arrow coswap
+{-# INLINE (+++) #-}
+
+infixr 3 &&&
+
+(&&&) :: (Category p, Strong p) => p a b1 -> p a b2 -> p a (b1 , b2)
+x &&& y = dimap fork id $ x *** y
+{-# INLINE (&&&) #-}
+
+infixr 2 |||
+
+(|||) :: (Category p, Choice p) => p a1 b -> p a2 b -> p (Either a1 a2) b
+x ||| y = dimap id cofork $ x +++ y
+{-# INLINE (|||) #-}
+
+ex1 :: (Category p, Profunctor p) => p (a , b) b
+ex1 = arrow snd
+{-# INLINE ex1 #-}
+
+ex2 :: (Category p, Profunctor p) => p (a , b) a
+ex2 = arrow fst
+{-# INLINE ex2 #-}
+
+inl :: (Category p, Profunctor p) => p a (Either a b)
+inl = arrow Left
+{-# INLINE inl #-}
+
+inr :: (Category p, Profunctor p) => p b (Either a b)
+inr = arrow Right
+{-# INLINE inr #-}
+
+-- | Swap components of a tensor product.
+--
+-- This is equivalent to a matrix transpose.
+--
+braid :: (Category p, Profunctor p) => p (a , b) (b , a)
+braid = arrow swap
+{-# INLINE braid #-}
+
+-- | Swap components of a direct sum.
+--
+cobraid :: (Category p, Profunctor p) => p (Either a b) (Either b a)
+cobraid = arrow coswap
+{-# INLINE cobraid #-}
 
 -------------------------------------------------------------------------------
 -- Left modules
 -------------------------------------------------------------------------------
 
-type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
+type LeftModule l a = (Ring l, Ring a, LeftSemimodule l a)
 
 -- | < https://en.wikipedia.org/wiki/Semimodule Left semimodule > over a commutative semiring.
 --
@@ -108,28 +214,18 @@ type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
 -- 
 -- See the properties module for a detailed specification of the laws.
 --
-class (Semiring l, (Additive-Monoid) a) => LeftSemimodule l a where
+class (Semiring l, Semiring a) => LeftSemimodule l a where
   -- | Left-multiply by a scalar.
   --
   lscale :: l -> a -> a
 
 
-infixr 7 *., \., /., `lscaleDef`
+infixr 7 *., `lscaleDef`
 
 -- | Left-multiply a module element by a scalar.
 --
 (*.) :: LeftSemimodule l a => l -> a -> a
 (*.) = lscale
-
--- | Right-divide a vector by a scalar (on the left).
---
-(/.) :: Semifield a => Functor f => a -> f a -> f a
-a /. f = (/ a) <$> f
-
--- | Left-divide a vector by a scalar.
---
-(\.) :: Semifield a => Functor f => a -> f a -> f a
-a \. f = (a \\)  <$> f
 
 -- | Linearly interpolate between two vectors.
 --
@@ -147,16 +243,16 @@ lerp r f g = r *. f + (one - r) *. g
 lscaleDef :: Semiring a => Functor f => a -> f a -> f a
 lscaleDef a f = (a *) <$> f
 
--- | Default definition of '<<' for a commutative group.
+-- | Default negation for a commutative group.
 --
 negateDef :: LeftModule Integer a => a -> a
-negateDef a = (-1 :: Integer) *. a
+negateDef a = negate @Integer one *. a
 
 -------------------------------------------------------------------------------
 -- Right modules
 -------------------------------------------------------------------------------
 
-type RightModule r a = (Ring r, (Additive-Group) a, RightSemimodule r a)
+type RightModule r a = (Ring r, Ring a, RightSemimodule r a)
 
 -- | < https://en.wikipedia.org/wiki/Semimodule Right semimodule > over a commutative semiring.
 --
@@ -164,28 +260,18 @@ type RightModule r a = (Ring r, (Additive-Group) a, RightSemimodule r a)
 --
 -- See the properties module for a detailed specification.
 --
-class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where
+class (Semiring r, Semiring a) => RightSemimodule r a where
 
   -- | Right-multiply by a scalar.
   --
   rscale :: r -> a -> a
 
-infixl 7 .*, .\, ./, `rscaleDef`
+infixl 7 .*, `rscaleDef`
 
 -- | Right-multiply a module element by a scalar.
 --
 (.*) :: RightSemimodule r a => a -> r -> a
 (.*) = flip rscale
-
--- | Right-divide a vector by a scalar.
---
-(./) :: Semifield a => Functor f => f a -> a -> f a
-(./) = flip (/.)
-
--- | Left-divide a vector by a scalar (on the right).
---
-(.\) :: Semifield a => Functor f => f a -> a -> f a
-(.\) = flip (\.)
 
 -- | Default definition of 'rscale' for a free module.
 --
@@ -197,10 +283,6 @@ rscaleDef a f = (* a) <$> f
 -------------------------------------------------------------------------------
 
 type Bimodule l r a = (LeftModule l a, RightModule r a, Bisemimodule l r a)
-
-type FreeModule a f = (Free f, (Additive-Group) (f a), Bimodule a a (f a))
-
-type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
 
 -- | < https://en.wikipedia.org/wiki/Bimodule Bisemimodule > over a commutative semiring.
 --
@@ -216,127 +298,63 @@ class (LeftSemimodule l a, RightSemimodule r a) => Bisemimodule l r a where
   discale l r = lscale l . rscale r
 
 -------------------------------------------------------------------------------
--- Algebras
--------------------------------------------------------------------------------
-
--- | An algebra over a free module /f/.
---
--- Note that this is distinct from a < https://en.wikipedia.org/wiki/Free_algebra free algebra >.
---
-type FreeAlgebra a f = (FreeSemimodule a f, Algebra a (Rep f))
-
--- | An < https://en.wikipedia.org/wiki/Algebra_over_a_field#Generalization:_algebra_over_a_ring algebra > over a semiring.
---
--- Note that the algebra < https://en.wikipedia.org/wiki/Non-associative_algebra needn't be associative >.
---
-class Semiring a => Algebra a b where
-
-  -- |
-  --
-  -- @
-  -- 'joined' = 'runLin' 'diagonal' '.' 'uncurry'
-  -- @
-  --
-  joined :: (b -> b -> a) -> b -> a
-
--------------------------------------------------------------------------------
--- Unital algebras
--------------------------------------------------------------------------------
-
--- | A unital algebra over a free semimodule /f/.
---
-type FreeUnital a f = (FreeAlgebra a f, Unital a (Rep f))
-
--- | A < https://en.wikipedia.org/wiki/Algebra_over_a_field#Unital_algebra unital algebra > over a semiring.
---
-class Algebra a b => Unital a b where
-
-  -- |
-  --
-  -- @
-  -- 'unital' = 'runLin' 'initial' '.' 'const'
-  -- @
-  --
-  unital :: a -> b -> a
-
--------------------------------------------------------------------------------
--- Coalgebras
--------------------------------------------------------------------------------
-
--- | A coalgebra over a free semimodule /f/.
---
-type FreeCoalgebra a f = (FreeSemimodule a f, Coalgebra a (Rep f))
-
--- | A coalgebra over a semiring.
---
-class Semiring a => Coalgebra a c where
-
-  -- |
-  --
-  -- @
-  -- 'cojoined' = 'curry' '.' 'runLin' 'codiagonal'
-  -- @
-  --
-  cojoined :: (c -> a) -> c -> c -> a
-  
--------------------------------------------------------------------------------
--- Counital Coalgebras
--------------------------------------------------------------------------------
-
--- | A counital coalgebra over a free semimodule /f/.
---
-type FreeCounital a f = (FreeCoalgebra a f, Counital a (Rep f))
-
--- | A counital coalgebra over a semiring.
---
-class Coalgebra a c => Counital a c where
-
-  -- @
-  -- 'counital' = 'flip' ('runLin' 'counital') '()'
-  -- @
-  --
-  counital :: (c -> a) -> a
-
--------------------------------------------------------------------------------
--- Bialgebras
--------------------------------------------------------------------------------
-
--- | A bialgebra over a free semimodule /f/.
---
-type FreeBialgebra a f = (FreeAlgebra a f, FreeCoalgebra a f, Bialgebra a (Rep f))
-
--- | A < https://en.wikipedia.org/wiki/Bialgebra bialgebra > over a semiring.
---
-class (Unital a b, Counital a b) => Bialgebra a b
-
-
--------------------------------------------------------------------------------
 -- Module Instances
 -------------------------------------------------------------------------------
 
+deriving via (A1 [] a) instance Semiring a => LeftSemimodule Natural [a] 
+deriving via (Co ((->)e) a) instance LeftSemimodule l a => LeftSemimodule l (e -> a)
 
 instance Semiring a => LeftSemimodule a a where
   lscale = (*)
 
 {-
+deriving via (Alt [] a) instance LeftSemimodule Natural [a]
+
+instance Semiring a => LeftSemimodule a (Sum a) where
+  lscale = lscaleDef
+
+instance Alternative f => LeftSemimodule Natural (Alt f a) where
+  lscale = mreplicate
+
+instance (Representable f, LeftSemimodule l a) => LeftSemimodule l (Co f a) where
+  lscale l = fmap (l *.)
+
+
 instance Semiring l => LeftSemimodule l () where
   lscale _ = const ()
 
-instance (Additive-Monoid) a => LeftSemimodule () a where 
+instance (Sum-Monoid) a => LeftSemimodule () a where 
   lscale _ = id
 
-instance (Additive-Monoid) a => LeftSemimodule Natural a where
-  lscale l a = unAdditive $ mreplicate l (Additive a)
+instance (Sum-Monoid) a => LeftSemimodule Natural a where
+  lscale l a = unSum $ mreplicate l (Sum a)
 
-instance ((Additive-Monoid) a, (Additive-Group) a) => LeftSemimodule Integer a where
-  lscale l a = unAdditive $ greplicate l (Additive a)
+instance ((Sum-Monoid) a, (Sum-Group) a) => LeftSemimodule Integer a where
+  lscale l a = unSum $ greplicate l (Sum a)
+
+instance LeftSemimodule Natural [a] where
+  lscale l x = getAlt $ mreplicate l (Alt x)
+  A1 x * A1 y = A1 $ liftF2 (<>) x y
+  A1 x + A1 y = A1 $  x <!> y
+
+instance LeftSemimodule Integer Centi where
+
 -}
 
-instance LeftSemimodule l a => LeftSemimodule l (e -> a) where 
+instance Semiring (A1 f a) => LeftSemimodule Natural (A1 f a) where
+  lscale l = getSum . mreplicate l . Sum
+
+instance (Representable f, LeftSemimodule l a) => LeftSemimodule l (Co f a) where
   lscale l = fmap (l *.)
 
 instance LeftSemimodule l a => LeftSemimodule l (Op a e) where 
   lscale l (Op f) = Op $ fmap (l *.) f
+
+instance LeftSemimodule Bool (Predicate a) where
+  lscale b f = bool zero f b
+
+--instance Ord a => LeftSemimodule Bool (Set.Set a) where
+--  lscale b f = bool zero f b
 
 
 
@@ -361,66 +379,58 @@ instance Semiring a => LeftSemimodule a (Ratio a) where
   lscale l (x :% y) = (l * x) :% y
 
 instance Ring a => LeftSemimodule a (Complex a) where 
-  lscale l (x :+ y) = (l * x) :+ (l * y)
-
-{-
---instance Ring a => LeftSemimodule (Complex a) (Complex a) where 
---   lscale = (*)  
-
-#define deriveLeftSemimodule(ty)                      \
-instance LeftSemimodule ty ty where {                 \
-   lscale = (*)                                       \
-;  {-# INLINE lscale #-}                              \
-}
-
-deriveLeftSemimodule(Bool)
-deriveLeftSemimodule(Int)
-deriveLeftSemimodule(Int8)
-deriveLeftSemimodule(Int16)
-deriveLeftSemimodule(Int32)
-deriveLeftSemimodule(Int64)
-deriveLeftSemimodule(Word)
-deriveLeftSemimodule(Word8)
-deriveLeftSemimodule(Word16)
-deriveLeftSemimodule(Word32)
-deriveLeftSemimodule(Word64)
-deriveLeftSemimodule(Uni)
-deriveLeftSemimodule(Deci)
-deriveLeftSemimodule(Centi)
-deriveLeftSemimodule(Milli)
-deriveLeftSemimodule(Micro)
-deriveLeftSemimodule(Nano)
-deriveLeftSemimodule(Pico)
-deriveLeftSemimodule(Float)
-deriveLeftSemimodule(Double)
-deriveLeftSemimodule(CFloat)
-deriveLeftSemimodule(CDouble)
-deriveLeftSemimodule((Ratio Integer))
-deriveLeftSemimodule((Ratio Natural))
--}
+  --lscale l (x :+ y) = (l * x) :+ (l * y)
+  lscale = lscaleDef
 
 -------------------------------------------------------------------------------
 -- Instances
 -------------------------------------------------------------------------------
 
+-- | A generalization of 'Data.List.replicate' to an arbitrary 'Monoid'. 
+--
+-- Adapted from <http://augustss.blogspot.com/2008/07/lost-and-found-if-i-write-108-in.html>.
+--
+mreplicate :: Monoid a => Natural -> a -> a
+mreplicate n a
+    | n == 0 = mempty
+    | otherwise = f a n
+    where
+        f x y 
+            | even y = f (x <> x) (y `quot` 2)
+            | y == 1 = x
+            | otherwise = g (x <> x) ((y P.- 1) `quot` 2) x
+        g x y z 
+            | even y = g (x <> x) (y `quot` 2) z
+            | y == 1 = x <> z
+            | otherwise = g (x <> x) ((y P.- 1) `quot` 2) (x <> z)
+{-# INLINE mreplicate #-}
+
+deriving via (A1 [] a) instance Semiring a => RightSemimodule Natural [a]
+
+deriving via (Co ((->)e) a) instance RightSemimodule r a => RightSemimodule r (e -> a)
+
 instance Semiring a => RightSemimodule a a where
   rscale = (*)
+
+instance LeftSemimodule l a => RightSemimodule (Dual l) a where
+  rscale (Dual l) = lscale l
 
 {-
 instance Semiring r => RightSemimodule r () where 
   rscale _ = const ()
 
-instance (Additive-Monoid) a => RightSemimodule () a where 
+instance (Sum-Monoid) a => RightSemimodule () a where 
   rscale _ = id
 
-instance (Additive-Monoid) a => RightSemimodule Natural a where
-  rscale r a = unAdditive $ mreplicate r (Additive a)
-
-instance ((Additive-Monoid) a, (Additive-Group) a) => RightSemimodule Integer a where
-  rscale r a = unAdditive $ greplicate r (Additive a)
 -}
 
-instance RightSemimodule r a => RightSemimodule r (e -> a) where 
+--instance (Alt f, Alternative f, Monoid a) => RightSemimodule Natural (A1 f a) where
+--  rscale r (A1 x) = A1 . getSum $ mreplicate r (Sum x)
+
+instance Semiring (A1 f a) => RightSemimodule Natural (A1 f a) where
+  rscale l = getSum . mreplicate l . Sum
+
+instance (Representable f, RightSemimodule r a) => RightSemimodule r (Co f a) where
   rscale r = fmap (.* r)
 
 instance RightSemimodule r a => RightSemimodule r (Op a e) where 
@@ -442,42 +452,12 @@ instance Semiring a => RightSemimodule a (Ratio a) where
 --instance Ring a => RightSemimodule (Complex a) (Complex a) where 
 --  rscale = (*) 
 
-{-
-#define deriveRightSemimodule(ty)                     \
-instance RightSemimodule ty ty where {                \
-   rscale = (*)                                       \
-;  {-# INLINE rscale #-}                              \
-}
-
-deriveRightSemimodule(Bool)
-deriveRightSemimodule(Int)
-deriveRightSemimodule(Int8)
-deriveRightSemimodule(Int16)
-deriveRightSemimodule(Int32)
-deriveRightSemimodule(Int64)
-deriveRightSemimodule(Word)
-deriveRightSemimodule(Word8)
-deriveRightSemimodule(Word16)
-deriveRightSemimodule(Word32)
-deriveRightSemimodule(Word64)
-deriveRightSemimodule(Uni)
-deriveRightSemimodule(Deci)
-deriveRightSemimodule(Centi)
-deriveRightSemimodule(Milli)
-deriveRightSemimodule(Micro)
-deriveRightSemimodule(Nano)
-deriveRightSemimodule(Pico)
-deriveRightSemimodule(Float)
-deriveRightSemimodule(Double)
-deriveRightSemimodule(CFloat)
-deriveRightSemimodule(CDouble)
-deriveRightSemimodule((Ratio Integer))
-deriveRightSemimodule((Ratio Natural))
--}
 
 instance Semiring a => Bisemimodule a a a
 
---instance Semiring r => Bisemimodule r r ()
+instance LeftSemimodule l a => Bisemimodule l (Dual l) a where
+-- instance Semiring r => Bisemimodule r r ()
+instance Semiring a => Bisemimodule Natural Natural [a]
 
 instance Bisemimodule r r a => Bisemimodule r r (e -> a)
 
@@ -534,14 +514,14 @@ deriveBisemimodule((Ratio Natural))
 instance Semiring l => LeftSemimodule l () where 
   lscale _ = const ()
 
-instance (Additive-Monoid) a => LeftSemimodule () a where 
+instance (Sum-Monoid) a => LeftSemimodule () a where 
   lscale _ = id
 
-instance (Additive-Monoid) a => LeftSemimodule Natural a where
-  lscale l a = unAdditive $ mreplicate l (Additive a)
+instance (Sum-Monoid) a => LeftSemimodule Natural a where
+  lscale l a = unSum $ mreplicate l (Sum a)
 
-instance ((Additive-Monoid) a, (Additive-Group) a) => LeftSemimodule Integer a where
-  lscale l a = unAdditive $ greplicate l (Additive a)
+instance ((Sum-Monoid) a, (Sum-Group) a) => LeftSemimodule Integer a where
+  lscale l a = unSum $ greplicate l (Sum a)
 
 instance LeftSemimodule l a => LeftSemimodule l (e -> a) where 
   lscale l = fmap (l *.)
@@ -599,20 +579,22 @@ deriveLeftSemimodule((Ratio Natural))
 -- Instances
 -------------------------------------------------------------------------------
 
-instance Semiring r => RightSemimodule r () where 
-  rscale _ = const ()
 
-instance (Additive-Monoid) a => RightSemimodule () a where 
-  rscale _ = id
-
-instance (Additive-Monoid) a => RightSemimodule Natural a where
-  rscale r a = unAdditive $ mreplicate r (Additive a)
-
-instance ((Additive-Monoid) a, (Additive-Group) a) => RightSemimodule Integer a where
-  rscale r a = unAdditive $ greplicate r (Additive a)
 
 instance RightSemimodule r a => RightSemimodule r (e -> a) where 
   rscale r = fmap (.* r)
+
+instance Semiring r => RightSemimodule r () where 
+  rscale _ = const ()
+
+instance (Sum-Monoid) a => RightSemimodule () a where 
+  rscale _ = id
+
+instance (Sum-Monoid) a => RightSemimodule Natural a where
+  rscale r a = unSum $ mreplicate r (Sum a)
+
+instance ((Sum-Monoid) a, (Sum-Group) a) => RightSemimodule Integer a where
+  rscale r a = unSum $ greplicate r (Sum a)
 
 instance RightSemimodule r a => RightSemimodule r (Op a e) where 
   rscale r (Op f) = Op $ fmap (.* r) f
@@ -710,7 +692,7 @@ deriveBisemimodule((Ratio Natural))
 
 -}
 
-
+{-
 -------------------------------------------------------------------------------
 -- Algebra instances
 -------------------------------------------------------------------------------
@@ -850,12 +832,12 @@ instance Semiring a => Counital a IntSet.IntSet where
   cojoined = curry . runLin codiagonal
 
 -- | The free commutative coalgebra over a set and a given semigroup
-instance (Semiring r, Ord a, Additive b) => Coalgebra r (Map a b) where
+instance (Semiring r, Ord a, Sum b) => Coalgebra r (Map a b) where
   cojoined f as bs = f (Map.unionWith (+) as bs)
   counital k = k (Map.empty)
 
 -- | The free commutative coalgebra over a set and Int
-instance (Semiring r, Additive b) => Coalgebra r (IntMap b) where
+instance (Semiring r, Sum b) => Coalgebra r (IntMap b) where
   cojoined f as bs = f (IntMap.unionWith (+) as bs)
   counital k = k (IntMap.empty)
 -}
@@ -871,4 +853,4 @@ instance (Bialgebra a b1, Bialgebra a b2, Bialgebra a b3) => Bialgebra a (b1, b2
 instance Semiring a => Bialgebra a [b]
 instance Semiring a => Bialgebra a (Seq b)
 
-
+-}

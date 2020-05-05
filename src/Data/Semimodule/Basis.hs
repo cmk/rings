@@ -16,10 +16,11 @@ module Data.Semimodule.Basis (
 import safe Data.Functor.Rep
 import safe Data.Semiring
 import safe Data.Semimodule
+import safe Data.Semimodule.Algebra
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
 import safe Control.Monad as M
 
-type Basis b f = (Free f, Rep f ~ b, Eq b)
+type Basis b f = (Representable f, Rep f ~ b, Eq b)
 
 type Basis2 b c f g = (Basis b f, Basis c g)
 
@@ -65,6 +66,16 @@ e2 _ y E22 = y
 
 fillE2 :: Basis E2 f => a -> a -> f a
 fillE2 x y = tabulate $ e2 x y
+
+-- experiment for composing relations
+instance Semigroup E2 where
+  E21 <> x = x
+  x <> E21 = x
+  
+  E22 <> E22 = E22
+
+instance Monoid E2 where
+  mempty = E21
 
 instance Semiring r => Algebra r E2 where
   joined = M.join

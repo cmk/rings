@@ -5,13 +5,15 @@
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE RebindableSyntax           #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 
 module Data.Semimodule.Finite (
   -- * Vector types
@@ -20,7 +22,7 @@ module Data.Semimodule.Finite (
   , V2(..)
   , V3(..)
   , cross
-  , triple
+  --, triple
   , V4(..)
   -- * Matrix types
   , type M11
@@ -73,15 +75,14 @@ import safe Data.Bool
 import safe Data.Distributive
 import safe Data.Functor.Classes
 import safe Data.Functor.Compose
-import safe Data.Functor.Rep hiding (Co)
-import safe Data.Semifield
+import safe Data.Functor.Rep
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Semimodule
+import safe Data.Semimodule.Free
 import safe Data.Semimodule.Basis
-import safe Data.Semimodule.Combinator
 import safe Data.Semiring
+import safe Data.Ring
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
-import safe Prelude (fromInteger)
 
 -------------------------------------------------------------------------------
 -- Vectors
@@ -90,13 +91,34 @@ import safe Prelude (fromInteger)
 unV1 :: V1 a -> a
 unV1 (V1 a) = a
 
-newtype V1 a = V1 a deriving (Eq,Ord,Show)
+newtype V1 a = V1 a
+  deriving stock (Eq,Ord,Show)
+  deriving (Functor, Applicative) via (Co V1)
 
-data V2 a = V2 !a !a deriving (Eq,Ord,Show)
+data V2 a = V2 !a !a
+  deriving stock (Eq,Ord,Show)
+  deriving (Functor, Applicative) via (Co V2)
 
-data V3 a = V3 !a !a !a deriving (Eq,Ord,Show)
+data V3 a = V3 !a !a !a
+  deriving stock (Eq,Ord,Show)
+  deriving (Functor, Applicative) via (Co V3)
 
-data V4 a = V4 !a !a !a !a deriving (Eq,Ord,Show)
+data V4 a = V4 !a !a !a !a
+  deriving stock (Eq,Ord,Show)
+  deriving (Functor, Applicative) via (Co V4)
+
+deriving via (Co V1 a) instance Presemiring a => Presemiring (V1 a)
+deriving via (Co V1 a) instance Semiring a => Semiring (V1 a)
+deriving via (Co V1 a) instance Ring a => Ring (V1 a)
+deriving via (Co V2 a) instance Presemiring a => Presemiring (V2 a)
+deriving via (Co V2 a) instance Semiring a => Semiring (V2 a)
+deriving via (Co V2 a) instance Ring a => Ring (V2 a)
+deriving via (Co V3 a) instance Presemiring a => Presemiring (V3 a)
+deriving via (Co V3 a) instance Semiring a => Semiring (V3 a)
+deriving via (Co V3 a) instance Ring a => Ring (V3 a)
+deriving via (Co V4 a) instance Presemiring a => Presemiring (V4 a)
+deriving via (Co V4 a) instance Semiring a => Semiring (V4 a)
+deriving via (Co V4 a) instance Ring a => Ring (V4 a)
 
 -- | Cross product.
 --
@@ -126,9 +148,9 @@ cross (V3 a b c) (V3 d e f) = V3 (b*f-c*e) (c*d-a*f) (a*e-b*d)
 -- >>> triple (V3 0 0 1) (V3 1 0 0) (V3 0 1 0) :: Double
 -- 1.0
 --
-triple :: Ring a => V3 a -> V3 a -> V3 a -> a
-triple x y z = inner x (cross y z)
-{-# INLINE triple #-}
+--triple :: Ring a => V3 a -> V3 a -> V3 a -> a
+--triple x y z = inner x (cross y z)
+--{-# INLINE triple #-}
 
 
 -------------------------------------------------------------------------------
@@ -581,6 +603,7 @@ inv4 x = lscaleDef (recip det) $ x' where
            (e20 * s3 - e21 * s1 + e22 * s0)
 {-# INLINE inv4 #-}
 
+
 -------------------------------------------------------------------------------
 -- V1 instances
 -------------------------------------------------------------------------------
@@ -594,16 +617,6 @@ instance Field a => Composition a V1 where
 
   norm f = unV1 $ liftA2 (*) f f
 -}
-
-instance Functor V1 where
-  fmap f (V1 a) = V1 (f a)
-  {-# INLINE fmap #-}
-  a <$ _ = V1 a
-  {-# INLINE (<$) #-}
-
-instance Applicative V1 where
-  pure = pureRep
-  liftA2 = liftR2
 
 instance Foldable V1 where
   foldMap f (V1 a) = f a
@@ -634,16 +647,6 @@ instance Representable V1 where
 
 instance Show1 V2 where
   liftShowsPrec f _ d (V2 a b) = showsBinaryWith f f "V2" d a b
-
-instance Functor V2 where
-  fmap f (V2 a b) = V2 (f a) (f b)
-  {-# INLINE fmap #-}
-  a <$ _ = V2 a a
-  {-# INLINE (<$) #-}
-
-instance Applicative V2 where
-  pure = pureRep
-  liftA2 = liftR2
 
 instance Foldable V2 where
   foldMap f (V2 a b) = f a <> f b
@@ -681,16 +684,6 @@ instance Show1 V3 where
   liftShowsPrec f _ d (V3 a b c) = showParen (d > 10) $
      showString "V3 " . f 11 a . showChar ' ' . f 11 b . showChar ' ' . f 11 c
 
-instance Functor V3 where
-  fmap f (V3 a b c) = V3 (f a) (f b) (f c)
-  {-# INLINE fmap #-}
-  a <$ _ = V3 a a a
-  {-# INLINE (<$) #-}
-
-instance Applicative V3 where
-  pure = pureRep
-  liftA2 = liftR2
-
 instance Foldable V3 where
   foldMap f (V3 a b c) = f a <> f b <> f c
   {-# INLINE foldMap #-}
@@ -724,16 +717,6 @@ instance Show1 V4 where
   liftShowsPrec f _ z (V4 a b c d) = showParen (z > 10) $
      showString "V4 " . f 11 a . showChar ' ' . f 11 b . showChar ' ' . f 11 c . showChar ' ' . f 11 d
 
-instance Functor V4 where
-  fmap f (V4 a b c d) = V4 (f a) (f b) (f c) (f d)
-  {-# INLINE fmap #-}
-  a <$ _ = V4 a a a a
-  {-# INLINE (<$) #-}
-
-instance Applicative V4 where
-  pure = pureRep
-  liftA2 = liftR2
-
 instance Foldable V4 where
   foldMap f (V4 a b c d) = f a <> f b <> f c <> f d
   {-# INLINE foldMap #-}
@@ -759,7 +742,7 @@ instance Representable V4 where
   index (V4 _ _ _ w) E44 = w
   {-# INLINE index #-}
 
-
+{-
 -------------------------------------------------------------------------------
 -- Autogenerated instances
 -------------------------------------------------------------------------------
@@ -1031,3 +1014,5 @@ deriveMultiplicativeMatrixMonoid(M44)
 derivePresemiring(M44)
 deriveSemiring(M44)
 deriveRing(M44)
+
+-}

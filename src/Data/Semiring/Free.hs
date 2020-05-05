@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RankNTypes                 #-}
 
-module Data.Semimodule.Free (
+module Data.Semiring.Free (
   -- * Types
     type Free
   , type FreeModule
@@ -21,24 +21,35 @@ module Data.Semimodule.Free (
   , type FreeCounital
   , type FreeBialgebra
   -- * Vectors
-  , Vec
+  , Vec(..)
   , vec
   , init
   , join
   , vmap
   , augment
-  -- * Semimodule transformations
-  , Endomorphism 
-  , Transform(..)
-  , lift
-  , matrix
-  , fromRows
+  -- * Covectors
+  , Cov(..)
+  , cov
+  , images
+  , coinit
+  , cojoin
+  , cmap
+  , comult
+  -- * Linear transformations
+  , Mat(..)
+  , End 
+  , mat
+  , fin
+  , image
   , invmap
-  , invmap'
   , initial
   , coinitial
   , diagonal
   , codiagonal
+  , braid
+  , cobraid 
+  , split
+  , cosplit
   , convolve
   -- * Vector accessors and constructors
   , exl
@@ -53,10 +64,10 @@ module Data.Semimodule.Free (
   , (*!)
   , (.*)
   , (*.)
-  , (/.)
-  , (\.)
-  , (./)
-  , (.\)
+  --, (/.)
+ -- , (\.)
+ -- , (./)
+ -- , (.\)
   , (.*.)
   , (.+.)
   , lerp
@@ -73,7 +84,7 @@ module Data.Semimodule.Free (
   , codiag
   , scalar
   , identity
-  -- * Matrix operations
+  -- * Matrix operators
   , (!#)
   , (#!)
   , (.#)
@@ -87,23 +98,25 @@ module Data.Semimodule.Free (
 ) where
 
 import Control.Applicative
+import Control.Arrow
 import Control.Category (Category, (<<<), (>>>))
 import Control.Monad (MonadPlus(..))
+import Data.Algebra
 import Data.Bool
-import Data.Connection
+import Data.Connection (Conn(..))
 import Data.Finite (Finite, finites)
 import Data.Foldable (foldl')
 import Data.Functor.Apply
 import Data.Functor.Compose
 import Data.Functor.Contravariant (Contravariant(..))
 import Data.Functor.Rep
+import Data.Group
 import Data.Profunctor
 import Data.Profunctor.Sieve
-import Data.Ring
 import Data.Semiring
-import Data.Semimodule
-import Data.Semimodule.Algebra
-import GHC.TypeNats (KnownNat)
+import Data.Semifield
+import Data.Tuple (swap)
+import GHC.TypeNats (KnownNat(..))
 import Prelude hiding (Num(..), Fractional(..), init, negate, sum, product)
 import qualified Control.Category as C
 import qualified Control.Monad as M
@@ -112,37 +125,44 @@ import qualified Data.Profunctor.Rep as PR
 -- >>> :set -XDataKinds
 -- >>> import Data.Vector.Sized
 
+
 type Free = Representable
 
-type FreeModule a f = (Free f, Ring (f a), Bimodule a a (f a))
+--type FreeModule f a = (Ring a, Free f, Group (f a))
 
-type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
+--type FreeSemimodule f a = (Semiring a, Free f, Monoid (f a))
 
+type FreeModule f a = (Ring a, Free f)
+
+type FreeSemimodule f a = (Semiring a, Free f)
 -- | An algebra over a free module /f/.
 --
 -- Note that this is distinct from a < https://en.wikipedia.org/wiki/Free_algebra free algebra >.
 --
-type FreeAlgebra a f = (FreeSemimodule a f, Algebra a (Rep f))
+type FreeAlgebra f a = (FreeSemimodule f a, Algebra a (Rep f))
 
 -- | A unital algebra over a free semimodule /f/.
 --
-type FreeUnital a f = (FreeAlgebra a f, Unital a (Rep f))
+type FreeUnital f a = (FreeAlgebra f a, Unital a (Rep f))
 
 -- | A coalgebra over a free semimodule /f/.
 --
-type FreeCoalgebra a f = (FreeSemimodule a f, Coalgebra a (Rep f))
-
+type FreeCoalgebra f a = (FreeSemimodule f a, Coalgebra a (Rep f))
 -- | A counital coalgebra over a free semimodule /f/.
 --
-type FreeCounital a f = (FreeCoalgebra a f, Counital a (Rep f))
+type FreeCounital f a = (FreeCoalgebra f a, Counital a (Rep f))
 
 -- | A bialgebra over a free semimodule /f/.
 --
-type FreeBialgebra a f = (FreeAlgebra a f, FreeCoalgebra a f, Bialgebra a (Rep f))
+type FreeBialgebra f a = (FreeAlgebra f a, FreeCoalgebra f a, Bialgebra a (Rep f))
 
 -------------------------------------------------------------------------------
 -- Vectors
 -------------------------------------------------------------------------------
+
+--infixr 3 `runVec`
+
+--runVec = id
 
 -- | A vector in a vector space or free semimodule.
 --
@@ -177,12 +197,12 @@ join = vmap diagonal
 --
 -- Note that the basis transforms < https://en.wikipedia.org/wiki/Covariant_transformation#Contravariant_transformation > contravariantly.
 --
-vmap :: Transform a b c -> Vec a c -> Vec a b
-vmap (Transform f) = f
+vmap :: Mat a b c -> Vec a c -> Vec a b
+vmap = vmap
 
 -- | The < https://en.wikipedia.org/wiki/Augmentation_(algebra) augmentation > ring homomorphism.
 --
-augment :: Semiring a => Transform a b c -> Vec a b
+augment :: Semiring a => Mat a b c -> Vec a b
 augment l = l !# const one
 
 -------------------------------------------------------------------------------
@@ -190,9 +210,9 @@ augment l = l !# const one
 -------------------------------------------------------------------------------
 
 
-infixr 3 `runCovec`
+infixr 3 `runCov`
 
--- | Transform functionals on a free semimodule.
+-- | Linear functionals on a free semimodule.
 --
 -- @ 
 -- f '!*' (x '+' y) = (f '!*' x) '+' (f '!*' y)
@@ -211,20 +231,20 @@ newtype Covec a c = Covec { runCovec :: Vec a c -> a }
 --
 -- >>> x = fromTuple (7, 4) :: Vector 2 Int
 -- >>> y = fromTuple (1, 2) :: Vector 2 Int
--- >>> covec x !* vec y :: Int
--- >>> covec (V2 7 4) !* vec (V2 1 2) :: Int
+-- >>> cov x !* vec y :: Int
+-- >>> cov (V2 7 4) !* vec (V2 1 2) :: Int
 -- 11
 --
-covec :: FreeCounital a f => f a -> Covec a (Rep f)
-covec f = Covec $ \k -> f `inner` tabulate k
+cov :: FreeCounital f a => f a -> Covec a (Rep f)
+cov f = Covec $ \k -> f `inner` tabulate k
 
 -- | Obtain a covector from a linear combination of basis elements.
 --
--- >>> fromRowss [(2, E31),(3, E32)] !* vec (V3 1 1 1) :: Int
+-- >>> images [(2, E31),(3, E32)] !* vec (V3 1 1 1) :: Int
 -- 5
 --
-coeffs :: Semiring a => Foldable f => f (c, a) -> Covec a c
-coeffs f = Covec $ \k -> foldl' (\acc (c, a) -> acc + a * k c) zero f 
+images :: Semiring a => Foldable f => f (a, c) -> Covec a c
+images f = Covec $ \k -> foldl' (\acc (a, c) -> acc + a * k c) zero f 
 
 -- | Obtain a covector from the counit of a counital coalgebra.
 --
@@ -244,14 +264,14 @@ cojoin = cmap codiagonal
 --
 -- Note that the basis transforms < https://en.wikipedia.org/wiki/Covariant_transformation covariantly >.
 --
-cmap :: Transform a b c -> Covec a b -> Covec a c
+cmap :: Mat a b c -> Covec a b -> Covec a c
 cmap f g = Covec $ runCovec g . vmap f
 
 infixr 7 `comult`
 
 -- | Multiplication operator on a coalgebra over f a free semimodule.
 --
--- >>> flip runCovec (e2 1 1) $ comult (covec $ V2 1 2) (covec $ V2 7 4)
+-- >>> flip runCovec (e2 1 1) $ comult (cov $ V2 1 2) (cov $ V2 7 4)
 -- 11
 --
 -- /Caution/ in general 'comult' needn't be commutative, nor coassociative.
@@ -268,13 +288,11 @@ comult (Covec f) (Covec g) = Covec $ \k -> f (\m -> g (cojoined k m))
 -- >>> one + two !# V2 1 2 :: V2 Double
 -- V2 3.0 6.0
 --
-type Endomorphism a b = Transform a b b
+type End a b = Mat a b b
 
 -- | An map between finite dimensional vector spaces with dimensions /m/ & /n/.
 --
--- This functional representation is useful when the matrix is large and sparse.
---
-type Matrix a m n = Transform a (Finite m) (Finite n)
+type Fin a m n = Mat a (Finite m) (Finite n)
 
 -- | A linear transformation between free semimodules indexed with bases /b/ and /c/.
 --
@@ -287,51 +305,51 @@ type Matrix a m n = Transform a (Finite m) (Finite n)
 --
 -- /Caution/: You must ensure these laws hold when using the default constructor.
 --
--- Prefer 'lift', 'matrix', or 'fromRows' where appropriate.
+-- Prefer 'mat', 'fin', or 'image' where appropriate.
 --
-newtype Transform a b c = Transform ( Vec a c -> Vec a b )
+newtype Mat a b c = Mat ( Vec a c -> Vec a b )
 
 -- | Obtain a linear transformation from a matrix.
 --
 -- @ ('.#') = ('!#') . 'mat' @
 --
-lift :: Free f => FreeCounital a g => (f**g) a -> Transform a (Rep f) (Rep g) 
-lift m = Transform $ \k -> vec (m .# tabulate k)
+mat :: Free f => FreeCounital g a => (f**g) a -> Mat a (Rep f) (Rep g) 
+mat m = Mat $ \k -> vec (m .# tabulate k)
 
 -- | Obtain a finite linear transformation from a function of row and column indices.
 --
-matrix :: KnownNat n => Semiring a => (Finite m -> Finite n -> a) -> Matrix a m n 
-matrix f = fromRows $ \i -> (id &&& f i) <$> finites
+fin :: KnownNat n => Semiring a => (Finite m -> Finite n -> a) -> Fin a m n 
+fin f = image $ \b -> (f b &&& id) <$> finites
 
--- | Create a linear transformation from an fromRows of basis elements.
+-- | Create a linear transformation from an image of basis elements.
 --
--- >>> fromRows (e2 [(E31, 2),(E32, 3)] [(E33, 1)]) !# V3 1 1 1 :: V2 Int
+-- >>> image (e2 [(2, E31),(3, E32)] [(1, E33)]) !# V3 1 1 1 :: V2 Int
 -- V2 5 1
 --
-fromRows :: (Semiring a, Foldable f) => (b -> f (c, a)) -> Transform a b c
-fromRows f = Transform $ \k -> foldl' (\acc (c, a) -> acc + a * k c) zero . f
+image :: Semiring a => (b -> [(a, c)]) -> Mat a b c
+image f = Mat $ \k b -> sum [ a * k c | (a, c) <- f b ]
 
--- | 'Transform' is an invariant functor.
+-- | 'Mat' is an invariant functor.
 --
 -- See also < http://comonad.com/reader/2008/rotten-bananas/ >.
 --
-invmap :: (a1 -> a2) -> (a2 -> a1) -> Transform a1 b c -> Transform a2 b c
-invmap f g (Transform t) = Transform $ \x -> t (x >>> g) >>> f
+invmap :: (a1 -> a2) -> (a2 -> a1) -> Mat a1 b c -> Mat a2 b c
+invmap f g (Mat t) = Mat $ \x -> t (x >>> g) >>> f
 
--- | Use a Galois 'Data.Connection.Connection' to switch the base ring of a linear transformation.
+-- | Use a Galois connection to switch the base ring of a linear transformation.
 --
-invmap' :: Connection a1 a2 => Transform a1 b c -> Transform a2 b c
-invmap' = invmap lower upper
-
--- | TODO: Document
---
-initial :: Unital a b => Transform a b ()
-initial = Transform $ \k -> unital $ k ()
+galois :: Conn a1 a2 -> Mat a1 b c -> Mat a2 b c
+galois (Conn f g) = invmap f g
 
 -- | TODO: Document
 --
-coinitial :: Counital a c => Transform a () c
-coinitial = Transform $ const . counital
+initial :: Unital a b => Mat a b ()
+initial = Mat $ \k -> unital $ k ()
+
+-- | TODO: Document
+--
+coinitial :: Counital a c => Mat a () c
+coinitial = Mat $ const . counital
 
 -- |
 --
@@ -340,8 +358,8 @@ coinitial = Transform $ const . counital
 -- 'rmap' (\(((),c1),((),c2)) -> (c1,c2)) '$' ('initial' '***' 'C.id') 'C..' 'diagonal' = 'C.id'
 -- @
 --
-diagonal :: Algebra a b => Transform a b (b,b)
-diagonal = Transform $ joined . curry
+diagonal :: Algebra a b => Mat a b (b,b)
+diagonal = Mat $ joined . curry
 
 -- |
 --
@@ -350,24 +368,50 @@ diagonal = Transform $ joined . curry
 -- 'lmap' (\(c1,c2) -> (((),c1),((),c2))) '$' ('coinitial' '***' 'C.id') 'C..' 'codiagonal' = 'C.id'
 -- @
 --
-codiagonal :: Coalgebra a c => Transform a (c, c) c
-codiagonal = Transform $ uncurry . cojoined
+codiagonal :: Coalgebra a c => Mat a (c, c) c
+codiagonal = Mat $ uncurry . cojoined
+
+-- | Swap components of a tensor product.
+--
+-- This is equivalent to a matrix transpose.
+--
+braid :: Mat a (b, c) (c, b)
+braid = arr swap
+{-# INLINE braid #-}
+
+-- | Swap components of a direct sum.
+--
+cobraid :: Mat a (Either b c) (Either c b)
+cobraid = arr $ Right ||| Left
+{-# INLINE cobraid #-}
+
+-- | TODO: Document
+--
+split :: (b -> (b1 , b2)) -> Mat a b1 c -> Mat a b2 c -> Mat a b c
+split f x y = dimap f fst $ x *** y
+{-# INLINE split #-}
+
+-- | TODO: Document
+--
+cosplit :: ((Either c1 c2) -> c) -> Mat a b c1 -> Mat a b c2 -> Mat a b c
+cosplit f x y = dimap Left f $ x +++ y
+{-# INLINE cosplit #-}
 
 {-
-λ> foo = convolve (lift $ m22 1 0 0 1) (lift $ m22 1 0 0 1)
+λ> foo = convolve (mat $ m22 1 0 0 1) (mat $ m22 1 0 0 1)
 λ> foo !# V2 1 2 :: V2 Int
 V2 1 2
-λ> foo = convolve (lift $ m22 1 0 0 1) (lift $ m22 1 1 1 1)
+λ> foo = convolve (mat $ m22 1 0 0 1) (mat $ m22 1 1 1 1)
 λ> foo !# V2 1 2 :: V2 Int
 V2 1 2
-λ> foo = convolve (lift $ m22 1 1 1 1) (lift $ m22 1 1 1 1)
+λ> foo = convolve (mat $ m22 1 1 1 1) (mat $ m22 1 1 1 1)
 λ> foo !# V2 1 2 :: V2 Int
 V2 3 3
 -}
 
 -- | Convolution with an associative algebra and coassociative coalgebra
 --
-convolve :: Algebra a b => Coalgebra a c => Transform a b c -> Transform a b c -> Transform a b c
+convolve :: Algebra a b => Coalgebra a c => Mat a b c -> Mat a b c -> Mat a b c
 convolve f g = codiagonal <<< (f *** g) <<< diagonal
 
 -------------------------------------------------------------------------------
@@ -377,13 +421,13 @@ convolve f g = codiagonal <<< (f *** g) <<< diagonal
 -- | Project onto the left-hand component of a direct sum.
 --
 exl :: Free f => Free g => (f++g) a -> f a
-exl fg = arrow Left !# fg
+exl fg = arr Left !# fg
 {-# INLINE exl #-}
 
 -- | Project onto the right-hand component of a direct sum.
 --
 exr :: Free f => Free g => (f++g) a -> g a
-exr fg = arrow Right !# fg
+exr fg = arr Right !# fg
 {-# INLINE exr #-}
 
 -- | Retrieve the coefficient of a basis element
@@ -402,7 +446,7 @@ elt = flip index
 -- >>> V4 1 2 3 4 .*. unit two :: V4 Int
 -- V4 2 4 6 8
 --
-unit :: FreeUnital a f => a -> f a
+unit :: FreeUnital f a => a -> f a
 unit = tabulate . unital
 
 -- | Unital element of a unital algebra over a free semimodule.
@@ -410,7 +454,7 @@ unit = tabulate . unital
 -- >>> unit' :: Complex Int
 -- 1 :+ 0
 --
-unit' :: FreeUnital a f => f a
+unit' :: FreeUnital f a => f a
 unit' = unit one
 
 -- | Reduce a coalgebra over a free semimodule.
@@ -421,7 +465,7 @@ unit' = unit one
 -- >>> counit x
 -- 11
 -- 
-counit :: FreeCounital a f => f a -> a
+counit :: FreeCounital f a => f a -> a
 counit = counital . vec
 
 -- | Create a unit vector at an index.
@@ -461,29 +505,39 @@ infixl 7 *!
 (*!) :: Free f => Covec a (Rep f) -> f a -> a
 (*!) x = runCovec x . index
 
+--infixr 7 *., \., /.
 
-infixl 7 .\, ./
-infixr 7 \., /.
+-- | Left-multiply a module element by a scalar.
+--
+(*.) :: Semiring a => Functor f => a -> f a -> f a
+(*.) a f = (a *) <$> f
+
+-- | Right-multiply a module element by a scalar.
+--
+(.*) :: Semiring a => Functor f => f a -> a -> f a
+(.*) f a = (* a) <$> f
 
 -- | Right-divide a vector by a scalar (on the left).
 --
-(/.) :: Semifield a => Free f => a -> f a -> f a
-a /. f = (/ a) <$> f
-
--- | Right-divide a vector by a scalar.
---
-(./) :: Semifield a => Free f => f a -> a -> f a
-(./) = flip (/.)
+--(/.) :: Semifield a => Functor f => a -> f a -> f a
+--a /. f = (/ a) <$> f
 
 -- | Left-divide a vector by a scalar.
 --
-(\.) :: Semifield a => Free f => a -> f a -> f a
-a \. f = (a \\)  <$> f
+--(\.) :: Semifield a => Functor f => a -> f a -> f a
+--a \. f = (a \\)  <$> f
+
+--infixl 7 .*, .\, ./
+
+-- | Right-divide a vector by a scalar.
+--
+--(./) :: Semifield a => Functor f => f a -> a -> f a
+--(./) = flip (/.)
 
 -- | Left-divide a vector by a scalar (on the right).
 --
-(.\) :: Semifield a => Free f => f a -> a -> f a
-(.\) = flip (\.)
+--(.\) :: Semifield a => Functor f => f a -> a -> f a
+--(.\) = flip (\.)
 
 infixl 6 .+.
 
@@ -508,10 +562,10 @@ infixl 7 .*.
 --
 -- /Caution/ in general '.*.' needn't be commutative, nor associative.
 --
-(.*.) :: FreeAlgebra a f => f a -> f a -> f a
+(.*.) :: FreeAlgebra f a => f a -> f a -> f a
 (.*.) x y = tabulate $ joined (\i j -> vec x i * vec y j)
 
--- | Transformly interpolate between two vectors.
+-- | Linearly interpolate between two vectors.
 --
 -- >>> u = V3 (1 :% 1) (2 :% 1) (3 :% 1) :: V3 Rational
 -- >>> v = V3 (2 :% 1) (4 :% 1) (6 :% 1) :: V3 Rational
@@ -519,8 +573,8 @@ infixl 7 .*.
 -- >>> lerp r u v
 -- V3 (6 % 4) (12 % 4) (18 % 4)
 --
---lerp :: FreeModule f a => Presemiring (f a) => a -> f a -> f a -> f a
---lerp r f g = r *. f + (one - r) *. g
+lerp :: FreeModule f a => Presemiring (f a) => a -> f a -> f a -> f a
+lerp r f g = r *. f + (one - r) *. g
 
 infix 6 `inner`
 
@@ -531,7 +585,7 @@ infix 6 `inner`
 -- >>> V3 1 2 3 `inner` V3 1 2 3
 -- 14
 -- 
-inner :: FreeCounital a f => f a -> f a -> a
+inner :: FreeCounital f a => f a -> f a -> a
 inner x y = counit $ liftR2 (*) x y
 {-# INLINE inner #-}
 
@@ -546,7 +600,7 @@ outer x y = Compose $ fmap (\z-> fmap (*z) y) x
 
 -- | Squared /l2/ norm of a vector.
 --
-quadrance :: FreeCounital a f => f a -> a
+quadrance :: FreeCounital f a => f a -> a
 quadrance = M.join inner 
 {-# INLINE quadrance #-}
 
@@ -584,7 +638,7 @@ rows = Compose
 -- V2 (V2 1 2) (V2 1 2)
 --
 rows' :: Free f => Free g => g a -> (f**g) a
-rows' g = arrow snd !# g
+rows' g = arr snd !# g
 {-# INLINE rows' #-}
 
 -- | Retrieve a column of a matrix.
@@ -607,7 +661,7 @@ cols = transpose . Compose
 -- V2 (V2 1 1) (V2 2 2)
 --
 cols' :: Free f => Free g => f a -> (f**g) a
-cols' f = arrow fst !# f
+cols' f = arr fst !# f
 {-# INLINE cols' #-}
 
 -- | Obtain a vector from a tensor.
@@ -619,7 +673,7 @@ cols' f = arrow fst !# f
 -- >>> diag $ m22 1.0 2.0 3.0 4.0
 -- V2 1.0 4.0
 --
-diag :: FreeAlgebra a f => (f**f) a -> f a
+diag :: FreeAlgebra f a => (f**f) a -> f a
 diag f = diagonal !# f
 
 -- | Obtain a tensor from a vector.
@@ -628,7 +682,7 @@ diag f = diagonal !# f
 --
 -- @ 'codiag' = 'flip' 'bindRep' 'id' '.' 'getCompose' @
 --
-codiag :: FreeCoalgebra a f => f a -> (f**f) a
+codiag :: FreeCoalgebra f a => f a -> (f**f) a
 codiag f = codiagonal !# f
 
 -- | Obtain a < https://en.wikipedia.org/wiki/Diagonal_matrix#Scalar_matrix scalar matrix > from a scalar.
@@ -636,7 +690,7 @@ codiag f = codiagonal !# f
 -- >>> scalar 4.0 :: M22 Double
 -- Compose (V2 (V2 4.0 0.0) (V2 0.0 4.0))
 --
-scalar :: FreeCoalgebra a f => a -> (f**f) a
+scalar :: FreeCoalgebra f a => a -> (f**f) a
 scalar = codiag . pureRep
 
 -- | Obtain an identity matrix.
@@ -644,7 +698,7 @@ scalar = codiag . pureRep
 -- >>> identity :: M33 Int
 -- Compose (V3 (V3 1 0 0) (V3 0 1 0) (V3 0 0 1))
 --
-identity :: FreeCoalgebra a f => (f**f) a
+identity :: FreeCoalgebra f a => (f**f) a
 identity = scalar one
 {-# INLINE identity #-}
 
@@ -656,14 +710,14 @@ infixr 2 !#
 
 -- | Apply a transformation to a vector.
 --
-(!#) :: Free f => Free g => Transform a (Rep f) (Rep g) -> g a -> f a
+(!#) :: Free f => Free g => Mat a (Rep f) (Rep g) -> g a -> f a
 (!#) t = tabulate . vmap t . index
 
 infixl 2 #!
 
 -- | Apply a transformation to a vector.
 --
-(#!) :: Free f => Free g => g a -> Transform a (Rep f) (Rep g) -> f a
+(#!) :: Free f => Free g => g a -> Mat a (Rep f) (Rep g) -> f a
 (#!) = flip (!#)
 
 infixr 7 .#
@@ -672,14 +726,14 @@ infixr 7 .#
 --
 -- @ ('.#') = ('!#') . 'mat' @
 --
--- >>> lift (m23 1 2 3 4 5 6) !# V3 7 8 9 :: V2 Int
+-- >>> mat (m23 1 2 3 4 5 6) !# V3 7 8 9 :: V2 Int
 -- V2 50 122
 -- >>> m23 1 2 3 4 5 6 .# V3 7 8 9 :: V2 Int
 -- V2 50 122
 -- >>> m22 1 0 0 0 .# m23 1 2 3 4 5 6 .# V3 7 8 9 :: V2 Int
 -- V2 50 0
 --
-(.#) :: Free f => FreeCounital a g => (f**g) a -> g a -> f a
+(.#) :: Free f => FreeCounital g a => (f**g) a -> g a -> f a
 x .# y = tabulate (\i -> row i x `inner` y)
 {-# INLINE (.#) #-}
 
@@ -693,7 +747,7 @@ infixl 7 #.
 -- >>> V2 1 2 #. m23 3 4 5 6 7 8 #. m32 1 0 0 0 0 0 :: V2 Int
 -- V2 15 0
 --
-(#.) :: Free g => FreeCounital a f => f a -> (f**g) a -> g a
+(#.) :: Free g => FreeCounital f a => f a -> (f**g) a -> g a
 x #. y = tabulate (\j -> x `inner` col j y)
 {-# INLINE (#.) #-}
 
@@ -707,25 +761,25 @@ infixr 7 .#.
 -- >>> m23 1 2 3 4 5 6 .#. m32 1 2 3 4 4 5 :: M22 Int
 -- Compose (V2 (V2 19 25) (V2 43 58))
 --
-(.#.) :: Free f => Free h => FreeCounital a g => (f**g) a -> (g**h) a -> (f**h) a
+(.#.) :: Free f => Free h => FreeCounital g a => (f**g) a -> (g**h) a -> (f**h) a
 (.#.) x y = tabulate (\(i,j) -> row i x `inner` col j y)
 {-# INLINE (.#.) #-}
-
+ 
 -- | Left (post) composition with a linear transformation.
 --
-compl :: Free f1 => Free f2 => Free g => Transform a (Rep f1) (Rep f2) -> (f2**g) a -> (f1**g) a
-compl t fg = first' t !# fg
+compl :: Free f1 => Free f2 => Free g => Mat a (Rep f1) (Rep f2) -> (f2**g) a -> (f1**g) a
+compl t fg = first t !# fg
 
 -- | Right (pre) composition with a linear transformation.
 --
-compr :: Free f => Free g1 => Free g2 => Transform a (Rep g1) (Rep g2) -> (f**g2) a -> (f**g1) a
-compr t fg = second' t !# fg
+compr :: Free f => Free g1 => Free g2 => Mat a (Rep g1) (Rep g2) -> (f**g2) a -> (f**g1) a
+compr t fg = second t !# fg
 
 -- | Left and right composition with a linear transformation.
 --
 -- @ f *** g !# v = 'compl' f '>>>' 'compr' g @
 --
-complr :: Free f1 => Free f2 => Free g1 => Free g2 => Transform a (Rep f1) (Rep f2) -> Transform a (Rep g1) (Rep g2) -> (f2**g2) a -> (f1**g1) a
+complr :: Free f1 => Free f2 => Free g1 => Free g2 => Mat a (Rep f1) (Rep f2) -> Mat a (Rep g1) (Rep g2) -> (f2**g2) a -> (f1**g1) a
 complr t1 t2 fg = (t1 *** t2) !# fg
 
 -- | Trace of an endomorphism.
@@ -733,7 +787,7 @@ complr t1 t2 fg = (t1 *** t2) !# fg
 -- >>> trace $ m22 1.0 2.0 3.0 4.0
 -- 5.0
 --
-trace :: FreeBialgebra a f => (f**f) a -> a
+trace :: FreeBialgebra f a => (f**f) a -> a
 trace = counit . diag
 {-# INLINE trace #-}
 
@@ -751,46 +805,59 @@ transpose fg = braid !# fg
 -------------------------------------------------------------------------------
 
 instance Functor (Covec a) where
-  fmap f m = Covec $ \k -> m `runCovec` k . f
+  fmap f m = Covec $ \k -> m `runCov` k . f
 
 instance Applicative (Covec a) where
   pure a = Covec $ \k -> k a
-  mf <*> ma = Covec $ \k -> mf `runCovec` \f -> ma `runCovec` k . f
+  mf <*> ma = Covec $ \k -> mf `runCov` \f -> ma `runCov` k . f
 
 instance Monad (Covec a) where
   return a = Covec $ \k -> k a
-  m >>= f = Covec $ \k -> m `runCovec` \a -> f a `runCovec` k
+  m >>= f = Covec $ \k -> m `runCov` \a -> f a `runCov` k
 
+{-
 instance Presemiring a => Presemiring (Covec a b) where
-  Covec m + Covec n = Covec $ m + n
-  Covec m * Covec n = Covec $ m * n
+  (<>) (Covec m) (Covec n) = Covec $ m + n
 
-instance Semiring a => Semiring (Covec a b) where
-  zero = Covec zero
-  one = Covec one
+instance Semiring a => Monoid (Covec a b) where
+  mempty = Covec zero
 
-instance Ring a => Ring (Covec a b) where
-  Covec m - Covec n = Covec $ m - n
+instance Ring a => Magma (Covec a b) where
+  (<<) (Covec m) (Covec n) = Covec $ m - n
+
+instance Ring a => Quasigroup (Covec a b)
+instance Ring a => Loop (Covec a b)
+instance Ring a => Group (Covec a b)
+-}
 
 -------------------------------------------------------------------------------
--- Transform instances
+-- Mat instances
 -------------------------------------------------------------------------------
 
-instance Functor (Transform a b) where
-  fmap f m = Transform $ \k -> m !# k . f
+addMat :: Semiring a => Mat a b c -> Mat a b c -> Mat a b c
+addMat (Mat f) (Mat g) = Mat $ f + g
 
-instance Category (Transform a) where
-  id = Transform id
-  Transform f . Transform g = Transform $ g . f
+subMat :: Ring a => Mat a b c -> Mat a b c -> Mat a b c
+subMat (Mat f) (Mat g) = Mat $ \h -> f h - g h
 
-instance Apply (Transform a b) where
-  mf <.> ma = Transform $ \k b -> (mf !# \f -> (ma !# k . f) b) b
+mulMat :: Semiring a => Mat a b c -> Mat a b c -> Mat a b c
+mulMat (Mat f) (Mat g) = Mat $ \h -> f h * g h
 
-instance Applicative (Transform a b) where
-  pure a = Transform $ \k _ -> k a
+instance Functor (Mat a b) where
+  fmap f m = Mat $ \k -> m !# k . f
+
+instance Category (Mat a) where
+  id = Mat id
+  Mat f . Mat g = Mat $ g . f
+
+instance Apply (Mat a b) where
+  mf <.> ma = Mat $ \k b -> (mf !# \f -> (ma !# k . f) b) b
+
+instance Applicative (Mat a b) where
+  pure a = Mat $ \k _ -> k a
   (<*>) = (<.>)
 
-instance Profunctor (Transform a) where
+instance Profunctor (Mat a) where
   -- | 'Mat' is a profunctor in the category of semimodules.
   --
   -- /Caution/: Arbitrary mapping functions may violate linearity.
@@ -798,92 +865,114 @@ instance Profunctor (Transform a) where
   -- >>> dimap id (e3 True True False) (arr id) !# 4 :+ 5 :: V3 Int
   -- V3 5 5 4
   --
-  dimap l r f = arrow r <<< f <<< arrow l
+  dimap l r f = arr r <<< f <<< arr l
 
-instance Strong (Transform a) where
-  first' m = Transform $ \k (a,c) -> (m !# \b -> k (b,c)) a
-  second' m = Transform $ \k (c,a) -> (m !# \b -> k (c,b)) a
+instance Strong (Mat a) where
+  first' = first
+  second' = second
 
-instance Choice (Transform a) where
-  left' m = Transform $ \k -> either (m !# k . Left) (k . Right)
-  right' m = Transform $ \k -> either (k . Left) (m !# k . Right)
+instance Choice (Mat a) where
+  left' = left
+  right' = right
 
-instance Sieve (Transform a) (Covec a) where
+instance Sieve (Mat a) (Covec a) where
   sieve l b = Covec $ \k -> (l !# k) b 
 
-instance PR.Representable (Transform a) where
-  type Rep (Transform a) = Covec a
-  tabulate f = Transform $ \k b -> runCovec (f b) k
+instance PR.Representable (Mat a) where
+  type Rep (Mat a) = Covec a
+  tabulate f = Mat $ \k b -> runCovec (f b) k
 
-instance Monad (Transform a b) where
-  return a = Transform $ \k _ -> k a
-  m >>= f = Transform $ \k b -> (m !# \a -> (f a !# k) b) b
+instance Representable (Mat a b) where
+  type Rep (Mat a b) = Covec a b
+  index = sieve
+  tabulate = PR.tabulate
+
+instance Monad (Mat a b) where
+  return a = Mat $ \k _ -> k a
+  m >>= f = Mat $ \k b -> (m !# \a -> (f a !# k) b) b
+
+instance Arrow (Mat a) where
+  arr f = Mat (. f)
+  first m = Mat $ \k (a,c) -> (m !# \b -> k (b,c)) a
+  second m = Mat $ \k (c,a) -> (m !# \b -> k (c,b)) a
+  m *** n = Mat $ \k (a,c) -> (m !# \b -> (n !# \d -> k (b,d)) c) a
+  m &&& n = Mat $ \k a -> (m !# \b -> (n !# \c -> k (b,c)) a) a
+
+instance ArrowChoice (Mat a) where
+  left m = Mat $ \k -> either (m !# k . Left) (k . Right)
+  right m = Mat $ \k -> either (k . Left) (m !# k . Right)
+  m +++ n =  Mat $ \k -> either (m !# k . Left) (n !# k . Right)
+  m ||| n = Mat $ \k -> either (m !# k) (n !# k)
+
+instance ArrowApply (Mat a) where
+  app = Mat $ \k (f,a) -> (f !# k) a
+
+
+ 
 
 {-
-instance Arrow (Transform a) where
-  arr f = Transform (. f)
-  first m = Transform $ \k (a,c) -> (m !# \b -> k (b,c)) a
-  second m = Transform $ \k (c,a) -> (m !# \b -> k (c,b)) a
-  m *** n = Transform $ \k (a,c) -> (m !# \b -> (n !# \d -> k (b,d)) c) a
-  m &&& n = Transform $ \k a -> (m !# \b -> (n !# \c -> k (b,c)) a) a
+instance Semiring a => Semigroup (Mat a b c) where
+  (<>) = addMat
 
-instance ArrowChoice (Transform a) where
-  left m = Transform $ \k -> either (m !# k . Left) (k . Right)
-  right m = Transform $ \k -> either (k . Left) (m !# k . Right)
-  m +++ n =  Transform $ \k -> either (m !# k . Left) (n !# k . Right)
-  m ||| n = Transform $ \k -> either (m !# k) (n !# k)
+instance Ring a => Monoid (Mat a b c) where
+  mempty = Mat $ const zero
 
-instance ArrowApply (Transform a) where
-  app = Transform $ \k (f,a) -> (f !# k) a
 
+instance Presemiring a => Semigroup (End a b) where
+  (<>) = liftA2 (<<<)
+
+instance Semiring a => Monoid ((End a b)) where
+  mempty = pure C.id
+
+instance Presemiring a => Presemiring (End a b)
+instance Semiring a => Semiring (End a b)
+instance Ring a => Ring (End a b)
+
+instance Coalgebra a c => Semigroup (Mat a b c) where
+  (<>) f g = Mat $ \k b -> (f !# \a -> (g !# cojoined k a) b) b
+instance Counital a c => Monoid (Multiplicative (Mat a b c)) where
+  mempty = pure . Mat $ \k _ -> counital k
+
+instance Coalgebra a c => Presemiring (Mat a b c)
+instance Counital a c => Semiring (Mat a b c)
+instance (Ring a, Counital a c) => Ring (Mat a b c)
 -}
-
-addMat :: Presemiring a => Transform a b c -> Transform a b c -> Transform a b c
-addMat (Transform f) (Transform g) = Transform $ f + g
-
-subMat :: Ring a => Transform a b c -> Transform a b c -> Transform a b c
-subMat (Transform f) (Transform g) = Transform $ \h -> f h - g h
-
-mulMat :: Presemiring a => Transform a b c -> Transform a b c -> Transform a b c
-mulMat (Transform f) (Transform g) = Transform $ \h -> f h * g h
-
-instance Presemiring a => Presemiring (Transform a b c) where
-  (+) = addMat
-  (*) = mulMat
-
-instance Semiring a => Semiring (Transform a b c) where
-  one = Transform $ \_ -> const one
-  zero = Transform $ \_ -> const zero
-
-instance Ring a => Ring (Transform a b c) where
-  (-) = subMat
-instance Counital a b => LeftSemimodule (Transform a b b) (Transform a b c) where
+{-
+instance Counital a b => LeftSemimodule (Mat a b b) (Mat a b c) where
   -- | Left matrix multiplication
   lscale = (>>>)
-instance Semiring a => LeftSemimodule a (Transform a b c) where
-  lscale l (Transform m) = Transform $ \k b -> l *. m k b
-instance Counital a c => RightSemimodule (Transform a c c) (Transform a b c) where
+
+instance Semiring a => LeftSemimodule a (Mat a b c) where
+  lscale l (Mat m) = Mat $ \k b -> l *. m k b
+
+instance Counital a c => RightSemimodule (Mat a c c) (Mat a b c) where
   -- | Right matrix multiplication
   rscale = (<<<)
-instance (Counital a b, Counital a c) => Bisemimodule (Transform a b b) (Transform a c c) (Transform a b c)
-instance Semiring a => RightSemimodule a (Transform a b m) where
-  rscale r (Transform m) = Transform $ \k b -> m k b .* r
-instance Bisemimodule a a a => Bisemimodule a a (Transform a b c)
+
+instance (Counital a b, Counital a c) => Bisemimodule (Mat a b b) (Mat a c c) (Mat a b c)
+
+instance Semiring a => RightSemimodule a (Mat a b m) where
+  rscale r (Mat m) = Mat $ \k b -> m k b .* r
+
+instance Bisemimodule a a a => Bisemimodule a a (Mat a b c)
+
+instance (Additive-Group) a => Magma (Additive (Mat a b c)) where
+  (<<) = liftR2 subMat
+
+instance (Additive-Group) a => Quasigroup (Additive (Mat a b c))
+instance (Additive-Group) a => Loop (Additive (Mat a b c))
+instance (Additive-Group) a => Group (Additive (Mat a b c))
 
 
-
-
-
-
-
-
+-}
 
 {-
 -- | An endomorphism of endomorphisms. 
 --
 -- @ 'Cayley' a = (a -> a) -> (a -> a) @
 --
-type Cayley a = Transform a a a
+type Cayley a = Mat a a a
+
 -- | Lift a semiring element into a 'Cayley'.
 --
 -- @ 'runCayley' . 'cayley' = 'id' @
@@ -894,7 +983,8 @@ type Cayley a = Transform a a a
 -- Compose (V2 (V2 1 2) (V2 3 4))
 -- 
 cayley :: Semiring a => a -> Cayley a
-cayley a = Transform $ \k b -> a * k zero + b
+cayley a = Mat $ \k b -> a * k zero + b
+
 -- | Extract a semiring element from a 'Cayley'.
 --
 -- >>> runCayley $ two * (one + (cayley 3.4)) :: Double
@@ -903,10 +993,12 @@ cayley a = Transform $ \k b -> a * k zero + b
 -- Compose (V2 (V2 4 4) (V2 6 10))
 --
 runCayley :: Semiring a => Cayley a -> a
-runCayley (Transform f) = f (one +) zero
+runCayley (Mat f) = f (one +) zero
+
 -- ring homomorphism from a -> a^b
-embed :: (Product-Semigroup) a => (Product-Monoid) c => (b -> a) -> Transform a b c
-embed f = Transform $ \k b -> f b * k one
+embed :: (Multiplicative-Semigroup) a => (Multiplicative-Monoid) c => (b -> a) -> Mat a b c
+embed f = Mat $ \k b -> f b * k one
+
 -- if the characteristic of s does not divide the order of a, then s[a] is semisimple
 -- and if a has a length function, we can build f ailtered algebra
 -}
