@@ -23,8 +23,8 @@ module Data.Semimodule.Algebra (
   , Bialgebra
 ) where
 
-import Control.Applicative
 import Control.Arrow
+import Control.Applicative
 import Control.Category (Category, (<<<), (>>>))
 import Data.Bool
 import Data.Complex
@@ -56,6 +56,8 @@ import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 
+
+
 -------------------------------------------------------------------------------
 -- Algebras
 -------------------------------------------------------------------------------
@@ -69,7 +71,7 @@ class Semiring a => Algebra a b where
   -- |
   --
   -- @
-  -- 'joined' = 'Data.Semimodule.Free.vmap' 'Data.Semimodule.Free.diagonal' '.' 'uncurry'
+  -- 'joined' = 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.diagonal' '.' 'uncurry'
   -- @
   --
   joined :: (b -> b -> a) -> b -> a
@@ -79,10 +81,10 @@ class Semiring a => Algebra a b where
 --
 class Algebra a b => Unital a b where
 
-  -- |
+  -- | Obtain a vector from the unit of a unital algebra.
   --
   -- @
-  -- 'unital' = 'Data.Semimodule.Free.vmap' 'Data.Semimodule.Free.initial' '.' 'const'
+  -- 'unital' = 'Data.Semimodule.Transform.over' 'initial' '.' 'const'
   -- @
   --
   unital :: a -> b -> a
@@ -99,7 +101,7 @@ class Semiring a => Coalgebra a c where
   -- |
   --
   -- @
-  -- 'cojoined' = 'curry' '.' 'Data.Semimodule.Free.vmap' 'Data.Semimodule.Free.codiagonal'
+  -- 'cojoined' = 'curry' '.' 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.codiagonal'
   -- @
   --
   cojoined :: (c -> a) -> c -> c -> a
@@ -110,7 +112,7 @@ class Semiring a => Coalgebra a c where
 class Coalgebra a c => Counital a c where
 
   -- @
-  -- 'Data.Semimodule.Free.Cov' 'counital' = 'Data.Semimodule.Free.cmap' 'Data.Semimodule.Free.coinitial' $ pure '()'
+  -- 'Data.Semimodule.Free.Cov' 'counital' = 'Data.Semimodule.Free.coover' 'Data.Semimodule.Free.coinitial' $ pure '()'
   -- @
   --
   counital :: (c -> a) -> a
@@ -272,6 +274,20 @@ instance (Semiring r, Ord a, Semigroup b) => Coalgebra r (Map.Map a b) where
 
 instance (Semiring r, Ord a, Semigroup b) => Counital r (Map.Map a b) where
   counital f = f Map.empty
+
+{-
+
+-- | The free commutative coalgebra over a set and a given semigroup
+instance (Semiring r, Ord a, Commutative b) => Coalgebra r (Map a b) where
+  cojoined f as bs = f (Map.unionWith (+) as bs)
+  counital k = k (Map.empty)
+
+-- | The free commutative coalgebra over a set and Int
+instance (Semiring r, Commutative b) => Coalgebra r (IntMap b) where
+  cojoined f as bs = f (IntMap.unionWith (+) as bs)
+  counital k = k (IntMap.empty)
+-}
+
 
 ---------------------------------------------------------------------
 -- Bialgebra instances

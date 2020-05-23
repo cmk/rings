@@ -1,7 +1,7 @@
 name:                rings
 version:             0.2
 synopsis:            Ring-like objects.
-description:         Semirings, rings, division rings, modules, and algebras.
+description:         Rings, semirings, division rings, lattices, modules, and algebras.
 homepage:            https://github.com/cmk/rings
 license:             BSD3
 license-file:        LICENSE
@@ -23,12 +23,16 @@ library
   exposed-modules:
       Data.Ring
     , Data.Semiring
-    , Data.Semiring.Heyting
+    --, Data.Semiring.Kleene
+    , Data.Semilattice
+    --, Data.Semilattice.Heyting
     , Data.Semimodule
     , Data.Semimodule.Free
     , Data.Semimodule.Algebra
-    , Data.Semimodule.Basis
-    , Data.Semimodule.Finite
+    , Data.Semimodule.Transform
+ 
+    , Data.Semigroup.Quantale
+ 
   default-extensions:
       ScopedTypeVariables
     , TypeApplications
@@ -46,6 +50,9 @@ library
     , connections    >= 0.1.0 && < 0.2
     , distributive   >= 0.3   && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
-    , profunctors    >= 5.3   && < 6
     , finite-typelits >= 0.1.4.2 && < 0.2
-    --, groups
+    , groups
+
+    , transformers
+    , universe-base 
+    , profunctors    >= 5.3   && < 6
