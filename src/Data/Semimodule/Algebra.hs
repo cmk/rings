@@ -68,26 +68,26 @@ import qualified Data.Set as Set
 --
 class Semiring a => Algebra a b where
 
-  -- |
-  --
-  -- @
-  -- 'joined' = 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.diagonal' '.' 'uncurry'
-  -- @
-  --
-  joined :: (b -> b -> a) -> b -> a
+    -- |
+    --
+    -- @
+    -- 'joined' = 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.diagonal' '.' 'uncurry'
+    -- @
+    --
+    joined :: (b -> b -> a) -> b -> a
 
 
 -- | A < https://en.wikipedia.org/wiki/Algebra_over_a_field#Unital_algebra unital algebra > over a semiring.
 --
 class Algebra a b => Unital a b where
 
-  -- | Obtain a vector from the unit of a unital algebra.
-  --
-  -- @
-  -- 'unital' = 'Data.Semimodule.Transform.over' 'initial' '.' 'const'
-  -- @
-  --
-  unital :: a -> b -> a
+    -- | Obtain a vector from the unit of a unital algebra.
+    --
+    -- @
+    -- 'unital' = 'Data.Semimodule.Transform.over' 'initial' '.' 'const'
+    -- @
+    --
+    unital :: a -> b -> a
 
 -------------------------------------------------------------------------------
 -- Coalgebras
@@ -98,24 +98,26 @@ class Algebra a b => Unital a b where
 --
 class Semiring a => Coalgebra a c where
 
-  -- |
-  --
-  -- @
-  -- 'cojoined' = 'curry' '.' 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.codiagonal'
-  -- @
-  --
-  cojoined :: (c -> a) -> c -> c -> a
+    -- |
+    --
+    -- @
+    -- 'cojoined' = 'curry' '.' 'Data.Semimodule.Free.over' 'Data.Semimodule.Free.codiagonal'
+    -- @
+    --
+    cojoined :: (c -> a) -> c -> c -> a
   
 
 -- | A counital coalgebra over a semiring.
 --
 class Coalgebra a c => Counital a c where
 
-  -- @
-  -- 'Data.Semimodule.Free.Cov' 'counital' = 'Data.Semimodule.Free.coover' 'Data.Semimodule.Free.coinitial' $ pure '()'
-  -- @
-  --
-  counital :: (c -> a) -> a
+    -- |
+    --
+    -- @
+    -- 'Data.Semimodule.Free.Cov' 'counital' = 'Data.Semimodule.Free.coover' 'Data.Semimodule.Free.coinitial' $ pure '()'
+    -- @
+    --
+    counital :: (c -> a) -> a
 
 -------------------------------------------------------------------------------
 -- Bialgebras
@@ -136,6 +138,7 @@ instance Semiring a => Algebra a () where
 instance Semiring a => Unital a () where
   unital r () = r
 
+--TODO: consider separating out n=3 cross product case
 instance Semiring a => Algebra a (Finite n) where
   joined = M.join
 
@@ -204,7 +207,6 @@ instance Semiring a => Unital a IntSet.IntSet where
 ---------------------------------------------------------------------
 -- Coalgebra instances
 ---------------------------------------------------------------------
-
 
 --instance (Representable f, Algebra a (Rep (Co f))) => Coalgebra a (Co f a) where
 --cojoined k (Co f) (Co g) = k (index f * index g)

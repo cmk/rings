@@ -18,20 +18,18 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:   src
   default-language: Haskell2010
-  ghc-options: -Wall
+  -- ghc-options: -Wall -Werror
 
   exposed-modules:
       Data.Ring
+
     , Data.Semiring
-    --, Data.Semiring.Kleene
-    , Data.Semilattice
-    --, Data.Semilattice.Heyting
+    , Data.Semigroup.Additive
+
     , Data.Semimodule
     , Data.Semimodule.Free
     , Data.Semimodule.Algebra
     , Data.Semimodule.Transform
- 
-    , Data.Semigroup.Quantale
  
   default-extensions:
       ScopedTypeVariables
@@ -51,8 +49,7 @@ library
     , distributive   >= 0.3   && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
     , finite-typelits >= 0.1.4.2 && < 0.2
-    , groups
-
-    , transformers
-    , universe-base 
+    , groups         >= 0.4.1.0 && < 0.5
+    , universe-base  >= 1.1.1 && < 2.0
+    , transformers   >= 0.2   && < 0.6 
     , profunctors    >= 5.3   && < 6

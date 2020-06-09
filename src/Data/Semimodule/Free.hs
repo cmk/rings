@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE Safe                       #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveGeneric              #-}
@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ViewPatterns               #-}
 -- | < https://ncatlab.org/nlab/show/free+module >
 module Data.Semimodule.Free (
   -- * Types
@@ -21,20 +22,22 @@ module Data.Semimodule.Free (
   , type FreeCoalgebra
   , type FreeCounital
   , type FreeBialgebra
-  -- * Vector accessors and constructors
+  -- * Coltor accessors and constructors
   , at
   , unit
   , counit
   , indexed
   , tabulated
-  -- * Vector operations
+  -- * Coltor operations
   , (.*)
   , (*.)
-  , (/.)
-  , (./)
-  , (.*.)
+  , (/^)
+  , (^/)
+  , (!*!)
   , lerp
   , inner
+  , innerR
+  , innerL
   , outer
   , quadrance
   , projectL
@@ -54,86 +57,69 @@ module Data.Semimodule.Free (
   , transform
   , Transform(..)
   -- * Matrix operations
-  , (.#)
-  , (#.)
-  , (.#.)
-  , compl
-  , compr
-  , complr
+  , (!#)
+  , (#!)
+  , (!#!)
+  , lcomp
+  , rcomp
+  , dicomp
   , trace
   , transpose
 ) where
 
-import Control.Arrow
-import Control.Applicative
-import Control.Category (Category, (<<<), (>>>))
-import Control.Monad (MonadPlus(..))
-import Data.Bool
-import Data.Functor.Apply
-import Data.Functor.Product
-import Data.Functor.Compose
-import Data.Functor.Contravariant (Contravariant(..))
-import Data.Functor.Rep hiding (tabulated)
-import Data.Ring
-import Data.Semiring
-import Data.Semimodule
-import Data.Semimodule.Algebra
-import Data.Semimodule.Transform
-import Prelude hiding (Num(..), Fractional(..), init, negate, sum, product)
-import qualified Control.Category as C
-import qualified Control.Monad as M
-import qualified Data.Profunctor.Rep as PR
+import safe Control.Category
+import safe Data.Bool
+import safe Data.Functor.Apply
+import safe Data.Functor.Compose
+import safe Data.Functor.Rep hiding (tabulated)
+import safe Data.Profunctor.Composition (eta)
+import safe Data.Ring
+import safe Data.Semimodule
+import safe Data.Semimodule.Algebra
+import safe Data.Semimodule.Transform
+import safe Prelude hiding (Num(..), Fractional(..), (.), id, init, negate, sum, product)
+import safe qualified Control.Monad as M
 
 -- >>> :set -XDataKinds
--- >>> import Data.Vector.Sized
+-- >>> import Data.Coltor.Sized
 
-infixr 1 ++
 
--- | A direct sum.
---
-type (f ++ g) = Product f g
-
-infixr 2 **
-
--- | A tensor product.
---
-type (f ** g) = Compose f g
 
 type FreeModule a f = (Free f, Bimodule a a (f a))
 
 type FreeSemimodule a f = (Free f, Bisemimodule a a (f a))
 
--- | An algebra over a free module /f/.
+-- | An algebra over a free module /f/^
 --
 -- Note that this is distinct from a < https://en.wikipedia.org/wiki/Free_algebra free algebra >.
 --
 type FreeAlgebra a f = (FreeSemimodule a f, Algebra a (Rep f))
 
--- | A unital algebra over a free semimodule /f/.
+-- | A unital algebra over a free semimodule /f/^
 --
 type FreeUnital a f = (FreeAlgebra a f, Unital a (Rep f))
 
--- | A coalgebra over a free semimodule /f/.
+-- | A coalgebra over a free semimodule /f/^
 --
 type FreeCoalgebra a f = (FreeSemimodule a f, Coalgebra a (Rep f))
 
--- | A counital coalgebra over a free semimodule /f/.
+-- | A counital coalgebra over a free semimodule /f/^
 --
 type FreeCounital a f = (FreeCoalgebra a f, Counital a (Rep f))
 
--- | A bialgebra over a free semimodule /f/.
+-- | A bialgebra over a free semimodule /f/^
 --
 type FreeBialgebra a f = (FreeAlgebra a f, FreeCoalgebra a f, Bialgebra a (Rep f))
 
 -------------------------------------------------------------------------------
--- Vectors & Covectors
+-- Coltors & Rowtors
 -------------------------------------------------------------------------------
 
 -- | Create a unit vector at an index.
 --
 -- >>> i = 4 :: Finite 5
--- >>> at i 1 :: Vector 5 Double
--- Vector [0.0,0.0,0.0,0.0,1.0]
+-- >>> at i 1 :: Coltor 5 Double
+-- Coltor [0.0,0.0,0.0,0.0,1.0]
 -- 
 -- >>> at E21 1 :: V2 Int
 -- V2 1 0
@@ -157,7 +143,7 @@ idx = flip index
 --
 -- When the algebra is trivial this is equal to 'pureRep'.
 --
--- >>> V4 1 2 3 4 .*. unit two :: V4 Int
+-- >>> V4 1 2 3 4 !*! unit two :: V4 Int
 -- V4 2 4 6 8
 --
 unit :: FreeUnital a f => a -> f a
@@ -167,67 +153,67 @@ unit = tabulate . unital
 --
 -- /Note/: for the stock 'Counital' instances (e.g. 'E2', 'Finite', etc) this is summation.
 --
--- >>> x = fromTuple (7, 4) :: Vector 2 Int
+-- >>> x = fromTuple (7, 4) :: Coltor 2 Int
 -- >>> counit x
 -- 11
 -- 
 counit :: FreeCounital a f => f a -> a
 counit = counital . index
 
--- | Obtain a vector from an array of coefficients and a basis.
+-- | Obtain a vector from an etaay of coefficients and a basis.
 --
-indexed :: FreeUnital a f => f a -> Vec a (Rep f)
-indexed = Vec . index
+indexed :: FreeUnital a f => f a -> Col a (Rep f)
+indexed = Col . index
 
--- | Obtain a covector from an array of coefficients and a basis.
+-- | Obtain a covector from an etaay of coefficients and a basis.
 --
--- >>> x = fromTuple (7, 4) :: Vector 2 Int
--- >>> y = fromTuple (1, 2) :: Vector 2 Int
+-- >>> x = fromTuple (7, 4) :: Coltor 2 Int
+-- >>> y = fromTuple (1, 2) :: Coltor 2 Int
 -- >>> tabulated x !* index y :: Int
 -- >>> tabulated (V2 7 4) !* index (V2 1 2) :: Int
 -- 11
 --
-tabulated :: FreeCounital a f => f a -> Covec a (Rep f)
-tabulated f = Covec $ \k -> f `inner` tabulate k
+tabulated :: FreeCounital a f => f a -> Row a (Rep f)
+tabulated f = Row $ \k -> f `inner` tabulate k
 
 -------------------------------------------------------------------------------
--- Vector operations
+-- Coltor operations
 -------------------------------------------------------------------------------
 
-infixr 7 /.
--- | Right-divide a vector by a scalar (on the left).
---
-(/.) :: (Semifield a, Free f) => a -> f a -> f a
-a /. f = (/ a) <$> f
+infixl 7 !*!
 
-infixl 7 ./
--- | Right-divide a vector by a scalar.
---
-(./) :: (Semifield a, Free f) => f a -> a -> f a
-(./) = flip (/.)
-
-infixl 7 .*.
 -- | Multiplication operator on an algebra over a free semimodule.
 --
--- > (.*.) :: Vec a b -> Vec a b -> Vec a b
---
--- >>> E22 & (index $ V2 1 2) .*. (index $ V2 7 4)
+-- >>> E22 & (index $ V2 1 2) !*! (index $ V2 7 4)
 -- 8
 --
--- /Caution/ in general '.*.' needn't be commutative, nor associative.
+-- /Caution/ in general '!*!' needn't be commutative, nor associative.
 --
-(.*.) :: FreeAlgebra a f => f a -> f a -> f a
-(.*.) x y = tabulate $ joined (\i j -> index x i * index y j)
+(!*!) :: FreeAlgebra a f => f a -> f a -> f a
+(!*!) x y = tabulate $ joined (\i j -> index x i * index y j)
 
-infix 6 `inner`
+infix 6 `inner`, `innerL`, `innerR`
+
 -- | Inner product.
 --
--- >>> V3 1 2 3 `inner` V3 1 2 3
--- 14
+-- >>> 1 :+ 2 `inner` 3 :+ 4 
+-- 11
 -- 
+-- See also 'Data.Semimodule.Transform.functional'.
+--
 inner :: FreeCounital a f => f a -> f a -> a
 inner x y = counit $ liftR2 (*) x y
 {-# INLINE inner #-}
+
+-- | Apply a co-vector to a vector from the left.
+--
+innerL :: Free f => Row a (Rep f) -> f a -> a 
+innerL (runRow -> r) = r . index 
+
+-- | Apply a co-vector to a vector from the right.
+--
+innerR :: Free f => f a -> Row a (Rep f) -> a
+innerR = flip innerL
 
 infix 6 `outer`
 -- | Outer product.
@@ -248,13 +234,13 @@ quadrance = M.join inner
 -- | Project onto the left-hand component of a direct sum.
 --
 projectL :: (Free f, Free g) => (f++g) a -> f a
-projectL fg = arr Left !# fg
+projectL fg = eta Left .# fg
 {-# INLINE projectL #-}
 
 -- | Project onto the right-hand component of a direct sum.
 --
 projectR :: (Free f, Free g) => (f++g) a -> g a
-projectR fg = arr Right !# fg
+projectR fg = eta Right .# fg
 {-# INLINE projectR #-}
 
 -------------------------------------------------------------------------------
@@ -263,15 +249,12 @@ projectR fg = arr Right !# fg
 
 -- | Obtain a linear transformation from a matrix.
 --
--- @ ('.#') = ('!#') . 'transform' @
+-- @ ('!#') = ('.#') . 'transform' @
 --
 transform :: (Free f, FreeCounital a g) => (f**g) a -> Transform a (Rep f) (Rep g) 
-transform x = Transform $ \k -> index (x .# tabulate k)
+transform x = Transform $ \k -> index (x !# tabulate k)
 
 -- | Retrieve an element of a matrix.
---
--- >>> idx2 E21 E21 $ m22 1 2 3 4
--- 1
 --
 idx2 :: (Free f, Free g) => Rep f -> Rep g -> (f**g) a -> a
 idx2 i j = idx i . col j
@@ -279,17 +262,11 @@ idx2 i j = idx i . col j
 
 -- | Retrieve a row of a matrix.
 --
--- >>> row E22 $ m23 1 2 3 4 5 6
--- V3 4 5 6
---
 row :: Free f => Rep f -> (f**g) a -> g a
 row i = idx i . getCompose
 {-# INLINE row #-}
 
 -- | Retrieve a column of a matrix.
---
--- >>> idx E22 . col E31 $ m23 1 2 3 4 5 6
--- 4
 --
 col :: (Free f, Free g) => Rep g -> (f**g) a -> f a
 col j = idx j . distributeRep . getCompose
@@ -297,14 +274,11 @@ col j = idx j . distributeRep . getCompose
 
 -- | Obtain a matrix by repeating a row.
 --
--- >>> fromRows (V2 1 2) :: M22 Int
--- V2 (V2 1 2) (V2 1 2)
---
 fromRow :: (Free f, Free g) => g a -> (f**g) a
-fromRow g = arr snd !# g
+fromRow g = eta snd .# g
 {-# INLINE fromRow #-}
 
--- | Obtain a matrix from a collection of fromRows.
+-- | Obtain a matrix from a collection of rows.
 --
 fromRows :: (Free f, Free g) => f (g a) -> (f**g) a
 fromRows = Compose
@@ -312,11 +286,8 @@ fromRows = Compose
 
 -- | Obtain a matrix by repeating a column.
 --
--- >>> fromCols (V2 1 2) :: M22 Int
--- V2 (V2 1 1) (V2 2 2)
---
 fromCol :: (Free f, Free g) => f a -> (f**g) a
-fromCol f = arr fst !# f
+fromCol f = eta fst .# f
 {-# INLINE fromCol #-}
 
 -- | Obtain a matrix from a collection of columns.
@@ -326,37 +297,32 @@ fromCols = transpose . Compose
 
 -- | Obtain a vector from a tensor.
 --
+-- @ 'diag' f = 'diagonal' '.#' f @
+--
 -- When the algebra is trivial we have:
 --
--- @ 'diag' f = 'tabulate' $ 'joined' ('index' . 'index' ('getCompose' f)) @
---
--- >>> diag $ m22 1.0 2.0 3.0 4.0
--- V2 1.0 4.0
+-- @ 'diag' f = 'tabulate' $ 'joined' $ 'index' . 'index' ('getCompose' f) @
 --
 diag :: FreeAlgebra a f => (f**f) a -> f a
-diag f = diagonal !# f
+diag f = diagonal .# f
 
 -- | Obtain a tensor from a vector.
+--
+-- @ 'codiag' f = 'codiagonal' '.#' f @
 --
 -- When the coalgebra is trivial we have:
 --
 -- @ 'codiag' = 'flip' 'bindRep' 'id' '.' 'getCompose' @
 --
 codiag :: FreeCoalgebra a f => f a -> (f**f) a
-codiag f = codiagonal !# f
+codiag f = codiagonal .# f
 
 -- | Obtain a < https://en.wikipedia.org/wiki/Diagonal_matrix#Scalar_matrix scalar matrix > from a scalar.
---
--- >>> scalar 4.0 :: M22 Double
--- Compose (V2 (V2 4.0 0.0) (V2 0.0 4.0))
 --
 scalar :: FreeCoalgebra a f => a -> (f**f) a
 scalar = codiag . pureRep
 
--- | Obtain an identity matrix.
---
--- >>> identity :: M33 Int
--- Compose (V3 (V3 1 0 0) (V3 0 1 0) (V3 0 0 1))
+-- | The identity matrix.
 --
 identity :: FreeCoalgebra a f => (f**f) a
 identity = scalar one
@@ -366,72 +332,33 @@ identity = scalar one
 -- Matrix operators
 -------------------------------------------------------------------------------
 
-infixr 7 .#
+infixr 7 !#
 
 -- | Multiply a matrix on the right by a column vector.
 --
--- @ ('.#') = ('!#') . 'transform' @
+-- @ ('!#') = ('.#') . 'transform' @
 --
--- >>> transform (m23 1 2 3 4 5 6) !# V3 7 8 9 :: V2 Int
--- V2 50 122
--- >>> m23 1 2 3 4 5 6 .# V3 7 8 9 :: V2 Int
--- V2 50 122
--- >>> m22 1 0 0 0 .# m23 1 2 3 4 5 6 .# V3 7 8 9 :: V2 Int
--- V2 50 0
---
-(.#) :: (Free f, FreeCounital a g) => (f**g) a -> g a -> f a
-x .# y = tabulate (\i -> row i x `inner` y)
-{-# INLINE (.#) #-}
+(!#) :: (Free f, FreeCounital a g) => (f**g) a -> g a -> f a
+x !# y = tabulate (\i -> row i x `inner` y)
+{-# INLINE (!#) #-}
 
-infixl 7 #.
+infixl 7 #!
 
 -- | Multiply a matrix on the left by a row vector.
 --
--- >>> V2 1 2 #. m23 3 4 5 6 7 8
--- V3 15 18 21
---
--- >>> V2 1 2 #. m23 3 4 5 6 7 8 #. m32 1 0 0 0 0 0 :: V2 Int
--- V2 15 0
---
-(#.) :: (Free g, FreeCounital a f) => f a -> (f**g) a -> g a
-x #. y = tabulate (\j -> x `inner` col j y)
-{-# INLINE (#.) #-}
+(#!) :: (Free g, FreeCounital a f) => f a -> (f**g) a -> g a
+x #! y = tabulate (\j -> x `inner` col j y)
+{-# INLINE (#!) #-}
 
-infixr 7 .#.
+infixr 7 !#!
 
 -- | Multiply two matrices.
 --
--- >>> m22 1 2 3 4 .#. m22 1 2 3 4 :: M22 Int
--- Compose (V2 (V2 7 10) (V2 15 22))
--- 
--- >>> m23 1 2 3 4 5 6 .#. m32 1 2 3 4 4 5 :: M22 Int
--- Compose (V2 (V2 19 25) (V2 43 58))
---
-(.#.) :: (Free f, Free h, FreeCounital a g) => (f**g) a -> (g**h) a -> (f**h) a
-(.#.) x y = tabulate (\(i,j) -> row i x `inner` col j y)
-{-# INLINE (.#.) #-}
-
--- | Left (post) composition with a linear transformation.
---
-compl :: (Free f1, Free f2, Free g) => Transform a (Rep f1) (Rep f2) -> (f2**g) a -> (f1**g) a
-compl t fg = first t !# fg
-
--- | Right (pre) composition with a linear transformation.
---
-compr :: (Free f, Free g1, Free g2) => Transform a (Rep g1) (Rep g2) -> (f**g2) a -> (f**g1) a
-compr t fg = second t !# fg
-
--- | Left and right composition with a linear transformation.
---
--- @ f *** g !# v = 'compl' f '>>>' 'compr' g @
---
-complr :: (Free f1, Free f2, Free g1, Free g2) => Transform a (Rep f1) (Rep f2) -> Transform a (Rep g1) (Rep g2) -> (f2**g2) a -> (f1**g1) a
-complr t1 t2 fg = (t1 *** t2) !# fg
+(!#!) :: (Free f, Free h, FreeCounital a g) => (f**g) a -> (g**h) a -> (f**h) a
+(!#!) x y = tabulate (\(i,j) -> row i x `inner` col j y)
+{-# INLINE (!#!) #-}
 
 -- | Trace of an endomorphism.
---
--- >>> trace $ m22 1.0 2.0 3.0 4.0
--- 5.0
 --
 trace :: FreeBialgebra a f => (f**f) a -> a
 trace = counit . diag
@@ -439,9 +366,6 @@ trace = counit . diag
 
 -- | Transpose a matrix.
 --
--- >>> transpose $ m23 1 2 3 4 5 6 :: M32 Int
--- V3 (V2 1 4) (V2 2 5) (V2 3 6)
---
 transpose :: (Free f, Free g) => (f**g) a -> (g**f) a
-transpose fg = braid !# fg
+transpose fg = braid .# fg
 {-# INLINE transpose #-}

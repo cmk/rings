@@ -24,13 +24,15 @@ module Data.Semimodule where
   , (.+.)
   , (.-.)
   , lerp
-  , lscaleDef
+  , (*^)
+  , (/^)
   , negateDef
   -- * Right modules
   , type RightModule
   , RightSemimodule(..)
   , (.*)
-  , rscaleDef
+  , (^*)
+  , (^/)
   -- * Bimodules
   , type Bimodule
   , Bisemimodule(..)
@@ -41,53 +43,21 @@ module Data.Semimodule where
 --import safe Data.Functor.Contravariant
 --import safe qualified Data.Functor.Contravariant.Rep as F
 import safe Control.Applicative
-import safe Control.Category (Category, (<<<), (>>>))
+import safe Control.Category ((<<<), (>>>))
 import safe Data.Bool
 import safe Data.Complex
-import safe Data.Fixed
 import safe Data.Functor.Alt
-import safe Data.Functor.Apply
-import safe Data.Functor.Compose
 import safe Data.Functor.Contravariant
-import safe Data.Functor.Identity
-import safe Data.Functor.Product
-import safe Data.Functor.Rep
 import safe Data.Int
-import safe Data.Monoid hiding (Alt(..), Sum(..), Product(..), Commutative(..))
-import safe Data.Profunctor
-import safe Data.Profunctor.Composition
+import safe Data.Monoid hiding (Alt(..), Sum(..), Product(..))
 import safe Data.Ring
 import safe Data.Semiring
-import safe Data.Sequence hiding (reverse,index)
-import safe Data.Tuple (swap)
-import safe Data.Word
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
+import safe Data.Semigroup.Additive
 import safe GHC.Generics (Generic)
 import safe GHC.Real hiding (Fractional(..))
-import safe Numeric.Natural
-import safe Prelude (Ord, reverse)
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
-import safe qualified Control.Category as C
-import safe qualified Data.IntSet as IntSet
-import safe qualified Data.Sequence as Seq
-import safe qualified Data.Set as Set
-import safe qualified Data.Map as Map
-import safe qualified Prelude as P
-import safe qualified Data.Profunctor.Rep as PR
-import Data.Finite (Finite, finites)
-import GHC.TypeNats (KnownNat)
-import Data.Functor.Contravariant (Contravariant(..))
-import Data.Functor.Rep
-import Data.Profunctor
-import Data.Profunctor.Sieve
-import Data.Profunctor.Composition
-
-import Data.Connection
-import Data.Void
-import Data.Foldable (foldl')
-import Data.Group hiding (Abelian)
-
-type Free = Representable
+--import safe qualified Data.Set as Set
+--import safe qualified Data.Map as Map
 
 -------------------------------------------------------------------------------
 -- Left modules
@@ -100,11 +70,10 @@ type LeftModule l a = (Ring l, (Additive-Group) a, LeftSemimodule l a)
 -- All instances must satisfy the following identities:
 -- 
 -- @
--- x '<>' y = y '<>' x
--- 'lscale' s (x '<>' y) = 'lscale' s x '<>' 'lscale' s y
--- 'lscale' (s1 '+' s2) x = 'lscale' s1 x '<>' 'lscale' s2 x
+-- 'lscale' s (x '+' y) = 'lscale' s x '+' 'lscale' s y
+-- 'lscale' (s1 '+' s2) x = 'lscale' s1 x '+' 'lscale' s2 x
 -- 'lscale' (s1 '*' s2) = 'lscale' s1 . 'lscale' s2
--- 'lscale' 'zero' = 'mempty'
+-- 'lscale' 'zero' = 'const' 'zero'
 -- 'lscale' 'one' = 'id'
 -- @
 -- 
@@ -114,12 +83,22 @@ class (Semiring l, (Additive-Monoid) a) => LeftSemimodule l a where
   --
   lscale :: l -> a -> a
 
-infixr 7 *., `lscale`
+infixr 7 *., *^, /^
 
 -- | Left-multiply a module element by a scalar.
 --
 (*.) :: LeftSemimodule l a => l -> a -> a
 (*.) = lscale
+
+-- | Default definition of 'lscale' for a free semimodule.
+--
+(*^) :: (Semiring a, Functor f) => a -> f a -> f a
+(*^) a f = (a *) <$> f
+
+-- | Right-divide a vector by a scalar (on the left).
+--
+(/^) :: (Semifield a, Functor f) => a -> f a -> f a
+a /^ f = (/ a) <$> f
 
 -- | Linearly interpolate between two vectors.
 --
@@ -131,11 +110,6 @@ infixr 7 *., `lscale`
 --
 lerp :: LeftModule r a => r -> a -> a -> a
 lerp r f g = r *. f + (one - r) *. g
-
--- | Default definition of 'lscale' for a free semimodule.
---
-lscaleDef :: Semiring a => Functor f => a -> f a -> f a
-lscaleDef a f = (a *) <$> f
 
 -- | Default negation for a commutative group.
 --
@@ -158,7 +132,7 @@ class (Semiring r, (Additive-Monoid) a) => RightSemimodule r a where
   --
   rscale :: r -> a -> a
 
-infixl 7 .*, `rscale`
+infixl 7 .*, ^*, ^/
 
 -- | Right-multiply a module element by a scalar.
 --
@@ -167,8 +141,13 @@ infixl 7 .*, `rscale`
 
 -- | Default definition of 'rscale' for a free semimodule.
 --
-rscaleDef :: Semiring a => Functor f => a -> f a -> f a
-rscaleDef a f = (* a) <$> f
+(^*) :: (Semiring a, Functor f) => a -> f a -> f a
+(^*) a f = (* a) <$> f
+
+-- | Right-divide a vector by a scalar.
+--
+(^/) :: (Semifield a, Functor f) => f a -> a -> f a
+(^/) = flip (/^)
 
 -------------------------------------------------------------------------------
 -- Bimodules
@@ -253,17 +232,17 @@ instance Semiring a => Bisemimodule a a (Ratio a)
 
 
 instance Ring a => LeftSemimodule a (Complex a) where 
-  lscale = lscaleDef
+  lscale = (*^)
 instance Ring a => RightSemimodule a (Complex a) where 
-  rscale = rscaleDef
+  rscale = (^*)
 instance Ring a => Bisemimodule a a (Complex a)
 
 
-instance LeftSemimodule l a => LeftSemimodule l (Church a) where
+instance LeftSemimodule l a => LeftSemimodule l (Endo2 a) where
   lscale l (Endo f) = Endo $ \e -> Endo $ \a -> lscale l (appEndo (f e) a)
-instance RightSemimodule r a => RightSemimodule r (Church a) where
+instance RightSemimodule r a => RightSemimodule r (Endo2 a) where
   rscale r (Endo f) = Endo $ \e -> Endo $ \a -> rscale r (appEndo (f e) a)
-instance Bisemimodule l r a => Bisemimodule l r (Church a)
+instance Bisemimodule l r a => Bisemimodule l r (Endo2 a)
 
 
 instance LeftSemimodule l a => LeftSemimodule l (i -> a) where
@@ -298,7 +277,7 @@ instance (Bisemimodule l r a, Bisemimodule l r b, Bisemimodule l r c) => Bisemim
 deriving via (Alt [] a) instance LeftSemimodule Natural [a]
 
 instance Semiring a => LeftSemimodule a (Commutative a) where
-  lscale = lscaleDef
+  lscale = (*^)
 
 instance Alternative f => LeftSemimodule Natural (Alt f a) where
   lscale = mreplicate

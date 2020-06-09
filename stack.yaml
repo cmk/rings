@@ -5,4 +5,4 @@ packages:
   - .
 extra-deps:
   - github: cmk/connections
-    commit: 7d799a9a29a4fbf86ebf9f879e7a1df47cf7539d
+    commit: 9046bf35247e469870068b40d2e730c40b14a245
