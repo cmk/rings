@@ -21,16 +21,21 @@ library
   -- ghc-options: -Wall -Werror
 
   exposed-modules:
-      Data.Ring
+      Prelude.Ring
 
+    , Data.Ring
+    , Data.Ring.Syntax
     , Data.Semiring
+    , Data.Semiring.Syntax
     , Data.Semigroup.Additive
 
     , Data.Semimodule
     , Data.Semimodule.Free
     , Data.Semimodule.Algebra
     , Data.Semimodule.Transform
- 
+
+    , Data.Connection.Round
+
   default-extensions:
       ScopedTypeVariables
     , TypeApplications

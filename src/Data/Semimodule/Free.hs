@@ -35,9 +35,7 @@ module Data.Semimodule.Free (
   , (^/)
   , (!*!)
   , lerp
-  , inner
-  , innerR
-  , innerL
+  , dot
   , outer
   , quadrance
   , projectL
@@ -74,6 +72,7 @@ import safe Data.Functor.Compose
 import safe Data.Functor.Rep hiding (tabulated)
 import safe Data.Profunctor.Composition (eta)
 import safe Data.Ring
+import safe Data.Semiring
 import safe Data.Semimodule
 import safe Data.Semimodule.Algebra
 import safe Data.Semimodule.Transform
@@ -174,7 +173,7 @@ indexed = Col . index
 -- 11
 --
 tabulated :: FreeCounital a f => f a -> Row a (Rep f)
-tabulated f = Row $ \k -> f `inner` tabulate k
+tabulated f = Row $ \k -> f `dot` tabulate k
 
 -------------------------------------------------------------------------------
 -- Coltor operations
@@ -192,28 +191,18 @@ infixl 7 !*!
 (!*!) :: FreeAlgebra a f => f a -> f a -> f a
 (!*!) x y = tabulate $ joined (\i j -> index x i * index y j)
 
-infix 6 `inner`, `innerL`, `innerR`
+infix 6 `dot`
 
--- | Inner product.
+-- | Inner (i.e. dot) product.
 --
--- >>> 1 :+ 2 `inner` 3 :+ 4 
+-- >>> 1 :+ 2 `dot` 3 :+ 4 
 -- 11
 -- 
--- See also 'Data.Semimodule.Transform.functional'.
+-- See also 'Data.Semimodule.Transform.inner'.
 --
-inner :: FreeCounital a f => f a -> f a -> a
-inner x y = counit $ liftR2 (*) x y
-{-# INLINE inner #-}
-
--- | Apply a co-vector to a vector from the left.
---
-innerL :: Free f => Row a (Rep f) -> f a -> a 
-innerL (runRow -> r) = r . index 
-
--- | Apply a co-vector to a vector from the right.
---
-innerR :: Free f => f a -> Row a (Rep f) -> a
-innerR = flip innerL
+dot :: FreeCounital a f => f a -> f a -> a
+dot x y = counit $ liftR2 (*) x y
+{-# INLINE dot #-}
 
 infix 6 `outer`
 -- | Outer product.
@@ -228,7 +217,7 @@ outer x y = Compose $ fmap (\z-> fmap (*z) y) x
 -- | Squared /l2/ norm of a vector.
 --
 quadrance :: FreeCounital a f => f a -> a
-quadrance = M.join inner 
+quadrance = M.join dot 
 {-# INLINE quadrance #-}
 
 -- | Project onto the left-hand component of a direct sum.
@@ -339,7 +328,7 @@ infixr 7 !#
 -- @ ('!#') = ('.#') . 'transform' @
 --
 (!#) :: (Free f, FreeCounital a g) => (f**g) a -> g a -> f a
-x !# y = tabulate (\i -> row i x `inner` y)
+x !# y = tabulate (\i -> row i x `dot` y)
 {-# INLINE (!#) #-}
 
 infixl 7 #!
@@ -347,7 +336,7 @@ infixl 7 #!
 -- | Multiply a matrix on the left by a row vector.
 --
 (#!) :: (Free g, FreeCounital a f) => f a -> (f**g) a -> g a
-x #! y = tabulate (\j -> x `inner` col j y)
+x #! y = tabulate (\j -> x `dot` col j y)
 {-# INLINE (#!) #-}
 
 infixr 7 !#!
@@ -355,7 +344,7 @@ infixr 7 !#!
 -- | Multiply two matrices.
 --
 (!#!) :: (Free f, Free h, FreeCounital a g) => (f**g) a -> (g**h) a -> (f**h) a
-(!#!) x y = tabulate (\(i,j) -> row i x `inner` col j y)
+(!#!) x y = tabulate (\(i,j) -> row i x `dot` col j y)
 {-# INLINE (!#!) #-}
 
 -- | Trace of an endomorphism.

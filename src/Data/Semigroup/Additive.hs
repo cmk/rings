@@ -19,6 +19,8 @@
 module Data.Semigroup.Additive (
   -- * Constraint kinds
     type (-)
+  , type (**)
+  , type (++)
   , PresemiringLaw
   , SemiringLaw
   , SemifieldLaw
@@ -52,25 +54,30 @@ module Data.Semigroup.Additive (
   , F2(..)
 ) where
 
-import safe Control.Applicative
+import safe Control.Applicative hiding (empty)
 --import safe Control.Applicative.Lift
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
 import safe Data.Fixed
 import safe Data.Foldable as Foldable (Foldable, foldl',foldMap)
+import safe Data.Functor.Compose
 import safe Data.Functor.Contravariant
 import safe Data.Functor.Identity
+import safe Data.Group
 --import safe Data.Functor.Rep
 import safe Data.Int
+import safe Data.Lattice
 import safe Data.List.NonEmpty
 import safe Data.Maybe
 import safe Data.Monoid hiding (Alt)
 import safe Data.Order
+import safe Data.Order.Interval
 import safe Data.Semigroup
 import safe Data.Semigroup.Join
 import safe Data.Semigroup.Foldable as Foldable1
 import safe Data.Word
+import safe Data.Kind
 import safe GHC.Generics (Generic)
 import safe GHC.Real (Ratio(..), Rational)
 import safe Numeric.Natural
@@ -83,7 +90,19 @@ import safe Data.Map (Map)
 import safe qualified Data.Map as Map
 --import safe qualified Data.Set as Set
 import safe qualified Prelude as P
-import safe Data.Group
+import safe qualified Data.Functor.Product as P
+
+infixr 1 ++
+
+-- | A direct sum.
+--
+type ((f :: Type -> Type) ++ (g :: Type -> Type)) = P.Product f g
+
+infixr 2 **
+
+-- | A tensor product.
+--
+type ((f :: Type -> Type) ** (g :: Type -> Type)) = Compose f g
 
 -------------------------------------------------------------------------------
 -- Laws
@@ -517,7 +536,24 @@ deriving via (F2 Additive Down (Additive a)) instance Monoid (Additive a) => Mon
 deriving via (F2 Multiplicative Down (Multiplicative a)) instance Semigroup (Multiplicative a) => Semigroup (Multiplicative (Down a))
 deriving via (F2 Multiplicative Down (Multiplicative a)) instance Monoid (Multiplicative a) => Monoid (Multiplicative (Down a))
 
--- Min-Plus (Max-Plus) semiring
+instance Lattice a => Semigroup (Additive (Interval a)) where
+  (<>) = liftA2 (\/)
+
+instance Lattice a => Monoid (Additive (Interval a)) where
+  mempty = pure empty
+
+addInterval x y = maybe empty id $ do
+  (x1,x2) <- endpts x
+  (y1,y2) <- endpts y
+  pure $ x1+y1 ... x2+y2
+
+instance (Preorder a, Semigroup (Additive a)) => Semigroup (Multiplicative (Interval a)) where
+  (<>) = liftA2 addInterval
+
+instance (Preorder a, Monoid (Additive a)) => Monoid (Multiplicative (Interval a)) where
+  mempty = pure $ singleton zero
+
+-- Min-Plus / Max-Plus semirings
 {-
 λ> Min 3 + Min 4
 Min {getMin = 3}
@@ -533,7 +569,7 @@ deriving via (F1 Additive (Min a)) instance (P.Ord a, P.Bounded a) => Monoid (Ad
 deriving via (F2 Multiplicative Min (Additive a)) instance Semigroup (Additive a) => Semigroup (Multiplicative (Min a))
 deriving via (F2 Multiplicative Min (Additive a)) instance Monoid (Additive a) => Monoid (Multiplicative (Min a))
 
--- Max-Times (Min-Times) semiring
+-- Max-Times / Min-Times semirings
 {-
 λ> Max 3 + Max 4
 Max {getMax = 4}
@@ -549,11 +585,24 @@ deriving via (F1 Additive (Max a)) instance (P.Ord a, P.Bounded a) => Monoid (Ad
 deriving via (F2 Multiplicative Max (Multiplicative a)) instance Semigroup (Multiplicative a) => Semigroup (Multiplicative (Max a))
 deriving via (F2 Multiplicative Max (Multiplicative a)) instance Monoid (Multiplicative a) => Monoid (Multiplicative (Max a))
 
---deriving via (F1 Additive ((f++g) (Additive a))) instance Semigroup (Additive a) => Semigroup (Additive ((f++g) a))
+-- Join-Plus / Meet-Plus semirings
+deriving via (F1 Additive (Join a)) instance Semigroup (Join a) => Semigroup (Additive (Join a))
+deriving via (F1 Additive (Join a)) instance Monoid (Join a) => Monoid (Additive (Join a))
+deriving via (F2 Multiplicative Join (Additive a)) instance Semigroup (Additive a) => Semigroup (Multiplicative (Join a))
+deriving via (F2 Multiplicative Join (Additive a)) instance Monoid (Additive a) => Monoid (Multiplicative (Join a))
+
+-- Meet-Times / Join-Times semirings
+deriving via (F1 Additive (Meet a)) instance Semigroup (Meet a) => Semigroup (Additive (Meet a))
+deriving via (F1 Additive (Meet a)) instance Monoid (Meet a) => Monoid (Additive (Meet a))
+deriving via (F2 Multiplicative Meet (Multiplicative a)) instance Semigroup (Multiplicative a) => Semigroup (Multiplicative (Meet a))
+deriving via (F2 Multiplicative Meet (Multiplicative a)) instance Monoid (Multiplicative a) => Monoid (Multiplicative (Meet a))
+
+
+--deriving via (F1 Additive ((f++g) a)) instance Semigroup (Additive a) => Semigroup (Additive ((f++g) a))
 --deriving via (F1 Additive (Ap (f++g) (Additive a))) instance (Applicative f, Applicative g, Semigroup (Additive a)) => Semigroup (Additive ((f++g) a)) 
 
 -- the component-wise multiplication semiring. use the semimodule instances and .#. for matrix mult.
---deriving via (F2 Additive (f**g) (Additive a)) instance (Applicative f, Applicative g, Semigroup (Additive a)) => Semigroup (Additive ((f**g) a)) 
+--deriving via (F1 (f**g) (Additive a)) instance (Applicative f, Applicative g, Semigroup (Additive a)) => Semigroup (Additive ((f**g) a)) 
 
 deriving via (F1 Additive (a -> a)) instance Semigroup a => Semigroup (Additive (Endo a))
 deriving via (F1 Additive (a -> a)) instance Monoid a => Monoid (Additive (Endo a))

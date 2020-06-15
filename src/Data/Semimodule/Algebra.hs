@@ -106,7 +106,6 @@ class Semiring a => Coalgebra a c where
     --
     cojoined :: (c -> a) -> c -> c -> a
   
-
 -- | A counital coalgebra over a semiring.
 --
 class Coalgebra a c => Counital a c where

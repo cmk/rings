@@ -15,14 +15,11 @@
 {-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 -- | < https://ncatlab.org/nlab/show/module >
-module Data.Semimodule where
-{- (
+module Data.Semimodule (
   -- * Left modules
     type LeftModule
   , LeftSemimodule(..)
   , (*.)
-  , (.+.)
-  , (.-.)
   , lerp
   , (*^)
   , (/^)
@@ -38,10 +35,6 @@ module Data.Semimodule where
   , Bisemimodule(..)
 ) where
 
--}
-
---import safe Data.Functor.Contravariant
---import safe qualified Data.Functor.Contravariant.Rep as F
 import safe Control.Applicative
 import safe Control.Category ((<<<), (>>>))
 import safe Data.Bool
@@ -56,8 +49,6 @@ import safe Data.Semigroup.Additive
 import safe GHC.Generics (Generic)
 import safe GHC.Real hiding (Fractional(..))
 import safe Prelude hiding (Num(..), Fractional(..), negate, sum, product)
---import safe qualified Data.Set as Set
---import safe qualified Data.Map as Map
 
 -------------------------------------------------------------------------------
 -- Left modules
@@ -204,9 +195,9 @@ instance (Semiring l, Semiring r) => Bisemimodule l r ()
 -- > LeftSemimodule Bool (Predicate a)
 --
 instance Monoid (Additive a) => LeftSemimodule Bool a where
-  lscale b a = bool zero a b
+  lscale l x = bool zero x l
 instance Monoid (Additive a) => RightSemimodule Bool a where
-  rscale b a = bool zero a b
+  rscale r x = bool zero x r
 instance Monoid (Additive a) => Bisemimodule Bool Bool a
 
 

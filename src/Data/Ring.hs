@@ -10,59 +10,37 @@
 module Data.Ring (
   -- * Constraint kinds
     type (-)
-  , PresemiringLaw
-  , SemiringLaw
-  , SemifieldLaw
+  -- ** Laws
   , RingLaw
   , FieldLaw
-  -- * Presemirings 
-  , Presemiring(..)
-  , (+), (*)
-  -- * Semirings 
-  , Semiring(..)
-  , zero, one
-  , fromNatural
-  , type NaturalSemiring
-  , type Natural
-    -- * Rings
+  -- ** Ordered rings
+  , OrderedRing
+  , IntegerRing
+  , OrderedField
+  , RationalField
+  -- * Rings
+  -- ** Rings
   , Ring(..)
   , negate
-  , fromInteger
-  , type IntegerRing
-  , type Integer
-  -- * Semifields
-  , Semifield(..)
-  , recip
-  , fromPositive
-  , type PositiveSemifield
-  , type Positive
-    -- * Fields
+  -- ** Fields
   , Field(..)
-  , fromRational
-  , type RationalField
+  -- * Re-exports
+  , type Integer
   , type Rational
-    -- * Rounding
-  , round
-  , floor
-  , ceiling
-  , truncate
-  , midpoint
-  , half
-  , tied
-  , below
-  , above
 ) where
 
 import safe Control.Applicative
 import safe Data.Bool
---import safe Data.Complex
+import safe Data.Complex
 import safe Data.Connection
 import safe Data.Connection.Type
 import safe Data.Foldable as Foldable (foldl',foldr')
 import safe Data.Functor.Identity
 import safe Data.Int
 import safe Data.Maybe
+import safe Data.Lattice
 import safe Data.Order
+import safe Data.Order.Extended
 import safe Data.Semiring
 import safe Data.Semigroup.Additive
 import safe GHC.Real (Rational)
@@ -70,11 +48,15 @@ import safe Prelude
  ( Eq(..), Ord, Show(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..)
  , id, flip, const, (.), ($), Integer, Float, Double, Ordering(..) )
 
+
 -------------------------------------------------------------------------------
 -- Rings
 -------------------------------------------------------------------------------
 
-type IntegerRing a = (Ring a, Connection Integer a)
+type OrderedRing a = (TotalOrder a, Ring a)
+
+-- | An ordered ring equipped with a Galois connection from the Integers.
+type IntegerRing a = (Connection a (Lifted Integer), OrderedRing a)
 
 -- | A < https://en.wikipedia.org/wiki/Ring_(mathematics) ring >.
 --
@@ -115,7 +97,7 @@ class (Semiring a, RingLaw a) => Ring a where
     --
     -- @ 'abs' x = x '*' 'signum' x @
     --
-    abs :: Preorder a => a -> a
+    abs :: TotalOrder a => a -> a
     abs x = x * signum x
     {-# INLINE abs #-}
 
@@ -123,14 +105,14 @@ class (Semiring a, RingLaw a) => Ring a where
     --
     -- 'signum' satisfies a trichotomy law:
     --
-    -- @ 'signum' r = 'negate' r || 'zero' || r @
+    -- @ 'signum' r = 'negate' 'one' || 'zero' || 'one' @
     -- 
     -- This follows from the fact that ordered rings are abelian, linearly 
     -- ordered groups with respect to addition.
     --
     -- See < https://en.wikipedia.org/wiki/Linearly_ordered_group >.
     --
-    signum :: Preorder a => a -> a
+    signum :: TotalOrder a => a -> a
     signum x = bool (negate one) one $ zero <~ x
     {-# INLINE signum #-}
 
@@ -138,7 +120,12 @@ class (Semiring a, RingLaw a) => Ring a where
 -- Fields
 -------------------------------------------------------------------------------
 
-type RationalField a = (Field a, Triple Rational a)
+-- | An < https://en.wikipedia.org/wiki/Ordered_field ordered field >.
+type OrderedField a = (TotalOrder a, Field a)
+
+-- | A field equipped with a triple adjunction from the rationals.
+type RationalField a = (Triple Rational a, Field a)
+--type RationalField a = (Triple Rational a, OrderedField a)
 
 -- | A < https://en.wikipedia.org/wiki/Field_(mathematics) field >.
 --
@@ -152,109 +139,6 @@ class (Ring a, Semifield a, FieldLaw a) => Field a where
     ninf = negate one / zero
     {-# INLINE ninf #-}
 
--- | A lawful replacement for the version in base.
---
--- >>> fromRational @Float 1.3
--- 1.3
--- >>> fromRational @Float (1 :% 0)
--- Infinity
--- >>> fromRational @Float (0 :% 0)
--- NaN
---
-fromRational :: Triple Rational a => Rational -> a
-fromRational = round
-
----------------------------------------------------------------------
--- Rounding
----------------------------------------------------------------------
-
--- | Return the nearest value to x.
---
--- > round @a @a = id
--- 
--- If x lies halfway between two values, then return the value with the
--- larger absolute value (i.e. round away from zero).
---
---
--- 'round' can be used to build lawful replacements for 'Prelude.round':
---
--- >>> round32 = mapNan (bounded id) . round @Float
--- >>> P.round @Float @Int8 $ 0/0
--- 0
--- >>> round32 @Int8 $ 0/0
--- Nan
--- >>> P.round @Float @Int8 $ 1/0
--- 0
--- >>> round32 @Int8 $ 1/0
--- Def 127
--- >>> P.round @Float @Int8 129
--- -127
--- >>> round32 @Int8 129
--- Def 127
--- >>> P.round @Float @Int8 $ -129
--- 127
--- >>> round32 @Int8 $ -129
--- Def (-128)
--- >>> P.round @Float @Int8 $ -130
--- 126
--- >>> round32 @Int8 $ -130
--- Def (-128)
--- 
-round :: forall a b. (Preorder a, Ring a, Triple a b) => a -> b
-round x =
-  case half (triple @a @b) x of
-    Just GT -> ceiling x -- upper half interval
-    Just LT -> floor x   -- lower half interval
-    _       -> bool (ceiling x) (floor x) $ x <~ zero
-
--- | Truncate towards zero.
---
--- > truncate @a @a = id
---
--- >>> truncate32 = mapNan (bounded id) . truncate @Float
--- >>> truncate32 @Int16 5.4
--- Def 5
--- >>> truncate32 @Int16 (-5.4)
--- Def (-5)
---
-truncate :: (Preorder a, Ring a, Triple a b) => a -> b
-truncate x = bool (ceiling x) (floor x) $ x >~ zero
-
--- | Return the midpoint of the interval containing x.
---
--- >>> midpoint f64f32 P.pi
--- 1.1920928955078125e-7
--- >>> midpoint f64f32 nan
--- NaN
---
-midpoint :: (Preorder a, Field a) => Trip a b -> a -> a
-midpoint t x = (unitl t x - counitr t x) / (one + one)
-
--- | Determine which half of the interval between two representations of /a/ a particular value lies.
--- 
-half :: (Preorder a, Ring a) => Trip a b -> a -> Maybe Ordering
-half t x = pcompare (x - unitl t x) (counitr t x - x) 
-
--- | Determine whether /x/ lies exactly halfway between two representations.
--- 
--- @ 'tied' t x '~~' (x '-' 'unitl' t x) '=~' ('counitr' t x '-' x) @
---
-tied :: (Preorder a, Ring a) => Trip a b -> a -> Bool
-tied t = maybe False (~~ EQ) . half t
-
--- | Determine whether /x/ lies below the halfway point between two representations.
--- 
--- @ 'below' t x '~~' (x '-' 'unitl' t x) '<' ('counitr' t x '-' x) @
---
-below :: (Preorder a, Ring a) => Trip a b -> a -> Bool
-below t = maybe False (~~ LT) . half t
-
--- | Determine whether /x/ lies above the halfway point between two representations.
--- 
--- @ 'above' t x '~~' (x '-' 'unitl' t x) '>' ('counitr' t x '-' x) @
---
-above :: (Preorder a, Ring a) => Trip a b -> a -> Bool
-above t = maybe False (~~ GT) . half t
 
 {-
 deriving via (Ap ((->)a) b) instance Ring b => Ring (a -> b)
@@ -313,5 +197,5 @@ instance Field Rational
 
 instance Ring a => Ring (Identity a) 
 instance Field a => Field (Identity a) 
---instance Ring a => Ring (Complex a)
---instance Field a => Field (Complex a)
+instance Ring a => Ring (Complex a)
+instance Field a => Field (Complex a)

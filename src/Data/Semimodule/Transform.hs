@@ -34,7 +34,7 @@ module Data.Semimodule.Transform (
   , runRow
   , coeffs
   , augment
-  , functional
+  , inner
     -- * Operations
   , (.#), (#.), (.#.)
   , lcomp, rcomp, dicomp 
@@ -63,7 +63,6 @@ import safe Control.Applicative
 import safe Control.Category
 import safe Control.Monad hiding (join)
 import safe Control.Monad.Trans.Cont
-import safe Data.Connection.Quantale
 import safe Data.Finite (Finite, finites)
 import safe Data.Foldable (foldl')
 import safe Data.Functor.Alt
@@ -79,6 +78,8 @@ import safe Data.Profunctor
 import safe Data.Profunctor.Composition
 import safe Data.Profunctor.Sieve
 import safe Data.Ring
+import safe Data.Semigroup.Quantale
+import safe Data.Semigroup.Additive
 import safe Data.Semimodule
 import safe Data.Semimodule.Algebra
 import safe Data.Semiring
@@ -88,22 +89,11 @@ import safe GHC.TypeNats (KnownNat)
 import safe Prelude hiding (Num(..), Fractional(..), Ord(..), Bounded, not, id, (.), (^), init, negate, sum, product)
 import safe qualified Data.Profunctor.Rep as PR
 
+type Free = Representable
+
 -------------------------------------------------------------------------------
 -- Transform
 -------------------------------------------------------------------------------
-infixr 1 ++
-
--- | A direct sum.
---
-type (f ++ g) = Product f g
-
-infixr 2 **
-
--- | A tensor product.
---
-type (f ** g) = Compose f g
-
-type Free = Representable
 
 -- | An unreified transformation between free semimodules indexed with bases /b/ and /c/.
 --
@@ -135,7 +125,7 @@ images f = Transform $ \k -> foldl' (\acc (c, a) -> acc + a * k c) zero . f
 
 -- | 'Transform' is an invariant functor.
 --
--- > invmap Data.Connection.lower Data.Connection.upper :: Connection a1 a2 => Transform a1 b c -> Transform a2 b c
+-- > invmap Data.Connection.left Data.Connection.right :: Connection a1 a2 => Transform a1 b c -> Transform a2 b c
 --
 invmap :: (a1 -> a2) -> (a2 -> a1) -> Transform a1 b c -> Transform a2 b c
 invmap f g (Transform t) = Transform $ \x -> t (x >>> g) >>> f
@@ -219,10 +209,22 @@ augment l = Col $ l .# const one
 
 -- | A (typically linear) functional.
 --
--- See also 'Data.Semimodule.Free.inner'.
+-- See also 'Data.Semimodule.Free.dot'.
 --
-functional :: Row a b -> Col a b -> a
-functional (runRow -> r) (runCol -> c) = r c
+inner :: Row a b -> Col a b -> a
+inner (runRow -> r) (runCol -> c) = r c
+
+{-
+-- | Apply a co-vector to a vector from the left.
+--
+innerL :: Free f => Row a (Rep f) -> f a -> a 
+innerL (runRow -> r) = r . index 
+
+-- | Apply a co-vector to a vector from the right.
+--
+innerR :: Free f => f a -> Row a (Rep f) -> a
+innerR = flip innerL
+-}
 
 -------------------------------------------------------------------------------
 -- Operations
@@ -347,10 +349,10 @@ convolve f g = codiagonal . (f *** g) . diagonal
 -- Arrows
 -------------------------------------------------------------------------------
 
-fork :: b -> (b, b)
+fork :: a -> (a, a)
 fork x = (x, x)
 
-cofork :: Either c c -> c
+cofork :: Either a a -> a
 cofork = either id id
 
 coswap :: Either a b -> Either b a
@@ -548,6 +550,7 @@ instance Sieve (Transform a) (Cont a) where
 instance PR.Representable (Transform a) where
   type Rep (Transform a) = Cont a
   tabulate f = Transform $ \k b -> runCont (f b) k
+
 
 {-
 instance Arrow (Transform a) where
